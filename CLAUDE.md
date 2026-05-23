@@ -5,10 +5,12 @@ directory. It is your orientation document.
 
 ## What this project is
 
-A retail Kalshi quant trading project for a $25-$50 starting bankroll
-(operator: California resident, USC). The mission is to pick ONE
-defensible-positive-EV strategy, validate it out-of-sample, paper-
-trade it, and go live with strict risk controls.
+A retail Kalshi quant trading project with an operator-authorized
+$100 capital ceiling (recommended $25 initial deployment; operator
+can raise toward the ceiling as strategy validates, currently funded
+at $32). Operator: California resident, USC. The mission is to pick
+ONE defensible-positive-EV strategy, validate it out-of-sample,
+paper-trade it, and go live with strict risk controls.
 
 ## Where this project stands
 
@@ -123,9 +125,15 @@ up with all info whenever I start new context window."
   (matches both em-dash U+2014 and en-dash U+2013).
 - **Kill early** rather than ship something broken (operator
   feedback memory `feedback_kill_early.md`).
-- **California jurisdiction.** WA is NOT in scope. Operator is
-  USC student physically in CA most of the year. Kalshi KYC
-  registered with CA address.
+- **California is the operative jurisdiction.** Use CA defaults
+  for any legal/tax/regulatory analysis. WA is not in scope.
+  Operator is a USC student physically in CA most of the year;
+  Kalshi KYC is registered with the CA address. (This is context
+  for analysis, not a constraint on what the bot can trade.)
+- **Capital cap: $100 operator-authorized ceiling.** Recommended
+  initial deployment is $25 per the post-Phase-1 critic. Raising
+  past $100 requires explicit operator authorization plus a code
+  change in `src/kalshi_bot/config.py`.
 
 ## What's reusable
 

@@ -22,8 +22,12 @@ class Settings(BaseSettings):
     )
 
     # Hard safety constants. Pre-trade gate refuses orders that would breach.
-    # Initial Phase 2 cap is $25 per Phase 1 recommendation; absolute ceiling is $50.
-    CAPITAL_CAP_USD: float = Field(default=25.0, ge=0.0, le=50.0)
+    # Operator-authorized capital ceiling is $100; the default value here is
+    # the recommended $25 initial deployment per the post-Phase-1 critic.
+    # The operator can raise the deployed value up to $100 in `.env` once a
+    # strategy validates. Raising past $100 requires explicit operator
+    # authorization AND a bump to the `le=` bound below.
+    CAPITAL_CAP_USD: float = Field(default=25.0, ge=0.0, le=100.0)
     CAPITAL_ABSOLUTE_FLOOR_USD: float = 25.0
     PER_TRADE_USD: float = 2.0
     PER_MARKET_CAP_PCT: float = 0.10

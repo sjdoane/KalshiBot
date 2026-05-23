@@ -182,4 +182,5 @@ favor?"
    (drawdown breakers, kill switch, etc. from the Phase 1 risk
    brief).
 6. Two weeks of paper trading before any live capital.
-7. Live trading at $25 initial cap with $50 absolute ceiling.
+7. Live trading at $25 recommended initial deployment with $100
+   operator-authorized ceiling.

@@ -1,7 +1,8 @@
 # Project Kalshi
 
 A retail quant trading project for the Kalshi prediction market
-($25-$50 initial bankroll, $100 hard ceiling, California operator).
+($25 recommended initial deployment, $100 operator-authorized
+ceiling, California operator).
 
 **Status: Round 2 in progress.** Round 1 (EC-1 KXHIGH weather
 maker-quoting) was tested through Phase 1.6 and killed cleanly at
@@ -11,11 +12,15 @@ strategy-selection across all Kalshi categories. Start at
 
 ## Status
 
-**PROJECT KILLED at Phase 1.6 gate (2026-05-23).** The EC-1 KXHIGH
-weather maker-quoting hypothesis is not viable for a $25-$50 retail
-account on Kalshi in 2026. The methodology lock-in's "no third bite"
-commitment was honored; no live capital was deployed. Engineering
-artifacts retained as a reference implementation.
+**Round 1 KILLED at Phase 1.6 gate (2026-05-23).** The EC-1 KXHIGH
+weather maker-quoting hypothesis is not viable for the
+$25-$100-scale retail account this project targets on Kalshi in
+2026. The methodology lock-in's "no third bite" commitment was
+honored; no live capital was deployed. Engineering artifacts
+retained as a reference implementation.
+
+**Round 2 in progress:** strategy selection across all Kalshi
+categories. Start at [STRATEGY_BRIEF.md](STRATEGY_BRIEF.md).
 
 The honest outcome:
 
@@ -46,12 +51,13 @@ confirms all three. See [research/phase-1.6-results.md](research/phase-1.6-resul
 
 - Host: Windows 11 + WSL2 Ubuntu, RTX 5070 Laptop
 - Python 3.12 managed with uv
-- **$25 initial live cap (not $50)** per post-critic recommendation;
-  absolute ceiling $50; checked as a single constant pre-every-order
+- **$25 recommended initial deployment** per post-Phase-1 critic;
+  **$100 operator-authorized ceiling** (can be raised with explicit
+  operator authorization plus a code change). Enforced as a single
+  constant in `src/kalshi_bot/config.py` pre-every-order
 - Working kill switch is non-negotiable before live trading
 - Two weeks of paper trading before any real capital
-- Operator domiciled in Washington state; physically in California most
-  of the time (CA Kalshi access is being verified)
+- California is the operative jurisdiction (operator confirmed)
 - No em-dashes anywhere: code, README, commits, messages
 
 ## Quick Start

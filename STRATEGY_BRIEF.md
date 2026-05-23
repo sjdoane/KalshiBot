@@ -7,9 +7,9 @@ trying to accomplish?"
 ## Mission
 
 **Pick ONE Kalshi trading strategy with a defensible positive net
-EV for a $25-$50 retail account, validate it through an
-out-of-sample gate, paper-trade it for two weeks, then go live with
-strict risk controls.**
+EV for the operator's authorized $25-$100 retail account, validate
+it through an out-of-sample gate, paper-trade it for two weeks,
+then go live with strict risk controls.**
 
 This is round two of Project Kalshi. The first attempt (EC-1 KXHIGH
 weather maker-quoting) was killed at the Phase 1.6 out-of-sample
@@ -18,8 +18,13 @@ non-viability; the engineering survives intact.
 
 ## Constraints (do not negotiate)
 
-- **Capital cap: $50 absolute, $25 initial.** Enforced in code via
-  `src/kalshi_bot/config.py` (`CAPITAL_CAP_USD`).
+- **Capital cap: $100 operator-authorized ceiling, $25 recommended
+  initial deployment.** Enforced in code via
+  `src/kalshi_bot/config.py` (`CAPITAL_CAP_USD`). The operator can
+  raise the deployed value up to $100 in `.env` once a strategy
+  validates. Going above $100 requires explicit operator
+  authorization. Currently funded: $32 (operator discretion within
+  the cap).
 - **Methodology lock-in.** Pass criteria for any OOS gate are
   decided BEFORE the gate is run. No post-data tuning. If the gate
   fails on a strategy, that strategy ends. No third bite.
