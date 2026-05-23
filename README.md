@@ -1,8 +1,13 @@
 # Project Kalshi
 
-A production-quality algorithmic trading bot for Kalshi (CFTC-regulated US
-prediction market). Goal: validate a real statistical edge, then trade up
-to $100 of real capital autonomously with strict risk controls.
+A retail quant trading project for the Kalshi prediction market
+($25-$50 initial bankroll, $100 hard ceiling, California operator).
+
+**Status: Round 2 in progress.** Round 1 (EC-1 KXHIGH weather
+maker-quoting) was tested through Phase 1.6 and killed cleanly at
+the out-of-sample calibration gate on 2026-05-23. Round 2 is
+strategy-selection across all Kalshi categories. Start at
+[STRATEGY_BRIEF.md](STRATEGY_BRIEF.md).
 
 ## Status
 

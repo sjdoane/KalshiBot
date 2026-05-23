@@ -120,7 +120,7 @@ the full extraction.
 
 ## Pin quotes (from available summaries)
 
-> "Market makers earn twice as much per contract—a puzzle resolved
+> "Market makers earn twice as much per contract - a puzzle resolved
 > by finding that traders systematically overbet YES in markets
 > that predominantly settle NO, generating a behavioral surplus
 > that cross-subsidizes adverse selection."

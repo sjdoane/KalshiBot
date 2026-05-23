@@ -1,0 +1,1050 @@
+pages=45
+
+=== PAGE 1 (1434 chars) ===
+Agreeing to Disagree: The Economics of Betting Exchanges
+Karl Whelan*
+University College Dublin
+January 26, 2026
+Abstract
+Betting exchanges match people to take opposite sides of a bet. We present a model of a betting
+exchange in which participants disagree about outcome probabilities but are, on average, correct.
+Traders maximize subjective expected profits and equilibrium emerges from a simple matching
+process. The model predicts those who post quotes (Makers) will earn higher returns than those
+who accept them (Takers) and that loss rates for Takers will rise as the probability of their accepted
+bet winning falls. Using a large sample of bets on soccer from Betfair Exchange, we implement a
+transaction-level empirical strategy that identifies Maker and Taker sides of each trade. We show
+that pre-match and early in-play behavior aligns closely with the model’s predictions. However,
+as matches progress, behavior shifts: longshot bets generate large, systematic losses even for liq-
+uidity providers, and profits emerge for those who accept offers on favorites.
+Keywords: Betting Exchanges, Bid-Ask Spreads, Betfair, Matching, Thick and Thin Markets
+JEL Classification: D83, G14, G41
+*karl.whelan@ucd.ie. I am grateful to Neil Thomas from Betfair for making the data examined in this paper available
+free of cost. Thanks also to Constantin B ¨urgi and Tadgh Hegarty for comments and to Wilson Tai for research assistance.
+=== PAGE 2 (3407 chars) ===
+2
+1. Introduction
+Over twenty years ago, Steve Levitt (2004) asked why gambling markets are organized so differently
+from financial markets. His puzzle was why betting revolved around bookmakers who set odds,
+rather than participants posting and matching offers the way traders do in stock or futures markets.
+As it happened, just as Levitt was posing this question, an alternative model was emerging: betting
+exchanges where every wager is matched between a backer and a “layer” (someone betting against
+an outcome) with participants able to either post or accept limit orders. In this paper, I develop the
+first formal model of such an exchange and evaluate its predictions using unique transaction-level
+data from Betfair, the world’s largest platform of this kind.
+Betting exchanges provide a natural laboratory for questions central to information economics
+and market microstructure. Their transparency and decentralized design allow analysis of order
+posting versus order acceptance, the role of heterogeneous beliefs and the formation of prices in real
+time. Yet despite having been around for more than twenty years, the rich data they generate have
+been underutilized by researchers. The Betfair data used here record the full order book at one-
+second intervals, letting us identify which side of each trade was taken by the Maker (the participant
+who acts like a market maker by posting a limit offer to be matched) and which by the Taker (the
+participant who accepts the limit offer). This clarity is rarely available in financial market datasets,
+and allows us to test sharp predictions from our model about the behavior of Makers and Takers.
+Betfair shares many features with prediction markets such as the Iowa Electronic Markets which
+have long been studied by economists (Forsythe et al. 1992; Berg, Nelson and Rietz 2008). However,
+in addition to providing order book information, Betfair has a different market microstructure to
+IEM—trades happen via decentralized filling of limit orders—and also levies a commission on win-
+nings. The theoretical contribution of the paper is to develop a model that incorporates these details
+and show how participants with heterogeneous subjective probabilities behave in this environment.
+The central asymmetry on a betting exchange is between Makers and Takers. At any point in
+time, there are two sets of odds available for an outcome: one if you act as a Taker and accept an
+existing offer, and another if you act as a Maker and post your own offer, waiting to be matched.
+For example, you could back an outcome by clicking to accept the best available back odds already
+on the screen, or you could instead post your own offer and invite someone else to take the lay side
+of that bet. The first option guarantees execution but at a less favorable price; the second may yield
+better odds but carries the risk of not being matched.
+Participants therefore face a menu of five possible actions: (i) accept an existing back offer, (ii)
+post a new back offer at better odds, (iii) abstain from betting, (iv) accept an existing lay offer, or (v)
+post a new lay offer at better odds. The logic of the model is that those with the strongest subjective
+beliefs are willing to act as Takers to ensure their bet is placed, while those with somewhat weaker
+beliefs prefer to post better odds as Makers and take the risk of not being matched. Participants with
+=== PAGE 3 (3141 chars) ===
+3
+beliefs close to the population average may find no bet attractive and abstain altogether. In the model
+calibration, I follow the “wisdom of crowds” assumption that this average belief corresponds to the
+true probability, though that is not required for the structure of the model.
+Equilibrium odds emerge from the interaction of these choices: the share of participants selecting
+each of the five actions must be consistent with the matching probabilities that make those choices
+worthwhile. Despite its parsimonious structure, the model generates a rich set of implications, in-
+cluding the possibility of multiple equilibria. In thick-market equilibria, match rates are high, bid–ask
+spreads are narrow and more offers are attractive enough for Takers to accept. In thin-market equi-
+libria, low match rates lead Makers to demand wider spreads to justify posting, producing more
+execution risk and less liquidity.
+As you would expect, Takers’ willingness to accept lower odds means that they underperform
+Makers. But the model makes more specific predictions. The marginal Taker is more over-optimistic
+relative to their true win probability than the marginal Maker. This means Takers bet at odds that
+imply a proportional disadvantage. Because disagreement is specified as a fixed gap in beliefs, this
+proportional disadvantage implies Taker losses grow nonlinearly as their objective win probability
+falls, while Makers earn their highest returns when betting on longshots, where even a modest mis-
+pricing on the other side of the bet gives them a large proportional edge.
+The empirical contribution of the paper is to exploit Betfair’s unusually rich transaction-level
+data. Our dataset covers over 200,000 soccer matches between 2022 and 2024, recording the full
+order book at one-second intervals and the complete set of matched trades. By comparing trades to
+the offers available at the time, we can infer with high confidence which trades were made by Makers
+and which by Takers. This feature, not usually available in financial datasets, allows us to provide
+rare large-scale evidence on returns to Makers and Takers in financial transactions.
+The data support the main predictions of the model. For bets placed before kick-off or early in the
+first half, Takers lose more heavily on longshots while Makers perform close to break-even for most
+bets, as predicted. The losses for Takers increase nonlinearly as the win probability falls, and we also
+find evidence of positive returns for Makers when laying favorites. During the matches, however, a
+striking anomaly emerges: Longshot bets perform ever more poorly as the match progresses, with
+Makers also recording losses. This pattern is consistent with the “Yogi Berra effect” described by
+Page (2012), whereby traders overestimate the likelihood of late-game comebacks.
+The remainder of the paper is structured as follows. Section 2 reviews the relevant literature.
+Section 3 describes the institutional details of Betfair. Section 4 sets out the model, and Section 5
+illustrates its predictions. Section 6 describes the data, while Section 7 presents the empirical results.
+=== PAGE 4 (2887 chars) ===
+4
+2. Previous Literature
+This paper builds on previous work on prediction markets as well as a few papers that have analyzed
+the behavior of odds on Betfair Exchange.
+2.1. Prediction Markets
+Betting exchanges exist because of the Internet but their first forerunners, prediction markets that
+matched people up to take either side of wagers on events, predated the Internet. Forsythe et al.
+(1992) reported that the Iowa Presidential Stock Market, which operated on a computer network
+at the University of Iowa, yielded predictions of the vote shares in the 1988 US presidential election
+that outperformed polls. Subsequent research on what became known as the Iowa Electronic Markets
+(IEM), such as Berg, Nelson and Rietz (2008) and Berg and Rietz (2019), further reported impressive
+findings on its predictive accuracy. Wolfers and Zitzewitz (2004) reported similarly strong predictive
+power for several other prediction markets.
+The theoretical literature on prediction markets has largely focused on whether it is reasonable
+to interpret a prediction market price as an unbiased estimate of the public’s average belief about
+the probability of an event happening. Manski (2006) presented a simple model with risk-neutral
+investors who invested all their wealth in their preferred contract and showed that prediction market
+prices could deviate substantially from the average belief of the participants. Key contributions by
+Gjerstad (2004) and Wolfers and Zitzewitz (2006) showed that if agents set the size of their trading
+positions by maximizing log utility (thus investing according to the well-known Kelly criterion) and
+the distribution of beliefs about a probability in the population were symmetric, then the price that
+equated demand and supply on either side of a contract was the average belief of participants. He
+and Treich (2017) showed that this result does not apply for any other CRRA utility functions.
+Modeled on the IEM, these papers all assumed there was a single price set to equate supply and
+demand from limit orders on both sides of a contract but this is not how prices are set on Betfair. In
+addition, they did not incorporate commission fees charged by the operator. Two more recent papers
+that introduce this element are Whelan (2023), which adapted the log utility model and showed the
+incidence of the commission tends to fall on those who decide to back longshot options and B ¨urgi,
+Deng and Whelan (2025), who present a model in which informed traders post offers and unin-
+formed traders accept them to explain prices on the Kalshi prediction market which began trading
+in 2021. Our model differs from both of these—we keep bet size at one rather than endogenizing it
+via utility maximization and we treat Makers and Takers symmetrically. We will discuss later why
+these modeling decisions suit our goal of explaining how the Betfair Exchange works.
+=== PAGE 5 (2058 chars) ===
+5
+2.2. Betfair
+Unlike bookmakers, Betfair has always been transparent about how its business operates and has
+made historical transaction-level data available, albeit users largely have to pay for access. Re-
+searchers have found Betfair’s odds to be accurate predictors of outcomes. In an early contribution,
+Smith, Paton and Vaughan Williams (2006) compared bookmakers’ odds for 799 races with odds
+available on Betfair and showed that, unlike the bookmakers’ odds, the average odds on Betfair did
+not display a favorite-longshot bias. Franck, Verbeek and N ¨uesch (2010) examined 5,478 matches
+across Europe’s highest-profile soccer leagues and found that the implicit forecasts of match out-
+comes in Betfair’s odds were more accurate than those from bookmakers. One partial exception is
+Angelini, de Angelis and Singleton (2022) who use a sample of pre-play odds from 1,004 English Pre-
+mier League matches. They conclude that pre-play odds are slightly biased, with the probability of
+favorites winning being somewhat over-stated. With a much larger sample of over 200,000 matches,
+we do not find evidence of bias, so this result may have stemmed from using a relatively small or
+unrepresentative sample.
+Betfair provides comprehensive historical data files for each match, including a full recording of
+all trades that take place both before and during matches. Croxson and Reade (2013) used this data
+to study 160 matches that had goals just before half-time and analyzed the market’s reaction. They
+found that the reaction of the Betfair odds to the goals was efficient, with no possibility of making
+profits by reacting to the new information during half-time. In contrast, Angelini, de Angelis and
+Singleton (2022) report that in-play Betfair odds appear to over-estimate the decisiveness of a first
+goal when it is scored by a favorite team and under-estimate it when it is scored by a longshot team.
+We will add to this literature by demonstrating some significant inefficiencies in real-time trading on
+soccer on Betfair during the second half.
+=== PAGE 6 (3221 chars) ===
+6
+3. How Betting Exchanges Work
+Many readers will be familiar with betting websites where you can pick an event, select the outcome
+you are backing and decide how much to place on it. Relative to these sites, betting exchanges can
+seem a bit complicated. Here, we will explain how they work, illustrating via Betfair’s web interface
+and the various decisions it allows. Figure 1 reproduces an example of data for a soccer match played
+between Germany and Italy in March 2025.
+The simplest thing that you can do on the Betfair Exchange site is treat it as you would a regular
+bookmaker’s site. You can click on the blue buttons and choose to back Germany at decimal odds
+of 1.93 (meaning you are risking £1 to potentially get back £1.93, so your profit would be £0.93).
+You can back Italy at odds of 4.3 and the draw at odds of 3.9. But another option is available that
+bookmakers generally do not offer. You can choose to place a “lay” bet that will pay off if the event
+does not happen. Betfair quotes the odds for lay bets from the perspective of the backer. So you can
+lay Italy at odds of 4.4. This means you will win £1 if Italy lose but will have to pay out £4.4 if Italy
+win (meaning a loss of £3.4 because the first pound they get back is the one they staked).1
+Suppose Jim has made a £1 bet backing Italy at 4.3 by clicking on the blue button. And suppose
+Tom has accepted the offer to take the opposite side of a £1 back bet on Italy at 4.4 by clicking on the
+pink button. You might imagine that Betfair acts as an intermediary between Jim and Tom, taking £1
+from Jim to back Italy and £3.4 from Tom (the exposure on his lay bet). Then, if Italy wins, Betfair
+could give £4.3 back to Jim, keeping £0.1 in profit.
+But this is not how Betfair works. Betfair does not act as an intermediary between those who click
+on blue to back and those who click on pink to lay. These are separate transactions. Instead, every
+customer that backs an option is matched up with another customer that has chosen to take the lay
+bet.
+So, to continue with names to be concrete, Betfair has matched Jim up with Alice, who offered
+the back bet at £4.3. It takes £1 from Jim and £3.3 from Alice and holds the combined funds awaiting
+the outcome of the game. If Italy wins, Jim gets paid the £4.3 in funds that Betfair has held, making
+a profit of £3.3. If Italy do not win, Alice gets paid the £4.3, making a profit of £1. Similarly, Betfair
+has matched up Tom with Mary, who offered the lay bet at £4.4. Betfair takes £1 from Mary and £3.4
+from Tom, paying out £4.4 to Mary if Italy win and paying it to Tom if they don’t.
+This structure means that Betfair does not earn money from the bid-ask spread between lay and
+back odds. Instead, they earn revenue from taking a percentage commission on winnings. In recent
+years, this commission rate has typically been 2%.
+While not obvious on first viewing of the Betfair site, the way to act as a Maker via the web
+interface is to click on the side you want but rather than accepting the odds available, you toggle the
+1Betfair allows you to scale your bet by the size of your liability, so in this case, you could risk £1 if Italy win, in order
+to win £ 1
+3.4 =£ 0.294 if they do not win.
+=== PAGE 7 (2921 chars) ===
+7
+odds button to request a different number. For example, Figure 2 illustrates what happens when you
+click on the blue button to back Germany. If you want better odds for your back bet, you click on this
+button and toggle the 1.93 upwards to seek better odds. 2 If you have made the best offer available
+for Lay bettors, then your new offer will show up on the pink button.
+Another difference from traditional betting sites is that bookmakers quote odds but don’t indicate
+any limits on the quantities you can bet.3 On Betfair, the numbers under the odds indicate how much
+money Makers are willing to accept from Takers at this price. From this, you can see how supply and
+demand can automatically drive odds. For example, if someone places a bet of £135 on Italy at 4.3
+(a relatively small amount considering total volume thus far is £70,807) then those offers are gone
+and 4.2 will move up to be the best available back odds in the blue window. With these as the odds
+available for Takers on Italy, a Maker may now decide to seek 4.3 to back Italy by offering this as a
+lay bet that would show up in the pink window. The additional demand to back Italy has moved
+both back and lay odds downwards.
+Betfair also displays the “overround” associated with the back and lay odds. This is the sum of
+the inverses of the decimal odds on each of the options. Hegarty and Whelan (2024) show that if
+odds were what Thaler and Ziemba (1988) termed strongly efficient, meaning each bet had the same
+expected payout, then this average payout equals the inverse of the overround. If Betfair’s average
+odds are unbiased predictors of outcomes—and we show later that this is true—then the overround
+summarizes the expected profits for Makers and the corresponding expected losses for Takers.
+In this example, the overround for accepting back offers is 100.7 percent, implying people who
+accept these offers will have an expected loss rate of 0.7%. The overround for accepting lay offers is
+99%, implying the people who make lay offers will have an expected profit of 1% on average. These
+are typical values on the exchange, with high-profile games tending to have back overrounds of about
+101% and lay overrounds typically being about 99%. These figures provide a clear suggestion that
+Takers who accept the offers in the blue and pink buttons will tend to lose money while Makers will
+tend to earn profits (at least before factoring in commission). Our model will confirm this intuition
+but it will also explain why some people choose to be Takers and some choose to be Makers.
+2In practice, a huge amount of trading on Betfair occurs away from the web interface in the form of automated trading
+via bots that place orders and bets via Betfair’s API.
+3This is not to say that these limits don’t exist. Retail bookmakers impose stake limits but they tend to be personalized
+based on betting history and may vary across different events.
+=== PAGE 8 (79 chars) ===
+8
+Figure 1: How Betfair Presents Germany vs Italy
+Figure 2: Betting on Germany
+
+=== PAGE 9 (3125 chars) ===
+9
+4. Model
+Here, we present our model and discuss its predictions of multiple equilibria.
+4.1. Assumptions
+There is an outcome of an event that will either happen or not happen. For clarity, let’s say the
+outcome is Chelsea winning a soccer match. Participants differ in their beliefs about the probability
+of Chelsea winning, with each person having their own subjective value of this probabilityp and the
+cumulative distribution function of beliefs beingF (p). The average value of p among the population
+is q. In simulating the returns to participants later, we will follow Ali (1977) and Hegarty and Whelan
+(2025) in making the “wisdom of crowds” assumption that q is the true probability, so the public are
+on average correct in their beliefs, but this assumption is not needed to solve the model.
+The agents in the model take actions to maximise their subjective expected profit. They are ra-
+tional in the sense of Savage’s (1954) formulation of expected utility theory in which “ probability
+measures the confidence that a particular individual has in the truth of a particular proposition. ” Savage
+noted his assumptions implied “that the individual concerned is in some way “reasonable” but they do not
+deny the possibility that two reasonable individuals faced with the same evidence may have different degrees of
+confidence in the truth of the same proposition.”
+Those wishing to back Chelsea could choose to be a Taker and accept an available offer of DB
+that has come from people betting against Chelsea. Similarly, those wishing to bet against Chelsea
+can accept the available offer from those who want to back Chelsea at odds of DL. Picking either
+of these two options guarantees you have a matched bet. Alternatively, someone could choose to
+back Chelsea by being a Maker and thus seeking odds of DL with this offer having a probability
+θB of being matched. Similarly, someone could choose to act as a Maker betting against Chelsea by
+offering odds of DB with this offer having a probability θL of being matched.
+Matching on the exchange is randomly assigned so the probability of being matched is the ratio
+of people willing to accept offers to those seeking to get them accepted (i.e. the ratio of Takers to
+Makers). The exchange charges a fee rate of τ on winnings. All back bet sizes are normalized to one.
+The assumption of an exogenous bet size is common in theoretical models of sports betting (see,
+for example, Shin, 1991, Ottaviani and Sørensen, 2010 and Hegarty and Whelan, 2025). In contrast,
+the literature on prediction markets more commonly uses an endogenous bet size, generally set in
+accordance with the Kelly criterion implied by log utility. We don’t use this approach here for a few
+reasons. The first is realism. The Kelly criterion generally recommends a more aggressive betting
+strategy than people are comfortable with in the real world, often recommending people stake large
+fractions of their wealth on bets in which they believe they have a modest edge. In practice, average
+bet sizes on Betfair are small. Based on the figures quoted earlier from their annual report, the average
+=== PAGE 10 (2550 chars) ===
+10
+back bet size in 2024 was about £13. 4 So it seems unsatisfactory to apply a model in which people
+will bet ever-larger fractions of their wealth on bets as their confidence in their edge increases when
+there is little evidence that this fits with the market we are modeling. The second issue is technical.
+The model below, while simple to derive, is highly nonlinear. My attempts to extend it to include
+endogenous bet size produced a model that I could not get solutions for despite using a range of
+different nonlinear solver methods.
+4.2. Solution
+Let’s first consider the possibility of placing a bet on Chelsea to win. In deciding whether to back
+Chelsea, people have three options: accept the odds DB that have been offered to back Chelsea, seek
+better odds of DL while knowing there is a probability 1 − θB they will not get matched or choose
+not to back Chelsea at all. There will be two threshold levels of p that determine which of these three
+decisions they pick.
+Consider first the decision to either accept odds of DB or seek to back at DL. The expected profit
+after commission from accepting will exceed that from seeking if
+p (DB − 1) (1 − τ) − (1 − p) > θ B [p (DL − 1) (1 − τ) − (1 − p)] (1)
+This requires
+p > 1 − θB
+[(1 − τ) ((DB − 1) − θB (DL − 1)) + 1 − θB] = pB
+t (2)
+Those with p > p B
+t have strong enough beliefs in Chelsea winning that they are willing to accept the
+lower odds of DB in order to definitely get their bet placed. Those withp < p B
+t think the expected re-
+turn from seeking the better odds ofDL is higher than accepting DB, even if they will not necessarily
+be matched.
+Those with p < p B
+t also have the option of not seeking to back Chelsea. They will pick this option
+if they believe that the bet has a negative expected profit even at the higher odds of DL. In other
+words, people will not believe backing Chelsea at DL is profitable if
+p (DL − 1) (1 − τ) − (1 − p) < 0 (3)
+This is satisfied if
+p < 1
+τ + (1 − τ) DL
+= pB
+n (4)
+For most of the parameter values we used in our calculations, these threshold rules generate three
+4In a study of the bwin betting platform, Nelson et al. (2021) reported an average bet size of €18 and a median bet size
+of €6. This average is similar to the figure I have derived here from Betfair’s report. The gap between mean and median
+also explains why £13 may seem higher than the typical bet we assume most punters place. Nelson et al. report that their
+average is driven upwards by the presence of a smaller number of bettors that have much larger average bet sizes.
+=== PAGE 11 (2028 chars) ===
+11
+clear regions among those with p ≥ q. Those with p ≥ pB
+t accept the offer of odds at DB; those with
+pB
+n ≤ p < p B
+t choose to seek to back Chelsea at odds of DL; those with pB
+n < p ≤ q choose to not back
+Chelsea.
+Similar considerations show that someone will prefer to accept the offer to lay Chelsea at DL
+rather than to seek to lay them at DB if
+(1 − p) (1 − τ) − p (DL − 1) > θ L [(1 − p) (1 − τ) − p (DB − 1)] (5)
+This is satisfied if
+p < (1 − τ)(1 − θL)
+DL − θLDB + τ (1 − θL) = pL
+t (6)
+And the expected profit from seeking to lay Chelsea at DB is negative if
+(1 − p) (1 − τ) − p (DB − 1) < 0 (7)
+This is satisfied if
+p > 1 − τ
+DB − τ = pL
+n (8)
+The typical outcome of this set of decisions is that people take one of five actions: Accept an offer
+to back Chelsea at DB, seek to back Chelsea at DL, do nothing, seek to lay Chelsea at DB, accept an
+offer to lay Chelsea at DL.
+The model is completed by specifying the matching conditions that determine θB and θL. The
+mass of agents who choose to seek odds of DL to back Chelsea is F (pB
+t ) − F (pB
+n ) while the mass of
+agents on the lay side willing to take the other side of this bet is F (pL
+t ). Thus, the matching rate for
+those seeking to back at better odds is given by
+θB = F (pB
+t ) − F (pB
+n )
+F (pL
+t ) . (9)
+And by the same logic, the matching condition for those seeking to lay at better odds is
+θL = F (pL
+n) − F (pL
+t )
+1 − F (pB
+t ) (10)
+Two special cases are worth noting. First, if the commission rate is high, it is possible that at
+some or all of the thresholds, the expected returns on each option are negative and so the optimal
+decision for people with these threshold beliefs is to do nothing. In that case, the formulas used here
+for numbers of seekers and acceptors would be wrong. In practice, none of the calibrations of the
+model shown in this paper have this feature. Second, it is possible for the thresholds to overlap so
+that pB
+n > p L
+n. In this case, there is a fraction of participants with beliefs close to q who act as “market
+=== PAGE 12 (2691 chars) ===
+12
+makers” offering both back and lay odds because they believe they can earn money from the spread
+between the two sets of odds. This behavior does feature in some of our model calibrations.
+4.3. Multiple Equilibria
+The model can be summarized by six equations: four equations defining the various cut-off thresh-
+olds (equations 2, 4, 6, 8) and two equations defining the matching rates (equations 9 and 10). How-
+ever, the model has eight endogenous variables: the four thresholds, the two odds, and the two
+matching rates. This implies the possibility of multiple equilibria.
+In particular, the model contains both thick and thin market equilibria. One way to frame this is
+in terms of the “spread” in odds relative to the breakeven odds for betting on Chelsea to win, which
+is 1
+q :
+DB = 1
+q − xB (11)
+DL = 1
+q + xL (12)
+We refer to equilibria as thick when the matching probabilities ( θB and θL) are high, and thin when
+they are low. In thick equilibria, Makers are more confident that their offers will be matched, so the
+gap in odds required to justify making an offer is smaller. This allows for narrower spreads. By
+contrast, in thin market equilibria, the lower likelihood of being matched needs to be offset by more
+favorable odds for Makers, resulting in wider spreads.
+Importantly, thickness in this model is not defined by the number of people willing to participate
+ex ante, but by the realized volume of matched bets. As matching rates increase and bid-ask spreads
+fall, the range of beliefs for which it is optimal to act as a Maker narrows, leading fewer participants
+with middling beliefs to submit offers. So, as matching rates rise, the number of people choosing to
+participate actually falls. However, the lower bid-ask spread associated with the higher matching
+rate means that some people with beliefs further away from q switch from being Makers to Takers.
+Since it is the total amount of Takers that determines how many bets are matched, this means that
+higher matching rates are associated with greater trading volume. In this way, the thicker market
+equilibria do not reflect greater willingness to participate but rather the market’s overall ability to
+facilitate matched trades.
+The coexistence of thick and thin equilibria is a common feature in models involving search and
+matching, with Diamond (1982) providing a foundational example. Similar forms of multiplicity
+arise in contexts such as urban economics (Gautier and Teulings, 2009) and marriage markets (Bur-
+dett and Coles, 1997). A common feature our model shares with these other examples is that the
+attractiveness of the decision to search depends on how many others are making similar decisions.
+=== PAGE 13 (2794 chars) ===
+13
+What is unusual here, though, is that the markets with the highest volumes of transactions feature
+fewer people participating (via choosing to be either Makers or Takers).
+In what follows, we treat the matching probabilities θB and θL as exogenous, and choose values
+that generate bid-ask spreads similar to those observed on the Betfair exchange. An equilibrium in
+the model is defined as a set of odds and thresholds such that individual decisions defined by the
+thresholds are consistent with both the odds and the exogenously-specified match rates.
+One clear example of how multiple equilibria may operate in practice comes from the current
+structure of betting exchange markets. Betfair has about 90% of the volume, with the rest divided
+among competitors such as Betdaq, Smarkets, and Matchbook. These competitors offer the same
+kind of service but have much lower volumes, fewer markets, and typically wider bid-ask spreads.
+Anecdotal evidence suggests that many of the larger providers of liquidity to Betfair value its narrow
+spreads, broader market selection, high match rates, and the ability to place large bets without mate-
+rially shifting prices — even though better odds might occasionally be available elsewhere. 5 Betfair
+also levies a significant charge on highly profitable users — 20% of net profits above £25,000 in a
+year, rising to 40% above £100,000 — whereas its competitors do not have such charges. That many
+successful gamblers continue to use Betfair despite these charges underscores the value they place
+on its higher liquidity and lower execution frictions.
+5. Model Solutions
+We will now discuss how the model was solved and illustrate the multiple equilibria, showing the
+properties of equilibria with high and low match rates and outlining how the typical bid-ask spreads
+on Betfair Exchange suggest it is a market with relatively high match rates.
+5.1. Solution Methods
+Due to the extreme nonlinearity of the model, even with six equations in six unknowns once we
+specify exogenous values for θB and θL, we are not guaranteed either that there is an equilibrium or
+that any calculated equilibrium is unique. To solve the model, I used two different nonlinear solution
+techniques in Matlab, fsolve and lsqnonlin. The details of these methods are described in an
+appendix. Despite their differing numerical approaches— fsolve is a root-finding algorithm while
+lsqnonlin is a norm minimization technique—both methods converged to the same solutions for
+this model, which increases confidence that the equilibria we are calculating (conditional on specified
+values for θB and θL) are unique.
+5See, for example, the discussion here on a betting discussion board: https://arbusers.com/betfair-vs-smarkets-a-com
+prehensive-comparison-of-betting-exchanges-t10136
+=== PAGE 14 (2769 chars) ===
+14
+5.2. Illustrating the Multiple Equilibria
+We start by illustrating the model’s multiple equilibria and the properties of thick versus thin mar-
+kets. We formulate disagreement among the participants so that the cross-sectional distribution of
+their beliefs is a Normal distribution N
+ 
+q, σ2
+centred on the true probability. We set the standard
+deviation as σ = 0.03, which implies a relatively small amount of disagreement: 90% of participants
+have beliefs within 0.05 of q. We choose this value forσ because it combines with the Betfair commis-
+sion rate of τ = 0.02 to give predictions that most closely match the data. In particular, other values
+of σ produces unrealistically narrow or wide spreads.
+Figure 3 shows the bid-ask spread, DL − DB for different values of θ = θY = θN in a market with
+no commission (τ = 0), looking at true probabilities ranging from q = 0.05 to q = 0.95.6 As expected,
+spreads rise as the matching rates fall and the market moves from thick to thin. For each value of the
+matching rate, spreads rise nonlinearly as q falls. While the model generates values for DB that are
+lower than 1
+q and values for DL that are higher than 1
+q , the average of these are generally extremely
+close to 1
+q .
+Other differences between the thick and thin market equilibria are illustrated in Figures 4 and
+5. Figure 4 shows the fraction of participants that choose to neither accept offers or make them. As
+noted above, slightly paradoxically, asθ rises so the market becomes “thicker,” the fraction of people
+who decide not to participate increases. In the thin market case of θ = 0 .6, everybody decides to
+participate and, as described above, those with beliefs close to q seek to act like traditional dual-
+sided market makers, making both back and lay offers, hoping to get matched and make profits off
+the high bid-ask spread. In contrast, whenθ = 0.8, we get larger numbers choosing not to participate,
+particularly if the true value of q is close to 0.5. Figure 5 shows the total fraction of participants who
+participate in a matched trade for different values of θ.7 The lower spreads associated with the
+higher match rates push additional people into being Takers, so the equilibria with higher match
+rates generate more trades.
+6For some of the more extreme values ofq available, this will mean some fraction of participants would have subjective
+probabilities below zero or above one. This doesn’t cause us any problems. We use these probabilities to assign decisions
+to people and it is clear which decisions those with these extreme beliefs will make. They will act the same as those with
+beliefs close to zero or close to one.
+7The figures in this chart make an adjustment to not double count those who make both Back and Lay offers.
+=== PAGE 15 (107 chars) ===
+15
+Figure 3: Bid-ask spreads (DL − DB) for τ = 0, σ = 0.03 and for various values of q and of
+θ = θB = θL.
+
+=== PAGE 16 (134 chars) ===
+16
+Figure 4: Share who choose to be neither seek or accept offers for τ = 0, σ = 0.03 and for various
+values of q and of θ = θB = θL.
+
+=== PAGE 17 (119 chars) ===
+17
+Figure 5: Share of participants who are matched for τ = 0, σ = 0.03 and for various values of q and
+of θ = θB = θL.
+
+=== PAGE 18 (2431 chars) ===
+18
+5.3. Match Rates and Returns
+An important feature of the model is that bid-ask spreads rise faster than 1/q as q falls. This has
+an impact on the average rates of return. For example, a Taker who places a one unit back bet on
+Chelsea at odds of DB will have an average rate of return of
+rT B = q (DB − 1) (1 − τ) − (1 − q) = q [DB (1 − τ) + τ] − 1 (13)
+so returns are driven by the product qDB.
+The model output shows that as q falls, DB rises but by not as much. This means Takers’ returns
+on back bets get worse as their bet becomes more a longshot. The same result applies for Takers
+accepting lay bets on Chelsea at odds of DL, with returns getting worse as 1 − q falls, so laying
+Chelsea becomes the longshot bet. The opposite pattern applies to Makers. They make money from
+bid-ask spreads, so Makers will earn higher profits from getting their longshot bets accepted because
+of the wider spreads associated with these bets.
+What are the economic forces underlying these patterns? That Makers have a better average
+financial outcome than Takers is, of course, true by design. When they get matched, they do so
+at superior odds to Takers. But the specific patterns of returns relative to the probability of a bet’s
+success are driven by the subtleties of our disagreement model. To see this, define a breakeven win
+rate for a bet as the inverse of its decimal odds. If I take a back bet at odds of DB, then I need to win
+a fraction pB = 1
+D B of the time to break even. The term that drives returns for this bet can thus be
+re-expressed as
+qDB = q
+pB
+(14)
+so returns are driven by the ratio of the win rate to the breakeven win rate.
+The equilibrium odds require just the right fraction of Makers and Takers to all view their posi-
+tion as profitable. All of these participants are too optimistic about their bets but this applies more so
+to the marginal Taker than it does to the marginal Maker. Thus, Makers’ breakeven rates exceed their
+true win probabilities. And because we have specified the magnitude of disagreement to be indepen-
+dent of the value of q, the gap between breakeven rates and true probabilities is approximately fixed.
+For example, the breakeven rate for Takers accepting odds of DB can be accurately approximated as
+pB ≈ q + µ (15)
+where µ is the same for all q. Returns for Takers of back bets are now driven by
+qDB ≈ q
+q + µ (16)
+This proportional disadvantage for Takers rises sharply as q falls.
+=== PAGE 19 (1636 chars) ===
+19
+To give a numerical example, suppose q = 0.1 and pB = 0.11, so the market generates odds for a
+back bet that requires an 11% winning rate to break even. Before factoring in commission, this leads
+to Takers losing about 9% (driven by the ratio of 10 to 11) on average because they only win 10% of
+the time. In contrast, the Maker on the other side of this contract earns only a modest positive return.
+Their breakeven rate is 89% and they actually win 90% but this only implies a modest profit of about
+1% (driven by the ratio of 90 to 89).
+The same logic explains why Makers earn a high return when the Taker’s bet is highly likely to
+succeed. One can easily see how the numbers flip if we suppose q = 0.9 and pB = 0.91. The Taker
+loses about 1% while the Maker has a breakeven rate of 9% but wins 10% of the time, generating a
+return of about 11%.
+Figure 6 illustrates the average rates of return on money placed at risk for Takers (i.e. the average
+returns across both accepting Back offers and accepting Lay offers) sorted by the probability that the
+Taker’s bet will win. Figure 7 shows the same chart for Makers, also sorted by the probability that the
+Taker’s bet will win. Returns for Takers are negative while returns for Makers are positive. For most
+probabilities, the deviations in these returns from zero are relatively small but there is a nonlinear
+pattern: As bets move further into longshot territory, Takers’ losses accelerate while Makers’ profits
+rise disproportionately. The figures also show that as the market gets thinner, with falling match
+rates, loss rates for Takers and profit rates for Makers get bigger.
+=== PAGE 20 (112 chars) ===
+20
+Figure 6: Post-commission average returns for Takers with τ = 0, σ = 0.03 and various values of
+θ = θB = θL.
+
+=== PAGE 21 (112 chars) ===
+21
+Figure 7: Post-commission average returns for Makers with τ = 0, σ = 0.03 and various values of
+θ = θB = θL.
+
+=== PAGE 22 (2010 chars) ===
+22
+5.4. Bid-Ask Spreads on Betfair
+We have so far assumed that the odds can take any value. However, this is not the case in reality.
+Betfair sets a minimum “tick size”, meaning there are minimum increments in the odds, with this
+tick size varying with the value of the decimal odds. Table 1 shows these minimum tick sizes. These
+restrictions imply, for example, going back to the illustration in Figure 2 of seeking better odds on
+Italy when the best available back odds on offer were 4.3, it is not possible to ask for 4.35. If you want
+better odds, you must ask for at least 4.4. These restrictions promote liquidity and matching rates in
+the market. By reducing the number of different possible odds that can be sought or accepted, there
+are more participants at each set of feasible odds.
+Table 1: Betfair Minimum Tick Sizes by Price Range
+Decimal Odds Tick Size
+0 to 2.0 0.01
+2.0 to 3.0 0.02
+3.0 to 4.0 0.05
+4.0 to 6.0 0.10
+6.0 to 10 0.20
+10 to 20 0.50
+20 to 30 1.00
+30 to 50 2.00
+50 to 100 5.00
+100+ 10.00
+In practice, in most active Betfair markets, the gaps between back and lay odds are either equal to
+the minimum tick size or slightly higher: Note this pattern for the Germany v Italy match in Figure
+1. These empirical spread patterns can help us figure out the match rates that would be consistent
+with our model. Specifically, we can solve the model with the spreads xB and xL set equal to half
+of the minimum tick size, so the odds are exogenous and the match rates become the endogenous
+variables.
+Figure 8 shows the resulting match rates for back and lay offers plotted against the odds with
+the commission rate set equal to Betfair’s standard rate in recent years of τ = 0.02. The match rates
+show a pattern of rising as the odds increase (because the spreads get larger relative to the true
+probabilities) and then ratcheting downwards when the minimum tick sizes increase. Overall, the
+results show that Betfair has set minimum tick sizes consistent with match rates being relatively high,
+=== PAGE 23 (767 chars) ===
+23
+with the average for both back and lay match rates being about 75%. 8 We will use this value now
+to illustrate the impact of the commission rates and to generate predictions that can be checked with
+data.
+Figure 8: Equilibrium match rates with τ = 0.02, σ = 0.03 and spreads set by Betfair’s minimum tick
+size
+8I have in mind that this is a realistic matching rate for those offers displayed as best available to back and best available
+to lay, such as the 4.3 back odds and 4.4 lay odds shown for Italy in Figure 1. Match rates for offers to the left and right of
+these are presumably lower than this. These offers are made by people who hope the market odds will move in their favor
+and they can be matched later at a better price for them than the current ones.
+=== PAGE 24 (3215 chars) ===
+24
+5.5. Introducing Fees with a High Matching Rate
+We now set the matching rates equal toθB = θL = 0.75 and look at various values for the commission
+rate. The first thing to note is that the introduction of a commission fee has almost no effect on bid-
+ask spreads and does not change the pattern of the average of the back and lay odds approximately
+equaling 1/q. In the model of B ¨urgi, Deng and Whelan (2025), in which Makers set odds to seek
+a post-commission rate of return and Takers simply accept these offers, higher commission rates
+increase the bid-ask spread because Makers make less attractive offers to compensate for the higher
+fees. However, in this model, both sides of each bet take the commission fee into account. Fees reduce
+the perceived profits available but the equilibrium odds are barely affected by the commission rate
+being higher.
+While the commission rate has little impact on odds, it does affect the number of participants who
+choose to do nothing. Figure 9 shows the fraction of participants who decide to be neither a Maker
+nor a Taker. Interestingly, at this matching rate, the introduction of a 1 percent commission does not
+induce anyone to take this option. As described above, in this case, those with beliefs close to the true
+value of q believe that the bid-ask spread is wide enough for them to make profits. They choose to
+act as “stockbrokers” and make both Back and Lay offers intending to profit from the bid-ask spread.
+For higher levels of commission, we see an inverse-U shape for non-participation rates, with lower
+participation for events with middling levels of q and higher participation when q is closer to the
+extremes.
+As the commission rate rises, more people choose to participate but this effect is fairly modest.
+Within the range modeled here, total expected commission revenue rises as the commission rate
+increases, with the higher fee offsetting the smaller volume. This suggests that the exchange operator
+could earn more profits by charging a higher commission rate. However, these calculations do not
+take into account the fact that there is competition in the betting exchange market. Betfair used to
+have a complex fee structure, with a base rate of 5% but lower commissions for those who placed
+more bets. However, its competitors, Betdaq and Matchbook, had a simple 2% fee structure and
+Betfair has also moved to this rate in recent years.
+Figures 10 and 11 show the post-commission returns on money placed at risk for various com-
+mission rates on winnings. Higher commission rates imply worse rates of return but do not change
+the overall shape of the returns for Makers and Takers. Because the exchange we have data for has a
+2% commission, Figure 12 shows average returns for Makers and Takers with a 2% commission. For
+most values of q, average returns are negative for both sides of contracts. For Makers, loss rates in-
+crease slightly as the Taker’s chance of winning rises from low levels but then we see Makers earning
+sharply rising profits when the probability of the Taker winning goes above 90%. Losses for Takers
+increase nonlinearly as their probability of winning falls with loss rates of about 5% for contracts
+with q = 0.05.
+=== PAGE 25 (435 chars) ===
+25
+We also examined the implications of variations in the extent of disagreement as measured by σ.
+Higher values of σ raise bid-ask spreads and increase loss rates for Takers and profit rates for Makers
+on contracts. As noted, we have chosen σ = 0 .03 because the patterns it produces for returns in
+Figure 12 match the data well.
+Figure 9: Fraction of participants who do nothing for θB = θL = 0.75, σ = 0.03 and various values of
+τ.
+
+=== PAGE 26 (116 chars) ===
+26
+Figure 10: Post-commission average returns for Takers with for θB = θL = 0.75, σ = 0.03 and
+various values of τ.
+
+=== PAGE 27 (116 chars) ===
+27
+Figure 11: Post-commission average returns for Makers with for θB = θL = 0.75, σ = 0.03 and
+various values of τ.
+
+=== PAGE 28 (116 chars) ===
+28
+Figure 12: Post-commission average returns for Makers and Takers with for θB = θL = 0.75,
+σ = 0.03 and τ = 0.02.
+
+=== PAGE 29 (3073 chars) ===
+29
+6. The Betfair Dataset
+Here we describe the dataset from Betfair and briefly discuss the accuracy of the closing odds.
+6.1. Data format and trade identification
+Our data are the “Advanced” historical data from Betfair for all soccer matches from 2022 to 2024.
+They are a commercial product sold by Betfair but they were made available to me free upon request
+for use for research purposes.
+Each match has a JSON (JavaScript Object Notation) file that tells the story of the betting on the
+exchange for that match. The match’s meta-data is at the start of the file (team names, IDs for the
+different possible outcomes, market opening time). Then there is a set of “market change messages”
+(mcm) at 1 second intervals which update the best available back offers, the best available lay offers,
+the last traded prices, the prices and volumes of specific trades and total volume. There is an indicator
+to note when the match goes in play and, at the end of the file, it records which bets won and lost.
+Figure 13 shows a stylized version of what a short sequence of market change messages looks
+like, in this case just for one outcome (styled here to be like backing Italy in our earlier example).
+I used Python code to process these files and save data in a spreadsheet. This produced 214,992
+matches which had last traded prices before kick-off for bets on home wins, away wins and draws
+and a similar number for each of the six total goals markets that we looked at (0.5 goals up to 5.5
+goals).
+We use the information in the market change messages prior to particular moments (at first kick-
+off but also various points throughout the game) to identify trades that were offered by Makers and
+accepted by Takers. Going back to the Germany-Italy example in Figure 1, if you saw a trade on Italy
+win at 4.3, you can tell it was someone accepting an offer to back Italy. In the same way, Figure 13
+shows a trade happening at 4.3 and you can go back and see that the best available to back (batb) odds
+just prior to this trade was 4.3 and hence someone accepted an offer to back Italy. The cumulative
+volume available for each price is shown next to the odds. In this case, we can see how a £5 trade
+reduced the available liquidity at 4.3, how it was the first trade at this price and how total traded
+volume (tv) increased by £5.
+This method did not produce an identified back and lay trade for every option available for
+each match (e.g. home, away and draw) because sometimes trades are reported at odds that were
+not previously quoted in the JSON files, most likely because offers appeared and were taken up in
+between the one-second intervals recorded in this data. However, as discussed below, the process
+was able to produce very large datasets of identified trades in which we know which side was the
+Maker and which was the Taker.9
+9This method mirrors the logic of the widely used Lee and Ready (1991) algorithm in finance, which infers trade di-
+rection from quote and transaction data. However, unlike most financial market datasets, where the trade initiator must
+=== PAGE 30 (1685 chars) ===
+30
+Figure 13: Example snippet of Betfair JSON file
+6.2. Predictive power of pre-play odds
+The model predicts that average odds from a betting exchange should be good predictors of out-
+comes. Here, we demonstrate that Betfair’s odds produce unbiased forecasts for home wins, away
+wins and draws. Our model predicts that relative to the true probability of a bet winning q, the in-
+verse of the back odds ( 1
+DB
+) will be too high and the inverse of the lay odds ( 1
+DL
+) will be too low
+but that the average of these inverses will approximately equal q. Here, we use the last traded price
+before the match’s kick-off. About half the time, this traded price will be for a back bet and the other
+half it will be for a lay bet, so on average we expect these odds to be accurate.
+One technical issue with interpreting the inverse of the odds as a probability is that the sum of
+the inverse odds for each possible outcome generally does not equal one. The size of this overround
+is very small for the Betfair last traded prices when compared with bookmakers: The average de-
+viation from 1 was only 0.003. However, just to be able to strictly interpret the measures we use as
+probabilities, we constructed “normalized” probabilities by dividing the inverse of the odds by their
+sum, so the adjusted probability estimates sum to one. This gave us a sample of 200,622 matches
+where we have normalized probabilities for each final pre-play bet, as well as match outcomes
+be inferred with error – often misclassified 10–20% of the time (Odders-White, 2000; Theissen, 2001) – Betfair’s real-time
+reporting of both sides of the order book enables us to infer trade direction with high confidence.
+=== PAGE 31 (2089 chars) ===
+31
+We tested whether the Betfair implied probabilities for match outcomes are unbiased as follows.
+Let Yij equal one if match i ends in outcome j. For each match i, we have three possible outcomes
+(home win, away win, draw) and for each of those outcomes we have a Betfair-derived probability
+Pij. A simple way to test whether these probabilities are unbiased forecasts of the outcome is the
+classic Mincer-Zarnowitz (1969) regression
+Yij − Pij = α + ψPij + ϵij (17)
+where the dependent variable is the realized “error”. The null hypothesis of the price being an
+unbiased predictor can be tested via the standard F -test of α = ψ = 0.
+Table 2 shows the results from this regression. We have a sample of 601,866 bets, with 3 observa-
+tions for each match corresponding to the three possible outcomes. Two technical issues are worth
+noting. First, dummy variables that equal one with a probability P have a variance of P (1 − P ),
+implying the error terms will feature heteroscedasticity. We follow Pope and Peel (1989) in using
+Weighted Least Squares (WLS) for estimation with the variances approximated by the Pij(1 − Pij).
+Second, because each match shows up as multiple observations in the regressions, there are negative
+correlations between the errors for outcomes of individual matches (i.e. the ϵij terms are correlated
+for each specific value of i). To address this, we cluster standard errors at the match level following
+Angelini and De Angelis (2019), Elaad, Reade and Singleton (2020) and others.
+The key result is that the F -statistic cannot reject the null hypothesis that the probabilities based
+on the last traded prices prior to kick-off are unbiased forecasts of the outcome of matches, thus
+confirming one of the model’s predictions.
+Table 2: Weighted OLS regression of forecasting errors on probability estimates with clustered
+standard errors
+Coefficient Std. Error t-statistic
+Betfair-implied probabilities -0.0041 0.0033 -1.25
+Constant 0.0020 0.0011 1.78
+Number of observations: 601,866
+Number of clusters: 200,622
+F -statistic: 1.56 (df = 1, 200621)
+p-value: 0.2110
+=== PAGE 32 (3191 chars) ===
+32
+7. Evidence on Returns
+We now turn to assessing whether the predicted patterns for post-commission rates of return on bets
+can be seen in the data.
+7.1. Pre-Play Betting
+By matching trades with recently offered odds, we produced a dataset of 152,102 matches in which
+we could identify the side taken by the Maker and Taker on all six possible options: backing and
+laying either a home win, away win, or a draw. This produced 902,568 bets from which we could
+use back and lay bets on all options to calculate win probabilities and ex post outcomes. For these
+902,568 bets, the average return for Takers was -2.5% while the average return for Makers was 0.6%.
+The t-statistic for the difference between these means is 11.8 which is highly statistically significant.
+Figure 14 shows the average post-fee returns for these bets placed just prior to kick-off, with the
+data organized by decile of the estimated probability of the Taker bet’s success—estimated as the
+average of the inverse back and inverse lay odds. In other words, the data are organized in the same
+way as the model output in Figure 12. The shaded areas in the graphs are 95% confidence intervals.
+The results conform pretty well with the predictions of the model. For Takers, there is a clear
+pattern of increasing loss rates as the probability of their bet winning falls, with a steep drop-off for
+the lowest-probability bets—just as predicted by the model calibrated in Figure 12 with the commis-
+sion rate set to Betfair’s 2% and the disagreement parameter set to σ = 0 .03. Losses for Takers are
+statistically significant, and the magnitudes of the losses closely match the model’s predictions.
+For Makers, post-commission returns are close to zero and statistically insignificant. This also
+fits with the predictions in Figure 12. The top decile shows the uptick in returns predicted by the
+model but the size of the pattern is not as large. Worth noting, however, is that the model predicts
+this pattern will be most evident for bets where the Taker’s win probability exceeds 90%. In practice,
+very few home, away or draw bets have win probabilities this high.
+For the total goals markets, we identified 2,088,032 bets across the different markets (from 0.5
+goals up to 5.5 goals) here we know the side taken by the Makers and Takers. The average return on
+bets placed by Takers was -2.2% while the average return for Makers was 2%.10
+Figure 15 shows the results for the total goals market sorted again by decile of the estimated prob-
+ability of the Taker bet’s success. The patterns are similar: returns for Takers again show increasing
+losses as their win probability falls. For Makers, returns are generally flat at about zero up until the
+Taker’s probability of winning reaches 0.6, at which point it becomes positive. This sample includes
+10This positive return for Makers of 0.6% may look attractive given that it can be repeated across many different bets.
+But the standard deviation of this return is 198% so the prospect of ruin would be very high if you devoted much of your
+fortune to it. The mean-variance approximation to the Kelly criterion would recommend staking only 0.5% of your wealth
+on this bet.
+=== PAGE 33 (903 chars) ===
+33
+more cases with win probabilities above 90%, and here we do see a big uptick in returns for Makers
+in that range.
+Overall, the returns for Makers and Takers on bets placed prior to kick-off conform well with the
+model’s predictions.
+7.2. High and Low Bid-Ask Spreads
+The model predicts a more marked difference between returns for Makers and Takers in thin markets
+with low matching rates and high spreads. To check this prediction, Figure 16 shows the pre-play
+returns for home/away/draw bets and Figure 17 for the returns in the total goals market separately
+for the bottom and top halves of the bid-ask spread distribution, as measured by total traded volume
+just before kickoff. The patterns from the full distribution are largely reproduced but there is evidence
+of bigger losses for Takers and bigger losses for Makers for those bets with larger bid-ask spreads,
+particularly for longshot bets.
+=== PAGE 34 (191 chars) ===
+34
+Figure 14: Average post-fee returns by ex-ante probability for Makers and Takers:
+Final pre-play trades on home, away or draw in soccer (2022-24)
+Shaded areas are 95% confidence intervals
+
+=== PAGE 35 (215 chars) ===
+35
+Figure 15: Average post-fee returns by deciles of ex-ante probability for Makers and Takers.
+Final pre-play trades for total goals (over-under) bets in soccer (2022-24).
+Shaded areas are 95% confidence intervals
+
+=== PAGE 36 (331 chars) ===
+36
+Figure 16: Split by average bid-ask spread size: Average post-fee returns by deciles of ex-ante
+probability for Makers and Takers: Final pre-play trades on home, away or draw in soccer at
+various timestamps (2022-24). Shaded areas are 95% confidence intervals
+(a) Bottom Half for Bid-Ask Spreads
+(b) Top Half for Bid-Ask Spreads
+=== PAGE 37 (321 chars) ===
+37
+Figure 17: Split by average bid-ask spread size: Average post-fee returns by deciles of ex-ante
+probability for Makers and Takers. Final pre-play trades for total goals (over-under) bets in soccer
+(2022-24). Shaded areas are 95% confidence intervals
+(a) Bottom Half for Bid-Ask Spreads
+(b) Top Half for Bid-Ask Spreads
+=== PAGE 38 (3134 chars) ===
+38
+7.3. In-Play Betting
+Betfair’s data records all bets made right up to the end of a match. One advantage from our per-
+spective is that as matches go on and goals are scored, some outcomes become very likely or very
+unlikely. This results in a much larger number of bets where Takers are either backing outcomes
+that are highly likely to happen or laying outcomes that have a very low probability of happening.
+Figure 18 shows post-commission returns from applying our procedure to bets placed just prior to
+six time-stamps in the match: 15 minutes, 30 minutes, 45 minutes, 75 minutes, 90 minutes and 105
+minutes. Allowing 3 minutes for the average amount of added time at the end of the first half and 15
+minutes for the half-time break, the final three timestamps would correspond to roughly 57 minutes,
+72 minutes and 87 minutes on the match clock.11
+Several interesting results emerge. The results for bets placed 15 minutes in closely match those
+for pre-play bets. However, as matches progress, losses for Takers get larger, particularly for longshot
+bets. Returns for Makers placing longshot bets (bets where the Taker’s probability of winning is high)
+also start to show higher average loss rates as matches progress. By 105 minutes, loss rates for Takers
+in the bottom decile of probability reach about 70% and loss rates for Makers taking longshot bets are
+almost as bad. Small but statistically significant profits for Takers emerge during the second half for
+bets with a reasonably high chance of success. These data suggest it may be possible to earn money
+on Betfair just by accepting offers on strong favorites in the second half!
+These results echo findings presented by Lionel Page (2012) on what he termed the “Yogi Berra
+effect” (it ain’t over till it’s over). Page analyzed trades on sports from 1,100 different US sports
+markets on the InTrade prediction market. He found that large losses on longshot bets emerged as
+the games went into their final 15 minutes.
+Poor returns for longshot bets is, of course, a common theme in the economics of betting with
+many possible explanations, as discussed in the well-known papers such as Thaler and Ziemba
+(1988), Ottaviani and Sørensen (2008) and Snowberg and Wolfers (2008). But those explanations
+normally focus on behavioral patterns like risk-seeking preferences or failure to assess small prob-
+abilities accurately. If these were innate traits of Betfair’s participants, we would expect to see low
+returns to longshot bets prior to kick-off and during the first half. Page notes that the “higher emo-
+tional tension” near the end of games may distort the traders’ ability to judge probabilities. Also,
+unlike pre-play betting where you have lots of time to research the various probabilities, late-game
+bets will also often be placed by people making rapid judgments while watching the match live,
+knowing there isn’t much time left. In Kahneman’s (2011) terminology, perhaps bettors’ thinking
+moves from being “slow” prior to and early in the game to “fast” as the game progresses.
+11The data do not record the minutes the first half ended or second half began.
+=== PAGE 39 (405 chars) ===
+39
+Figure 18: Average post-fee returns by deciles of ex-ante probability for Makers and Takers: Last
+in-play trades on home, away or draw in soccer at various timestamps (2022-24)
+Shaded areas are 95% confidence intervals
+(a) 15 Minutes after kick-off
+ (b) 30 Minutes after kick-off
+(c) 45 Minutes after kick-off
+ (d) 75 Minutes after kick-off
+(e) 90 Minutes after kick-off
+ (f) 105 Minutes after kick-off
+=== PAGE 40 (3104 chars) ===
+40
+8. Conclusions
+I hope this paper has shown that betting exchanges offer a valuable setting for testing models fea-
+turing decentralized trading, belief dispersion, and price formation under uncertainty, elements that
+are core to many financial markets. The combination of their market microstructure and Betfair’s
+transaction-level data provides a rare opportunity to observe behaviors and outcomes that are diffi-
+cult to measure in traditional financial market settings.
+The paper introduces the first formal model of a betting exchange, in which decentralized trade
+arises from rational agents with heterogeneous but (on average) unbiased beliefs. Using Betfair’s
+uniquely transparent data, we test the model and provide the first large-scale empirical comparison
+of returns to order-makers and order-takers, a contrast that standard financial datasets do not allow.
+Despite its relative simplicity, the model generates striking predictions, including the possibility of
+multiple equilibria. Some equilibria are characterized by high trade volumes and narrow spreads,
+while others feature low match rates and wide spreads. The contrast between Betfair’s high-volume,
+high match-rate business and that of its lower-volume competitors is perhaps an example of these
+multiple equilibria in practice.
+The model has been solved under a specific treatment of disagreement: the cross-sectional stan-
+dard deviation of beliefs about an event’s probability is constant across all true probabilities. This
+strong assumption could certainly be challenged. But an advantage of making specific assumptions
+is they generate specific predictions and the observed patterns of post-commission returns on bets
+for Makers and Takers fit well with the model’s predictions when examining bets made prior to the
+match or during the first half.
+By contrast, we document a pronounced favorite–longshot bias in second-half betting, with long-
+shot wagers yielding large negative returns for both Makers and Takers. These losses are substantial
+enough to generate small but statistically significant profits for their counterparties. It remains to be
+seen whether this “Yogi Berra” effect on Betfair survives now that it has been publicly documented,
+or whether it will follow the pattern of other financial market anomalies in tending to disappear once
+they are publicized (see Zaremba, Umutlu and Maydybura, 2020, Shanaev and Ghimire, 2021).
+One important caveat to the positive returns to Makers reported here is that acting as a Maker
+does not guarantee getting offers accepted. The bets that generated the positive returns reported
+here constitute the full sample of matched bets. These bets are unlikely to be equally good for those
+who place them and those seeking to act as Makers could face an “adverse selection” problem in
+which their less favorable offers are more likely to be accepted, while many of their potentially more
+profitable ones remain unmatched behind others in the queue. Whether this approach can actually
+be turned into a practical trading strategy is left as an optional exercise for the reader.
+=== PAGE 41 (2221 chars) ===
+41
+References
+[1] Ali, Mukhtar (1977). “Probability and Utility Estimates for Racetrack Bettors,” Journal of Political
+Economy, Volume 85, pages 803-815.
+[2] Angelini, Giovanni, and Luca De Angelis (2019). “Efficiency of Online Football Betting Mar-
+kets,” International Journal of Forecasting, Volume 35, pages 712–721.
+[3] Angelini, Giovanni, Luca De Angelis and Carl Singleton (2022). “Informational Efficiency and
+Behaviour Within In-Play Prediction Markets,” International Journal of Forecasting , Volume 38,
+pages 282-299
+[4] Berg, Joyce, Forrest Nelson and Thomas Rietz (2008). “Prediction Market Accuracy in the Long
+Run.” International Journal of Forecasting, Volume 24, pages 285-300.
+[5] Berg, Joyce, and Thomas Rietz (2019). “Longshots, Overconfidence and Efficiency on the Iowa
+Electronic Market,” International Journal of Forecasting, Volume 35, pages 271-287.
+[6] Burdett, Ken and Melvyn G. Coles (1997). “Marriage and Class,” Quarterly Journal of Economics,
+Volume 112, pages 141–168
+[7] B ¨urgi, Constantin, Wanying Deng and Karl Whelan (2025). Makers and Takers: The Economics
+of the Kalshi Prediction Market. University College Dublin School of Economics working paper
+number 25/19.
+[8] Casadesus-Masanell, Ramon and Neil Campbell (2019). “Platform Competition: Betfair and the
+UK Market for Sports Betting,” Journal of Economics and Management Strategy, Volume 28, pages
+29–40.
+[9] Coleman, Thomas and Yuying Li (1996). “An Interior Trust Region Approach for Nonlinear
+Minimization Subject to Bounds,” SIAM Journal on Optimization, Volume 6, pages 418-445.
+[10] Croxson, Karen and J. James Reade (2013). “Information and Efficiency: Goal Arrival in Soccer
+Betting,” Economic Journal, Volume 124, pages 62–91.
+[11] Dennis, John and Robert Schnabel (1996). Numerical Methods for Unconstrained Optimization and
+Nonlinear Equations. Philadelphia: Society for Industrial and Applied Mathematics (SIAM).
+[12] Diamond, Peter (1982). “Aggregate Demand Management in Search Equilibrium,” Journal of
+Political Economy, Volume 90, pages 881-894.
+[13] Elaad, Guy, J. James Reade and Carl Singleton (2020). “Information, Prices and Efficiency in an
+Online Betting Market,” Finance Research Letters, Article 101291.
+=== PAGE 42 (2468 chars) ===
+42
+[14] Forsythe, Robert, Forrest Nelson, George Neumann and Jack Wright (1992). “Anatomy of an
+Experimental Political Stock Market,” American Economic Review, Volume 82, pages 1143-1161.
+[15] Franck, Egon, Erwin Verbeek, Stephan N ¨uesch (2010). “Prediction Accuracy of Different Market
+Structures — Bookmakers versus a Betting Exchange” International Journal of Forecasting, Volume
+26, pages 448–459.
+[16] Gandhi, Amit and Ricardo Serrano-Padial (2015). “Does Belief Heterogeneity Explain Asset
+Prices: The Case of the Longshot Bias,” Review of Economic Studies, Volume 82, pages 156-186.
+[17] Gautier, Pieter and Coen Teulings (2009). “Search and the City,” Regional Science and Urban Eco-
+nomics, Volume 39, pages 251-265.
+[18] Hegarty, Tadgh and Karl Whelan (2024). “Comparing Two Methods for Testing the Efficiency of
+Sports Betting Markets”, Sports Economics Review, Volume 8, paper 100042.
+[19] Hegarty, Tadgh and Karl Whelan (2025). Market Structure and Prices in Online Betting Markets:
+Theory and Evidence, forthcoming, Oxford Economic Papers.
+[20] Kahneman, Daniel (2011). Thinking, Fast and Slow. New York: Farrar, Straus and Giroux.
+[21] Lee, Charles, and Mark Ready (1991). “Inferring Trade Direction from Intraday Data,” Journal of
+Finance, Volume 46, pages 733–746.
+[22] Levitt, Steven (2004). “Why Are Gambling Markets Organised So Differently From Financial
+Markets?,” Economic Journal, Volume 114, pages 223-246.
+[23] Mincer, Jacob and Arnold Zarnowitz (1969). “The Evaluation of Economic Forecasts” in Eco-
+nomic Forecasts and Expectations: Analysis of Forecasting Behavior and Performance. New York: Na-
+tional Bureau of Economic Research.
+[24] Nelson, Sarah, Timothy Edson, Eric Louderback, Matthew Tom, Alessandra Grossman and Debi
+LaPlante (2021). “Changes to the Playing Field: A Contemporary Study of Actual European
+Online Sports Betting,” Journal of Behavioral Addictions, Volume 10, 396–411.
+[25] Odders-White, Elizabeth R. (2000). “On the Occurrence and Consequences of Inaccurate Trade
+Classification,” Journal of Financial Markets, Volume 3, pages 259–286.
+[26] Ottaviani, Marco and Peter Norman Sørensen (2008). “The Favorite-Longshot Bias: An
+Overview of the Main Explanations,” in Handbook of Sports and Lottery Markets, Elsevier.
+[27] Ottaviani, Marco and Peter Norman Sørensen (2010). “Noise, Information, and the Favorite-
+Longshot Bias in Parimutuel Predictions,”American Economic Journal: Microeconomics, Volume 2,
+pages 58-85.
+=== PAGE 43 (1754 chars) ===
+43
+[28] Page, Lionel (2012). “‘It Ain’t Over Till it’s Over’ Yogi Berra Bias on Prediction Markets,”Applied
+Economics, Volume 44, pages 81-92.
+[29] Pope, Peter and David Peel (1989). “Information, Prices and Efficiency in a Fixed-Odds Betting
+Market,” Economica, Volume 56, pages 223-241.
+[30] Savage, Leonard J. (1954). The Foundations of Statistics. New York: John Wiley Sons.
+[31] Shanaev, Savva and Binam Ghimire (2021). “Efficient Scholars: Academic Attention and the
+Disappearance of Anomalies,” The European Journal of Finance, Volume 27, pages 278-304
+[32] Shin, Hyun Song (1991). “Optimal Betting Odds Against Insider Traders,” Economic Journal ,
+Volume 101, pages 1179-1185.
+[33] Smith, Michael A. David Paton and Leighton Vaughan Williams (2006). “Market Efficiency in
+Person-to-Person Betting,” Economica, Volume 73, pages 673–689.
+[34] Snowberg, Erik and Justin Wolfers (2008). “Examining Explanations of a Market Anomaly: Pref-
+erences or Perceptions?” in Handbook of Sports and Lottery Markets, Elsevier.
+[35] Thaler, Richard and William Ziemba (1988). “Anomalies: Parimutuel Betting Markets: Race-
+tracks and Lotteries,” Journal of Economic Perspectives, 2, 161-174.
+[36] Theissen, Erik (2001). “A Test of the Accuracy of the Lee–Ready Trade Classification Algorithm,”
+Journal of International Financial Markets, Institutions and Money, Volume 11, pages 147–165.
+[37] Whelan, Karl (2023). “On Prices and Returns in Commercial Prediction Markets,” Quantitative
+Finance, Volume 23, pages 1699-1712.
+[38] Zaremba, Adam, Mehmet Umutlu and Alina Maydybura (2020). “Where Have the Profits Gone?
+Market Efficiency and the Disappearing Equity Anomalies in Country and Industry Returns,”
+Journal of Banking and Finance, Volume 121. Article 105966.
+=== PAGE 44 (2350 chars) ===
+44
+A Numerical Algorithms
+We used two different numerical algorithms to solve the model and they produced the same out-
+put. I would note that to reduce the nonlinearity in the equations used by the models, we used the
+four indifference conditions (equations 1, 3, 5 and 7) rather than the closed-form solutions presented
+above for the thresholds.
+The function fsolve is designed to compute solutions to systems of nonlinear equations of the
+form F (x) = 0 where F : Rn → Rn is a vector-valued function. Numerically, fsolve employs
+a trust-region method. At each iteration k, the algorithm constructs a linear model of the residual
+vector using the Jacobian matrix:
+F (xk + ∆x) ≈ F (xk) + J(xk)∆x,
+where J(xk) ∈ Rn×n is the Jacobian of F evaluated at the current point xk. The algorithm then seeks
+a step ∆x ∈ Rn that (approximately) solves the following subproblem:
+min
+∆x
+∥F (xk) + J(xk)∆x∥ subject to ∥∆x∥ ≤ ∆k,
+where ∆k > 0 defines the radius of the trust region around xk.
+This subproblem is not solved exactly. Instead, fsolve uses efficient numerical strategies, such
+as dogleg or subspace methods, to compute an approximate minimizer that yields sufficient decrease
+in the norm of the residual. Based on the agreement between the predicted and actual reduction in
+∥F (x)∥, the algorithm adaptively updates the trust-region radius ∆k. The iteration terminates when
+the norm of the residual ∥F (xk)∥ falls below a user-defined threshold, the step ∥∆xk∥ becomes suf-
+ficiently small, or the gradient J(xk)⊤F (xk) is nearly zero, indicating satisfaction of first-order op-
+timality conditions. This trust-region framework enhances robustness relative to standard Newton-
+type methods, especially when the system is highly nonlinear.12
+Alternatively, lsqnonlin solves the equilibrium system by formulating it as a nonlinear least-
+squares problem:
+min
+x∈Rn
+∥F (x)∥2 =
+mX
+i=1
+Fi(x)2.
+In this approach, the residuals Fi(x) need not vanish individually; the solver instead minimizes their
+collective squared magnitude. Because we impose various constraints on the solution (e.g. thresholds
+must be between zero and one), lsqnonlin employs the trust-region-reflective (TRR) algorithm,
+which is specifically designed to handle restrictions on the allowable range of each variable. The
+12See Dennis and Schnabel (1996) for a discussion of these methods.
+=== PAGE 45 (702 chars) ===
+45
+update step is computed by solving a constrained subproblem:
+min
+∆x
+∥F (xk) + J(xk)∆x∥2 subject to xk + ∆x ∈ [lb, ub], ∥∆x∥ ≤ ∆k,
+where J(xk) is the Jacobian of F at the current iterate xk, and ∆k > 0 defines the trust-region radius.
+When a step would take a variable outside its allowed range, the algorithm adjusts it to stay within
+bounds and continues the search along the edge of the feasible region. Iterations terminate when the
+objective ∥F (xk)∥2 is sufficiently small, the step size∥∆xk∥ becomes negligible, or the gradient norm
+∥J(xk)⊤F (xk)∥ is close to zero, indicating that further progress is numerically insignificant.13
+13See Coleman and Li (1996) for a discussion of these methods.

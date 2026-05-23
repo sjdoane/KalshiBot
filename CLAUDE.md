@@ -1,135 +1,207 @@
 # Project Kalshi - Claude Instructions
 
 This file is auto-loaded by Claude Code when working in this project
-directory. It gives you the context to pick up where prior sessions
-left off.
+directory. It is your orientation document.
 
-## TL;DR project status (as of 2026-05-23)
+## What this project is
 
-**PROJECT KILLED at Phase 1.6 gate.** EC-1 KXHIGH weather maker-
-quoting hypothesis is not viable for a $25-$50 retail account on
-Kalshi in 2026. The methodology lock-in's "no third bite"
-commitment was honored; no live capital deployed.
+A retail Kalshi quant trading project for a $25-$50 starting bankroll
+(operator: California resident, USC). The mission is to pick ONE
+defensible-positive-EV strategy, validate it out-of-sample, paper-
+trade it, and go live with strict risk controls.
 
-Engineering artifacts remain in the repo as reference. Tests still
-pass. The Kalshi auth client, dataset builder, gate evaluator,
-calibration analysis, and Discord webhook all work and are
-re-usable for any future Kalshi project.
+## Where this project stands
 
-## What you need to read first
+**Round 1 outcome (2026-05-23):** EC-1 KXHIGH weather maker-quoting
+hypothesis was tested and KILLED at the Phase 1.6 out-of-sample
+calibration gate. Methodology was sound; weather just has too small
+a bias for retail to extract after fees. No live capital was
+deployed.
 
-1. **[research/research-document.md](research/research-document.md)** -
-   the synthesized Phase 1 research doc with critic pass and CA
-   addendum. The conceptual frame for the whole project.
+**Round 2 status:** Strategy-selection phase. The current context
+window's job is to pick a new (category, strategy) pair, validate
+it through the same methodology pattern, and take it through to
+live trading. The full research foundation (7 academic / community
+papers, Phase 1 sub-agent briefs, critic pass, two completed
+empirical gates) is preserved and discoverable.
 
-2. **[research/phase-1.5-methodology.md](research/phase-1.5-methodology.md)** -
-   the locked methodology, including the Phase 1.6 amendment with
-   the pre-resolution window correction.
+## The five files to read first, in order
 
-3. **[research/phase-1.5-results.md](research/phase-1.5-results.md)** -
-   Phase 1.5 results (close window). Misleading 9pp shoulder edge
-   was an artifact of post-resolution prices.
+1. **[STRATEGY_BRIEF.md](STRATEGY_BRIEF.md)** - the formal mission
+   for this phase. Decision framework, required process, best
+   practices.
+2. **[research/key-findings.md](research/key-findings.md)** - distilled
+   research lessons. The four facts every strategy must respect.
+3. **[research/strategy-comparison.md](research/strategy-comparison.md)** -
+   the candidate (category, strategy) matrix. **Pick your strategy
+   from here, or justify additions.**
+4. **[research/literature/INDEX.md](research/literature/INDEX.md)** -
+   index of the 7 papers studied with TLDR each. Pull full
+   extractions from `research/literature/{paper}.md` as needed.
+5. **[research/phase-1.5-methodology.md](research/phase-1.5-methodology.md)** -
+   the methodology lock-in pattern. Sections 7 ("what we will NOT
+   do") and 9 (kill-on-fail) are non-negotiable rules you will
+   inherit.
 
-4. **[research/phase-1.6-results.md](research/phase-1.6-results.md)** -
-   Phase 1.6 results (open window, the actual tradable signal).
-   Gate FAILS cleanly. This is the load-bearing outcome.
+If you only have time to read one, read STRATEGY_BRIEF.md.
 
-5. **[research/critic-report.md](research/critic-report.md)** -
-   adversarial review of the Phase 1 synthesis. Caught what would
-   have been a fatal error.
+## Operating principles
 
-6. **[research/literature/](research/literature/)** - extractions
-   of 7 papers on Kalshi prediction markets. Index in memory at
-   `project_kalshi_literature.md`. Cite these (not Zerve) for any
-   structural claim about Kalshi economics.
+### Research grounding
 
-7. **[README.md](README.md)** - public-facing project overview.
+Every numerical claim about Kalshi economics must cite a paper file
+from `research/literature/`. Do not assert numbers from memory. If
+you make a claim that isn't in any of the 7 papers, mark it as a
+hypothesis to be empirically tested.
 
-## Memory files that will be auto-loaded
+The four load-bearing facts (from research/key-findings.md):
 
-Your global memory at
-`C:\Users\SamJD\.claude\projects\C--Users-SamJD-OneDrive-Desktop-AI-Projects\memory\`
-should give you:
-- `user_basics.md` - operator is in CA, USC student, .usc.edu
-- `feedback_no_em_dashes.md` - hard ban on em-dashes everywhere
-- `feedback_kill_early.md` - operator prefers killing at research
-  rather than deploying flawed strategies
-- `project_kalshi.md` - this project's current state (KILLED)
-- `project_kalshi_literature.md` - one-line summary per paper with
-  pointers to full extractions in this repo
+1. **Makers > Takers structurally** (Whelan, confirmed by Bürgi,
+   Becker, Bartlett). Default to maker-side strategies.
+2. **Per-category bias magnitudes vary by 40x** (Becker: Finance
+   0.17pp gap, World Events 7.32pp). Higher-bias categories are
+   thinner; the sweet spot is mid-bias, mid-liquidity.
+3. **The 2024 sign flip** (Becker): pre-October-2024 takers won,
+   makers now win. Use only post-flip data for modeling.
+4. **Bias shrinks each year** (Bürgi 2025 ψ half of 2024).
+   Discount historical numbers for further compression.
 
-## Operating principles for any future Kalshi work
+### Methodology discipline (non-negotiable)
 
-1. **EC-1 is killed.** Do not re-open without explicit operator
-   authorization.
-2. **If the operator wants to start a new Kalshi project**, the
-   reusable assets are:
-   - `src/kalshi_bot/` (auth, client, analysis, alerts modules)
-   - `tests/` (62 passing tests covering the components)
-   - The literature corpus
-   - The methodology lock-in pattern (locking criteria pre-data is
-     the right discipline)
-3. **Don't cite Zerve as evidence of edge.** It's an unvalidated
-   community notebook. Cite Burgi, Becker, Le, Bartlett.
-4. **No em-dashes anywhere.** Code, README, commits, messages.
-5. **Trading window matters massively.** The Phase 1.5 vs 1.6
-   contrast showed that the same calibration analysis on different
-   windows produces wildly different apparent edges. Future work
-   must justify window choice with reference to Le's regime
-   structure (weather: overconfident short / underconfident long).
-6. **Maker fees, not just taker fees.** Post-April-2025 Kalshi
-   charges maker fees too. Burgi's +2.6% maker number is from the
-   zero-maker-fee era; subtract ~1pp for current regime.
-7. **The 2024 sign flip (Becker)** means pre-October-2024 Kalshi
-   data is structurally different from current markets. Use only
-   post-flip data for any future modeling.
+- **Lock pass criteria BEFORE pulling any data.** Adapt
+  `research/phase-1.5-methodology.md` into a phase-2 methodology
+  doc.
+- **No post-data criterion tuning.** If the gate fails, report
+  honestly. No "but this one criterion almost passed" rationalizing.
+- **No third bite.** Per the locked methodology section 7: if a
+  strategy fails its gate, the strategy ends. Operator must
+  authorize any pivot.
+- **Walk-forward and LOCO splits with purge buffers.** Simple
+  holdout is insufficient. Anti-leakage matters.
+- **Distinguish trading window from measurement window.** Phase
+  1.5's 9pp shoulder edge was an artifact of measuring post-
+  resolution prices in a window no bot could trade in. Validate
+  your window represents trades the bot could realistically place.
 
-## Stack
+### Review agents (spawn at three decision points)
 
-- Windows 11 + WSL2 Ubuntu
-- Python 3.12 managed with uv
-- `uv.toml` pins `link-mode = "copy"` (OneDrive blocks hardlinks)
-- RTX 5070 Laptop GPU (unused by this project; not needed)
+Subagent pattern from Phase 1:
 
-## Operator
+- **Plan critic** after strategy proposal, before methodology lock.
+  Identify weak assumptions, find counter-evidence, flag unknowns.
+- **Methodology critic** after methodology lock, before data pull.
+  Stress-test split design, challenge criteria, check purge buffer.
+- **Code reviewer** after each engineering milestone, before
+  decisions depend on output. Silent failures, race conditions,
+  off-by-one P&L, secrets leakage, deviations from plan.
 
-- California resident (USC, .usc.edu); CA is the operative
-  jurisdiction for legal/tax. WA is NOT in scope.
-- Kalshi account exists; API READ-only key in `.env`
-  (gitignored), PEM at `%LOCALAPPDATA%\KalshiBot\kalshi_prod_read.pem`.
-- Discord webhook is configured in `.env`. Tested working.
+Use the same approach: spawn via Agent tool with a thorough,
+self-contained brief that includes the project context. Bring
+findings back into the project docs, not just chat.
 
-## How to extend the literature corpus
+### Maintaining context as you work
 
-When a new Kalshi-relevant paper appears:
+When you discover a new fact or change a decision, write it down
+in the right place IMMEDIATELY:
 
-1. Save the extraction at
-   `research/literature/{firstauthor-year-topic}.md`. Match the
-   structure of existing files: front matter, TLDR, dataset,
-   methodology, findings, implications for Project Kalshi,
-   limitations, pin quotes.
-2. Append a TLDR entry in
-   `~/.claude/projects/.../memory/project_kalshi_literature.md`.
-3. Update the count in the index.
-4. Commit both files together. Run tests and ruff before commit.
+- **New literature studied:** extraction to `research/literature/`,
+  TLDR to `research/literature/INDEX.md` AND
+  `~/.claude/.../memory/project_kalshi_literature.md`.
+- **Strategy decisions:** update the active methodology doc. Don't
+  leave decisions in chat only.
+- **Phase results:** write `research/phase-N-results.md`.
+- **Project state change:** update
+  `~/.claude/.../memory/project_kalshi.md`.
 
-## How to extend the engineering
+Per operator request: "ensure files are set up to update to pick
+up with all info whenever I start new context window."
 
-If the operator wants to revisit Project Kalshi or start a
-sister project:
-- Don't add new code paths until you've read this CLAUDE.md
-  end-to-end and the methodology + results files.
-- Reuse `src/kalshi_bot/data/auth.py` (RSA-PSS signing, tested).
-- Reuse `src/kalshi_bot/data/kalshi_client.py` (rate-limited HTTP
-  with cursor pagination).
-- Reuse `src/kalshi_bot/analysis/` (calibration, metrics, splits).
-- The phase scripts in `scripts/phase_1_5/` are one-shots; new
-  phases get new directories under `scripts/`.
+### Other inherited rules
 
-## What is in `.gitignore` (don't accidentally commit)
+- **No em-dashes** anywhere. Code, README, commits, messages. Run
+  `grep -P '[\x{2014}\x{2013}]'` after any file write to verify
+  (matches both em-dash U+2014 and en-dash U+2013).
+- **Kill early** rather than ship something broken (operator
+  feedback memory `feedback_kill_early.md`).
+- **California jurisdiction.** WA is NOT in scope. Operator is
+  USC student physically in CA most of the year. Kalshi KYC
+  registered with CA address.
 
-- `.env` (Kalshi keys, Discord webhook)
-- `.venv/` (uv-managed)
-- `data/raw/`, `data/processed/`, `data/*.log`, `data/*.parquet`,
-  `data/*.txt` (data is reproducible from API; do not bloat the repo)
-- `*.pem`, `kalshi_key*` (any private key file)
+## What's reusable
+
+Engineering is mostly category-agnostic and survives the EC-1
+kill. 62/62 tests pass, ruff is clean.
+
+- `src/kalshi_bot/data/auth.py` - RSA-PSS signing
+- `src/kalshi_bot/data/kalshi_client.py` - rate-limited HTTP
+- `src/kalshi_bot/data/kxhigh.py` - KXHIGH ticker parser (template
+  for other series parsers)
+- `src/kalshi_bot/analysis/calibration.py` - isotonic wrapper
+- `src/kalshi_bot/analysis/train_test_split.py` - time-based splits
+  with purge + leave-one-X-out
+- `src/kalshi_bot/analysis/metrics.py` - ECE, edge, hit rate,
+  realized P&L, Kalshi fee formulas (verified)
+- `src/kalshi_bot/analysis/gate.py` - the 5-criteria evaluator
+  (adapt thresholds per strategy)
+- `src/kalshi_bot/analysis/dataset.py` - market+trade join with
+  VWAP computation
+- `src/kalshi_bot/alerts/discord.py` - tested webhook client
+- `src/kalshi_bot/config.py` - capital cap and drawdown constants
+- `scripts/test_discord.py` - one-shot webhook smoke test
+- `scripts/extract_pdf.py` - pypdf extractor for new papers
+- `scripts/archive/ec1_kxhigh/run_gate.py` - the gate runner. Copy
+  to `scripts/phase_2/` and adapt window labels.
+
+## What is NOT reusable (archived)
+
+- `scripts/archive/ec1_kxhigh/fetch_kxhigh_*.py` - KXHIGH-specific
+  data pulls. Copy the pattern but write a new fetcher for your
+  category.
+- `scripts/archive/ec1_kxhigh/probe_*.py` - one-off endpoint
+  explorations.
+
+These stay in the repo as reference but should not be re-run
+without explicit operator authorization.
+
+## Operational facts the operator has confirmed
+
+- Discord webhook works (configured in `.env`, tested in commits
+  92fe168 and ddf2c63).
+- Kalshi production API key (READ scope only) is in `.env`,
+  pointing to a PEM at `%LOCALAPPDATA%\KalshiBot\kalshi_prod_read.pem`.
+- Smoke check passes: `uv run python -m scripts.test_discord` and
+  `uv run python -m scripts.archive.ec1_kxhigh.check_kalshi` both
+  return OK.
+- WSL2 clock-skew check is documented but not yet implemented in
+  the operator's environment (this is needed before live trading;
+  the operator runs Windows + WSL2 + uv).
+
+## Memory files that auto-load
+
+In `C:\Users\SamJD\.claude\projects\C--Users-SamJD-OneDrive-Desktop-AI-Projects\memory\`:
+
+- `MEMORY.md` - global index (loaded every session)
+- `user_basics.md` - operator is in CA, .usc.edu
+- `feedback_no_em_dashes.md` - the em-dash rule
+- `feedback_kill_early.md` - kill-early principle
+- `project_kalshi.md` - project state (Round 1 KILLED; Round 2
+  active)
+- `project_kalshi_literature.md` - 7-paper index with TLDRs
+
+When you start a new context window, these load automatically and
+give you the foundation. Project files in this directory are
+discovered via the path references in those memory files.
+
+## How a phase concludes
+
+Each strategy attempt produces:
+
+1. **Locked methodology doc** (`research/phase-N-methodology.md`)
+2. **Results doc** (`research/phase-N-results.md`) with PASS / KILL
+   verdict
+3. **Memory and CLAUDE.md updates** reflecting the new state
+4. **A clean commit per phase boundary**
+
+When the project finishes (live trading working, or definitively
+killed), update this file to reflect the terminal state for the
+next context window to pick up cleanly.

@@ -165,7 +165,7 @@ distortion.**
 > [Take/Make Yes, abstain, Make/Take No] must be consistent with
 > the matching probabilities that make those choices worthwhile."
 
-> "In thick-market equilibria, match rates are high, bid–ask
+> "In thick-market equilibria, match rates are high, bid-ask
 > spreads are narrow and more offers are attractive enough for
 > Takers to accept. In thin-market equilibria, low match rates
 > lead Makers to demand wider spreads to justify posting,
