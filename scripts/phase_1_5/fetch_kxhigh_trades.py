@@ -31,23 +31,45 @@ from kalshi_bot.config import load_settings
 from kalshi_bot.data.kalshi_client import KalshiClient
 from kalshi_bot.logging import configure_logging
 
-# Window per research/phase-1.5-methodology.md section 2:
-#   mid_price_at_T = VWAP over 60 minutes ending 30 minutes before close.
-WINDOW_END_OFFSET = timedelta(minutes=30)
-WINDOW_LENGTH = timedelta(minutes=60)
+# Window choices, controlled by --window. Phase 1.5 used `close` (the
+# now-known-buggy 60 min ending 30 min before close). Phase 1.6 locks in
+# `open` (12 hours starting 1 hour after open, ending well before the
+# NWS measurement period begins).
+WINDOW_CONFIGS = {
+    "close": {
+        "anchor": "close",
+        "offset_from_anchor": timedelta(minutes=-30),  # window ends 30m before close
+        "length": timedelta(minutes=60),
+    },
+    "open": {
+        "anchor": "open",
+        "offset_from_anchor": timedelta(hours=1),  # window starts 1h after open
+        "length": timedelta(hours=12),
+    },
+}
 
 MARKETS_DIR = Path("data/raw/kalshi/markets")
 TRADES_DIR = Path("data/raw/kalshi/trades")
 
 
-def load_market_index(series_ticker: str, min_volume: float) -> pd.DataFrame:
+def load_market_index(
+    series_ticker: str, min_volume: float, window: str
+) -> pd.DataFrame:
+    cfg = WINDOW_CONFIGS[window]
     df = pd.read_parquet(MARKETS_DIR / f"{series_ticker}.parquet")
     df["volume_fp"] = df["volume_fp"].astype(float)
     df["close_time"] = pd.to_datetime(df["close_time"], utc=True, format="ISO8601")
+    df["open_time"] = pd.to_datetime(df["open_time"], utc=True, format="ISO8601")
     keep = df["volume_fp"] >= min_volume
-    df = df.loc[keep, ["ticker", "close_time", "volume_fp"]].reset_index(drop=True)
-    df["window_start"] = df["close_time"] - WINDOW_END_OFFSET - WINDOW_LENGTH
-    df["window_end"] = df["close_time"] - WINDOW_END_OFFSET
+    df = df.loc[keep, ["ticker", "open_time", "close_time", "volume_fp"]].reset_index(drop=True)
+    if cfg["anchor"] == "close":
+        # Phase 1.5 style: window ends `offset_from_anchor` before close.
+        df["window_end"] = df["close_time"] + cfg["offset_from_anchor"]
+        df["window_start"] = df["window_end"] - cfg["length"]
+    else:
+        # Phase 1.6 style: window starts `offset_from_anchor` after open.
+        df["window_start"] = df["open_time"] + cfg["offset_from_anchor"]
+        df["window_end"] = df["window_start"] + cfg["length"]
     return df
 
 
@@ -113,9 +135,10 @@ def run_series(
     smoke: bool,
     progress_every: int,
     cutoff: pd.Timestamp,
+    window: str,
 ) -> int:
     log = structlog.get_logger().bind(series=series_ticker)
-    idx = load_market_index(series_ticker, min_volume=min_volume)
+    idx = load_market_index(series_ticker, min_volume=min_volume, window=window)
     if smoke:
         # For smoke, pick a known-active older market and a recent one so
         # both endpoints get exercised in one shot.
@@ -173,6 +196,14 @@ def main() -> int:
     parser.add_argument("--min-volume", type=float, default=100.0)
     parser.add_argument("--series", action="append", help="Restrict to one or more series.")
     parser.add_argument("--progress-every", type=int, default=200)
+    parser.add_argument(
+        "--window",
+        choices=list(WINDOW_CONFIGS),
+        default="open",
+        help="Trading window to fetch. 'open' = first 12h after open + 1h "
+        "(Phase 1.6, default). 'close' = 60 min ending 30 min before close "
+        "(Phase 1.5, kept for reproducibility).",
+    )
     args = parser.parse_args()
 
     configure_logging()
@@ -193,6 +224,7 @@ def main() -> int:
                     smoke=args.smoke,
                     progress_every=args.progress_every,
                     cutoff=cutoff,
+                    window=args.window,
                 )
             except Exception as exc:
                 log.error("series_failed", series=s, error=str(exc))

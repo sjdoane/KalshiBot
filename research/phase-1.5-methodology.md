@@ -184,3 +184,72 @@ reference implementation. No live capital is deployed.
 ## 10. Change log
 
 - 2026-05-22: Initial draft, pre-data. Methodology locked.
+- 2026-05-23: Phase 1.5 run produced gate FAIL on C1 (4.77x vs 5x required;
+  other 4 criteria PASS by wide margins). Post-run diagnosis: the locked
+  window (60 min ending 30 min before close) measures POST-resolution
+  prices, not the pre-resolution mispricing a trading bot would face.
+  Hit rates of 100% and dataset mid p50 = $0.01 / p95 = $0.99 confirmed
+  the calibration was learning extreme-strike near-settlement behavior,
+  not tradable forecast edge. See Phase 1.6 below for the corrected
+  window. The Phase 1.5 result stands as recorded; Phase 1.6 is a NEW
+  experiment with its own pre-data lock.
+
+---
+
+# Phase 1.6: Repeat with Pre-Resolution Trading Window
+
+**Lock date:** 2026-05-23 (before refetching trades).
+
+## What changed from Phase 1.5
+
+Window only. Everything else is identical: same split parameters
+(180d/30d/7d/30d), same shoulder strike ranges, same pass thresholds
+(5x ECE, 2pp shoulder edge, 4 splits >= 3x, 3 of 5 LOCO, positive net
+edge), same isotonic calibration, same five locked criteria.
+
+## New window (locked)
+
+VWAP over `[open + 1h, open + 13h]`. This is:
+
+- 12 contiguous hours starting 1 hour after market open (skip the first
+  hour to avoid initial price-discovery noise).
+- Ending 1 hour BEFORE the measurement period begins. KXHIGH markets
+  open at ~14:00 UTC the day before measurement and close ~04:00 UTC of
+  the day after; measurement period is the calendar day in the city's
+  local time. The new window ends safely before any hourly NWS
+  observation could have started arriving for the measurement day.
+- 13-14 hours of trading time remain after this window for the market
+  to converge to settlement; that period is what Phase 1.5 was
+  measuring and is explicitly excluded here.
+
+## What this changes about the input
+
+mid_price_at_T is now the trade-VWAP in the 12-hour pre-resolution
+window. Markets with zero trades in this window are dropped (same
+filter rule as Phase 1.5). Empirically this is expected to lose more
+markets than the close-window cut (early-market liquidity is thinner),
+which is acceptable - it costs us some sample size but only on markets
+that no live trading bot could have entered into anyway.
+
+## What this does NOT change
+
+- The 5 pass criteria thresholds (C1-C5)
+- The walk-forward and LOCO methodology
+- The purge buffer (7 days)
+- The shoulder strike definitions ([0.15, 0.40] and [0.60, 0.85])
+- The isotonic calibrator behavior
+
+## Why this isn't p-hacking
+
+The methodology lock-in clause says "we will NOT change the pass
+criteria after seeing results." We are not changing criteria. We are
+fixing a flawed input definition (window placement) that was a latent
+bug, not a tuning knob. The pass criteria numbers stay the same.
+
+Concrete commitment: if Phase 1.6 FAILS the same five criteria (or
+fails by a similar narrow margin on C1), the project ends. We do not
+get a third bite. This is the last shot.
+
+## Phase 1.6 change log
+
+- 2026-05-23: Phase 1.6 locked. Window changed; pass criteria unchanged.
