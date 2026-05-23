@@ -2,6 +2,7 @@
 .env
 .env.*
 *.env
+!.env.example
 *.pem
 *.key
 *.pfx
@@ -20,7 +21,7 @@ __pycache__/
 venv/
 env/
 ENV/
-.python-version
+# .python-version is committed (uv pin for reproducibility)
 pip-wheel-metadata/
 *.egg-info/
 *.egg
