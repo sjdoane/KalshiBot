@@ -3,120 +3,154 @@
 **Date:** 2026-05-22
 **Operator:** Washington state resident, $50 to $100 risk capital
 **Stack:** Windows 11 + WSL2 Ubuntu, Python with uv
-**Status:** Research complete (pre-critic). Awaiting operator decision before Phase 2.
+**Status:** Phase 1 complete (post-critic). Awaiting operator decision.
 
-Synthesis of four parallel research briefs:
+This document synthesizes four parallel research briefs and a Research Critic
+pass. Source files:
 - [Agent A: Kalshi API and infrastructure](briefs/agent-a-api-infra.md)
 - [Agent B: Edge identification](briefs/agent-b-edges.md)
 - [Agent C: Risk and failure modes](briefs/agent-c-risk.md)
 - [Agent D: Legal, tax, regulatory](briefs/agent-d-legal.md)
+- [Research Critic report](critic-report.md)
 
----
+## 0. What changed after the critic pass
+
+The critic landed three substantive hits on the pre-critic draft. Each is now
+reflected throughout the document.
+
+1. **EC-1 was framed as a candidate edge; it is a hypothesis.** The entire
+   4-7pp gross-edge number derives from one study (Zerve CalibShi, 14.8x ECE
+   improvement on 8,494 KXHIGHNY markets) that does NOT document in-sample vs
+   out-of-sample partition. Isotonic regression fit and scored on the same
+   data is trivially well-calibrated; the published figure tells us nothing
+   about live edge. The synthesis treated calibration as profitability. Wrong.
+2. **Pre-critic said the WA AG preliminary injunction motion was "not
+   filed/scheduled." That is wrong.** AG Brown's complaint explicitly seeks a
+   preliminary injunction. Motion is on file; no hearing date set. Separately,
+   the 9th Circuit panel at oral argument (2026-04-16) "appeared to lean
+   Nevada's way" per Nevada Current reporting. WA sits in the 9th Circuit, so
+   an adverse ruling shortens the access-loss window from "3-12 months" to
+   plausibly "1-6 months."
+3. **Northlake Labs 0-for-32 was misapplied.** That bot was a taker at extreme
+   strikes with 15-60 minute polling. It is NOT a direct refutation of EC-1's
+   maker-quoting design. The transferable lesson is the latency arms race
+   ("pros react within seconds of every NWS cycle"), not the trade structure.
+
+Several smaller corrections (OBBBA gambling-loss cap may NOT apply to event
+contracts; sports is 89% of Kalshi revenue not 72% of volume; maker fee
+arithmetic is conditional on fill rate * (1 - adverse selection); the
+-$30 to +$15 range is vibes not math) are also incorporated.
 
 ## 1. Executive summary
 
-**Headline.** The project is not blocked by any single hard constraint, but the
-honest expected value on $100 of capital is **near zero with a realistic outcome
-range of about -$30 to +$15** over a 3 to 6 month pilot. There is exactly one
-credible edge candidate (KXHIGH weather maker-quoting), and it sits at the edge
-of professional coverage. If the goal is to make money, the math says don't. If
-the goal is an instrumented research and engineering exercise with at most a
-$25-$30 tuition budget, the math says proceed with a tight, narrow Phase 2.
+**Headline.** Project is not blocked by any single hard constraint, but the
+honest expected value on $100 of capital is **near zero, with a plausible
+floor closer to the cap than to -$30** if execution fails. The only edge
+"candidate" identified (EC-1 KXHIGH weather maker-quoting) is unvalidated and
+likely zero-to-negative after fees, latency disadvantage, and adverse
+selection. **Recommended path: kill live trading**, with two non-default
+escape hatches detailed in Section 8.
 
 **Scorecard.**
 
-| Dimension                          | Status        | Comment                                                                                  |
-|------------------------------------|---------------|------------------------------------------------------------------------------------------|
-| Legal access (WA, 2026-05-22)      | Open w/ risk  | Trading possible today. WA AG suit filed 2026-03-27. Access loss risk in 3-12 months.    |
-| API and infrastructure             | Green         | Mature v2 API, working demo env, official Python SDK, RSA-PSS auth understood.           |
-| Historical data for backtesting    | Yellow        | Tick trades available; full L2 orderbook history is not. Constrains backtest fidelity.   |
-| Fee tractability                   | Yellow        | Maker fee ~0.88% round-trip is workable. Taker fee ~3.5% kills most candidates.          |
-| Existence of a real edge           | Yellow        | One plausibly surviving candidate. Edge 3-6pp gross, 1.5-3pp net, contested by pros.     |
-| Capital sufficiency ($100)         | Yellow        | Enough for an instrumented pilot. Insufficient for Kelly sizing or meaningful $ returns. |
-| Tax treatment                      | Unsettled     | Federal classification ambiguous. Bot must log enough fields to support any treatment.   |
-| Engineering complexity             | Manageable    | Risk controls, kill switch, reconciliation, idempotency are well-understood, not exotic. |
-
-Recommendation in Section 8.
-
----
+| Dimension                          | Status              | Comment                                                                                          |
+|------------------------------------|---------------------|--------------------------------------------------------------------------------------------------|
+| Legal access (WA, 2026-05-22)      | Yellow leaning red  | Trading open today. Preliminary injunction motion ON FILE. 9th Circuit oral argument unfavorable.|
+| API and infrastructure             | Green               | Mature v2 API, working demo, official SDK, RSA-PSS auth well-understood.                          |
+| Historical data for backtesting    | Yellow              | Tick trades and candles available. L2 orderbook depth history is not.                            |
+| Fee tractability                   | Yellow              | Maker ~0.88% round-trip workable IF fills are not adversely selected. Taker ~3.5% kills most.    |
+| Existence of a real edge           | Red                 | Sole candidate is calibration-only with no out-of-sample validation. Edge is a hypothesis.        |
+| Capital sufficiency ($100)         | Yellow              | Sufficient for an instrumented research probe. Insufficient for meaningful $ returns.            |
+| Tax treatment                      | Unsettled           | Federal classification ambiguous. Logging must support any of four treatments.                   |
+| Engineering complexity             | Manageable          | Standard controls, idempotency, kill switch, reconciliation.                                      |
+| Counterparty composition (EC-1)    | Red                 | Weather markets are bot vs bot. No retail dumb money to subsidize the maker.                     |
 
 ## 2. The edge question (most important section)
 
-The single most important finding of Phase 1: on Kalshi, **takers lose ~32% on
-a transactional basis and makers lose ~10%** (Burgi, Deng, Whelan 2025, n=300k+
-contracts). That is the population baseline. To make money, the bot must
-identify a sub-population where the cost structure inverts.
+Population baseline on Kalshi: **takers lose ~32% per trade, makers lose ~10%**
+(Burgi, Deng, Whelan 2025, n=300k+ contracts, confirmed). That is the
+distribution any retail strategy starts inside. The bot must identify a
+sub-population where the cost structure inverts. The critic also surfaced
+Bartlett & O'Hara (2026, n=41.6M trades): makers ARE profitable in
+single-name markets, but via a YES-overbet behavioral surplus on NO-settling
+markets, NOT via calibration. Weather markets do not obviously exhibit a YES
+bias (no ideological pull toward warm or cold), so the documented
+maker-profit mechanism does not transfer to EC-1.
 
 ### What does NOT work for $100 retail in 2026
 
 - **Cross-platform arb (Kalshi vs Polymarket).** 78% execution failure on
-  low-volume opportunities; windows last seconds; pros are co-located. Net
+  low-volume opportunities. Windows last seconds. Pros are co-located. Net
   edge -1 to +1pp.
-- **BTC short-dated lat-arb.** Pure HFT game. Residential latency loses.
-  Round-trip fees ~3.5% on 50c contracts eat the theoretical 2-5% edge.
-- **Sports.** 72% of Kalshi volume but Jump and Susquehanna run dedicated
-  desks. Pinnacle remains the sharp benchmark and is faster than Kalshi.
-  "Beat Kalshi sports CLV" is the same problem as "beat Pinnacle," which is
-  very hard.
-- **Economics (CPI, NFP, FOMC, GDP).** Kalshi macro markets outperform
-  Bloomberg consensus (Fed FEDS 2026-010). Both sides smart money; edge
-  negligible for retail.
+- **BTC short-dated lat-arb.** HFT game. Residential latency loses.
+  Round-trip fees ~3.5% eat the theoretical 2-5% edge.
+- **Sports.** Now 89% of Kalshi revenue (not 72% of volume as the brief had
+  it). Jump and Susquehanna run dedicated desks. Pinnacle remains the sharp
+  benchmark and is faster than Kalshi.
+- **Economics (CPI/NFP/FOMC/GDP).** Kalshi macro outperforms Bloomberg
+  consensus. Both sides smart money; edge negligible for retail.
 
-### What plausibly works (one candidate, marginal)
+### What was claimed to work (and why the critic disagrees)
 
 **EC-1: KXHIGH weather residual calibration via maker quoting.**
-- **Series:** KXHIGHNY, KXHIGHCHI, KXHIGHMIA, KXHIGHLAX, KXHIGHDEN (verified
-  May 2026).
-- **Mechanic:** isotonic-regression-recalibrated NWS HRRR / GFS ensemble
-  probabilities vs Kalshi mid; post passive maker quotes on shoulder strikes
-  when divergence > 8pp; cancel on NWS cycle update.
-- **Gross edge:** 4-7pp on shoulder strikes (Zerve CalibShi study, 8,494
-  settled markets, ECE improves 14.8x vs raw market price).
-- **Net edge after maker fees (~0.88% round-trip):** 1.5-3pp.
-- **Why it might not work:** multiple known weather bots already operate;
-  "maker" implies passive limits that adverse-select against you (you fill on
-  the wrong side); Northlake Labs documented a 0-for-32 record on retail
-  weather trades.
-- **Backtest constraint:** need contemporaneous NWS forecast archives plus
-  Kalshi tick data. Doable but engineering-intensive. Critical caveat:
-  Kalshi historical L2 orderbook depth is not API-accessible, so any
-  backtest of maker fill probability will be optimistic.
+- **Series:** KXHIGHNY, KXHIGHCHI, KXHIGHMIA, KXHIGHLAX, KXHIGHDEN
+  (verified May 2026).
+- **Mechanic (proposed):** isotonic-recalibrated NWS HRRR/GFS ensemble
+  probabilities vs Kalshi mid; post maker quotes on shoulder strikes when
+  divergence > 8pp; cancel on NWS cycle update.
+- **Claimed edge:** 4-7pp gross, 1.5-3pp net after maker fees (Zerve CalibShi
+  study, 8,494 settled markets, ECE 0.01624 -> 0.00109).
+- **Critic's counterpoints:**
+  - The Zerve study does not document an out-of-sample partition. Isotonic
+    fit and scored on the same data is trivially well-calibrated. The 14.8x
+    figure tells us nothing about live tradable edge.
+  - Counterparty composition: weather markets are bot vs bot. There is no
+    retail dumb money to subsidize the maker. This is the worst possible
+    counterparty mix.
+  - Latency: pros react within seconds of every NWS cycle. A residential
+    Windows + WSL2 host in Washington state will not. EC-1's "cancel on NWS
+    cycle update" requires sub-second reaction; if the bot lags, its resting
+    orders get filled at stale prices after NWS has already updated. That is
+    the textbook adverse-selection failure mode.
+  - Open-source bot `suislanchez/polymarket-kalshi-weather-bot` is already
+    publicly doing approximately this strategy.
+  - Bartlett-O'Hara maker-profit mechanism is YES-bias, not calibration.
+    Weather markets do not exhibit a clear YES-bias.
+- **Critic's net edge estimate:** **[-1pp, +1pp], mode small negative.**
 
-**EC-2 (politics underconfidence)** is opportunistic only. Edge of 3-10pp net
-but episodic, weakening in 2025 data, and low non-election-year volume. Useful
-as a secondary signal during major political events, not a primary thesis.
+**EC-2 (politics underconfidence)** stays opportunistic only. Episodic, low
+non-election-year volume, weakening in 2025 data. Useful as a secondary
+signal around discrete political events; not a primary thesis.
 
-### The killer fact
+### The bottom line on edges
 
-Even the surviving candidate is "at the edge of professional coverage" and the
-field is filling up fast. **Expected outcome on $100 over 3 to 6 months: range
--$30 to +$15, mode near zero.** This is not a profit position. It is an
-instrumented learning expense with a small chance of being net positive.
-
----
+There is no edge candidate validated to the standard required to risk real
+money on a $100 account. EC-1 is a hypothesis backed by one calibration study
+without an out-of-sample test. The minimum required research to upgrade EC-1
+from hypothesis to candidate is detailed in Section 8 as a **Phase 1.5 gate**.
 
 ## 3. Infrastructure (API, fees, data)
 
-### API verdict: Green
+### API verdict: Green (critic confirmed all major numbers)
 
 - **Version:** v2. Canonical hosts: `external-api.kalshi.com` (prod),
   `external-api.demo.kalshi.co` (demo). Demo alive in May 2026.
 - **Auth:** RSA-PSS-SHA256 over `timestamp_ms + METHOD + path`, three headers
-  (`KALSHI-ACCESS-KEY/SIGNATURE/TIMESTAMP`). Timestamp is milliseconds, not
-  seconds (common gotcha). Private key shown once. Key rotation is informal
-  (generate new, then revoke old).
-- **Rate limits (Basic tier):** ~20 reads/s, ~10 writes/s, token bucket. 429
-  on overage with no `Retry-After` header. Exponential backoff mandatory.
+  (`KALSHI-ACCESS-KEY/SIGNATURE/TIMESTAMP`). Timestamp is milliseconds.
+  Private key shown once. Key rotation is informal (generate new, revoke old).
+  Scopes (`read`/`write`) added Dec 2025 - useful for least-privilege keys.
+- **Rate limits (Basic tier):** ~20 reads/s, ~10 writes/s, token bucket.
+  429 on overage with no `Retry-After` header. Exponential backoff mandatory.
 - **Order types:** **only `limit` accepted via API since Sep 25, 2025.**
-  Market orders deprecated. IOC at $0.99 simulates market buy. Stop orders not
-  natively supported (client-side only).
-- **Tick:** $0.01 standard, some sub-penny markets ($0.001). Price field type
-  migrated to fixed-point strings ("0.5500") in March 2026. Any pre-March 2026
-  example code breaks.
+  Market orders deprecated. IOC at $0.99 simulates market buy. Stop orders
+  not natively supported.
+- **Tick:** $0.01 standard, some sub-penny markets ($0.001). Price field
+  migrated to fixed-point strings ("0.5500") in March 2026. Pre-March example
+  code breaks.
 - **Position limits:** moved to "position accountability levels" in Nov 2024.
   Exchange caps ($7M per strike per individual) irrelevant at retail scale.
 
-### Fee math (cross-verified across multiple sources)
+### Fee math (confirmed by critic across multiple sources)
 
 - **Taker:** ceil(0.07 * C * P * (1 - P) / 0.01) * 0.01 per contract. Max
   $0.0175 at P = $0.50.
@@ -124,66 +158,59 @@ instrumented learning expense with a small chance of being net positive.
 - **Settlement, ACH deposit, ACH withdrawal:** all $0.
 - **Wire withdrawal:** $0 from Kalshi but $500k minimum (institutional only).
 
-Worked example, taker: 10 contracts at $0.55, resolves YES.
-- Entry fee: $0.18 -> gross P&L $4.50 -> net $4.32 -> **fee drag 4.0%**.
+Worked examples (unchanged from pre-critic).
+- Taker, 10 contracts at $0.55, resolves YES: entry fee $0.18, net $4.32,
+  **fee drag 4.0%**.
+- Maker, same trade: entry fee $0.05, net $4.45, **fee drag 1.1%**.
 
-Worked example, maker (same trade):
-- Entry fee: $0.05 -> net $4.45 -> **fee drag 1.1%**.
+**Critical reframing per critic:** "maker fee 4x more forgiving" is too
+optimistic in isolation. True net edge =
+`(gross_edge - 0.88%) * fill_rate * (1 - adverse_selection_rate)`. At
+plausible fill rate 30-50% and adverse-selection 50-70%, the maker advantage
+compresses substantially. Live measurement is the only honest way to
+calibrate this.
 
-**Strategic implication:** mid-price taker trades need >7% mispricing to clear
-a round-trip taker fee. Maker pathway is roughly 4x more forgiving. **Any
-strategy requiring aggressive taker execution is dead on arrival.**
+**Special-event markets** can have bespoke fee schedules. Per-market rule
+text must be read in code, not at design time. If KXHIGH carries non-standard
+fees, EC-1 economics change.
 
-### Historical data: Yellow flag
+### Historical data: Yellow flag (unchanged)
 
-- Trade-level history via `/historical/trades` (paginated 100/page,
-  rate-limited).
+- Trade-level history via `/historical/trades` (paginated, 100/page).
 - Candlestick history via `/historical/candlesticks`.
 - **L2 orderbook depth history is NOT openly available via API.** Options:
-  capture live WS `orderbook_delta` from now forward, pay a third party (e.g.,
-  Lychee, ~36GB archive, pricing opaque), or do without.
-- **Operational implication:** start a WS orderbook capture process from day
-  one of Phase 2, in parallel with all other work, to begin building
-  proprietary L2 history.
+  capture live WS `orderbook_delta` from now forward, pay Lychee (~36GB
+  archive, "contact sales" pricing), or do without.
+- **Operational implication:** if Phase 2 proceeds, start a WS orderbook
+  capture process from day one, parallel to all other work.
 
 ### Client library
 
-Recommended: **`kalshi-python` 2.1.4 from PyPI** (official, OpenAPI-tracking,
-captures Sep 2025 order-type and March 2026 string-price migrations).
+Recommended: **`kalshi-python` 2.1.4 from PyPI** (official, tracks OpenAPI
+spec, captures Sep 2025 order-type and March 2026 string-price migrations).
+Critic confirmed PyPI version and the proprietary license (`LicenseRef-
+Proprietary`). Read EULA before depending in any redistributed code.
 
-**Caveat:** proprietary license (`LicenseRef-Proprietary`). Read terms before
-depending in production. Fallback: write a thin RSA-PSS `httpx` client using
-`Kalshi/kalshi-starter-code-python` as the reference. Async alternative:
-`aiokalshi`.
+Fallback: thin RSA-PSS `httpx` client using `Kalshi/kalshi-starter-code-python`
+as the reference. Async alternative: `aiokalshi`.
 
 ### Demo environment
 
-- Working. Separate API keys. Mirrored market data.
-- **Fills are simulated, not real counterparty.** Demo slippage is not
-  predictive of production slippage. Use demo for correctness, not execution
-  quality. Execution quality must be validated via paper-trade-on-prod (live
-  data, zero-size or sandboxed orders).
+Mirrored market data, **simulated fills**. Demo slippage is not predictive of
+production slippage. Use demo for code correctness, paper-trade-on-prod for
+execution-quality validation.
 
----
+## 4. Risk controls (critic confirmed all controls)
 
-## 4. Risk controls
+### Position sizing for $50 to $100
 
-### Position sizing for $50 to $100 bankroll
+**Flat $1 to $2 per position for first 50 settled trades; switch to
+Quarter-Kelly capped at 5% of bankroll only after p has been validated
+out-of-sample.** Integer-contract constraint on Kalshi already forces
+near-flat sizing for sub-$5 positions, so embrace it. At $50 bankroll,
+$1-$2 sizing supports up to 25 concurrent positions, max gross exposure $50.
 
-**Recommended: flat $1 to $2 per position for the first 50 settled trades;
-switch to Quarter-Kelly capped at 5% of bankroll only after p has been
-validated on out-of-sample data.**
-
-Why not Kelly at start:
-- Full Kelly requires known p. Quant strategies have noisy p estimates. Half-
-  Kelly captures ~75% of growth at one-quarter the variance, but $50 cannot
-  survive even one Kelly miscalibration.
-- Integer-contract constraint on Kalshi already forces near-flat sizing for
-  sub-$5 positions. The granularity floor dominates the math.
-- At $50 bankroll, $1-$2 sizing supports up to 25 concurrent positions, max
-  gross exposure $50.
-
-### Drawdown circuit breakers (specific numbers)
+### Drawdown circuit breakers
 
 | Threshold     | Trigger              | Action                                                |
 |---------------|----------------------|-------------------------------------------------------|
@@ -193,236 +220,272 @@ Why not Kelly at start:
 | -25% from peak| $12.50 from $50 peak | Full stop: manual code review + operator approval     |
 | $25 floor     | bankroll < $25       | Auto-flatten and shut down                            |
 
-No auto-resume below the floor. After daily/weekly halts, require manual
-one-command resume and a logged reason. Auto-resume invites the bug that
-caused the halt to repeat overnight.
+No auto-resume below the floor.
 
-### Five mandatory controls before live capital
+### Five mandatory controls before any live capital
 
 1. **`CAPITAL_CAP_USD = 50`** as a single constant, checked pre-every-order.
    Absolute floor $25 auto-shutdown.
-2. **Idempotent `client_order_id`** = sha256(strategy|market|side|epoch_minute|seq)
-   to make restart-after-crash safe.
-3. **Drawdown circuit breakers** as above with manual-resume-only.
-4. **Reconciliation every 60 seconds** between local SQLite state and Kalshi
-   `GET /portfolio/positions`. Any mismatch -> log, alert, refuse new orders
-   until cleared.
-5. **WSL2 clock-skew startup check** (abort if local time differs from NTP
-   > 2s) plus private key PEM in OS secret store with restricted ACL.
+2. **Idempotent `client_order_id`** = sha256(strategy|market|side|epoch_minute|seq).
+3. **Drawdown circuit breakers** as above, manual-resume-only.
+4. **Reconciliation every 60 seconds** vs Kalshi `GET /portfolio/positions`.
+5. **WSL2 clock-skew startup check** + private key PEM in OS secret store
+   with restricted ACL.
 
-### Most underrated failure mode
+### Most underrated failure mode (critic confirmed)
 
-**WSL2 clock skew after laptop sleep/resume.** Silently breaks Kalshi's
-RSA-PSS signed requests (timestamps stale). Documented in `microsoft/WSL`
-issues #4677, #10006, #11790 but missing from every Kalshi tutorial reviewed.
-Five lines of NTP-check code prevents it.
+**WSL2 clock skew after sleep/resume.** Silently breaks signed requests.
+Issues `microsoft/WSL` #4677, #10006, #11790. Five lines of NTP-check code
+prevents it.
 
-### Other failure modes worth memorizing
+### Critic refinement on Knight Capital
 
-- **Knight Capital (2012):** $440M in 45 minutes. Root cause: partial
-  deployment (7 of 8 servers) + reused flag re-activating dead code. Lesson:
-  deploy completely or not at all; never reuse flags for new features.
-- **3Commas (2022):** $22M+ via leaked API keys. Lesson: never grant
-  withdrawal scope to bot keys; rotate immediately on any laptop/VPS loss.
-- **LTCM (1998):** correlated risk you did not model is the risk that kills
-  you. For Kalshi: two markets you think are independent (two Fed decisions,
-  two NFL games tied to the same weather front) may co-move in tail
-  scenarios.
-- **Polymarket 2024 manipulation:** one wallet, $30M, moved a thin market for
-  weeks. Plan for whales.
+The standard "partial deployment + reused flag" story is directionally right
+but the precise root cause is **silent deploy-script SSH failure to one of
+eight SMARS servers, leaving a zombie code path active behind the reused
+Power Peg flag**. The lesson is deploy verification, not just "deploy
+completely."
 
----
+## 5. Legal and tax (WA-specific, with critic corrections)
 
-## 5. Legal and tax (WA-specific)
+### Access status: Yellow leaning red
 
-### Access status: open with elevated risk
+WA resident can open, fund, and trade today. WA is on Kalshi's "fully
+supported" list. But:
 
-A WA resident can open, fund, and trade today, including sports contracts. WA
-is on Kalshi's "fully supported" list, not among the restricted nine (AZ, IL,
-MA, MD, MI, MT, NJ, NV, OH).
-
-**But:**
 - **2026-03-27.** WA AG Nick Brown filed civil suit in King County Superior
-  Court alleging WA Gambling Act and Consumer Protection Act violations.
-- **Mid-May 2026.** Ninth Circuit denied Kalshi's bid to halt the WA case;
-  case proceeds in state court. No preliminary injunction yet. No hearing
-  scheduled as of early April 2026.
+  Court (atg.wa.gov, Spokesman-Review, GeekWire confirm). **Complaint
+  explicitly seeks a preliminary injunction "to stop the company from
+  operating in the state immediately."** Motion is on file. No hearing date
+  scheduled as of late May 2026. (The pre-critic draft was factually wrong on
+  this point.)
+- **2026-04-16.** Ninth Circuit oral argument in Kalshi/Robinhood/Crypto.com
+  v. NV Gaming Control Board. **Per Nevada Current, the panel "appeared to
+  lean Nevada's way."** Opinion pending. WA sits in the 9th Circuit, so an
+  adverse 9th Circuit ruling binds directly.
+- **2026-05-20.** Case remanded to WA state court. Kalshi appealed remand to
+  9th Circuit.
 - **2025-12-12.** WA State Gambling Commission advisory called prediction
   markets "unauthorized activity."
 
-**Material risk of access loss in 3 to 12 months** via: (a) preliminary
-injunction in King County, (b) Kalshi voluntary WA geofence, (c) frozen
-deposits or delayed withdrawals, (d) sports-only block.
-
-**Implication:** the bot must include a wind-down mode from day one. On any
-loss-of-access signal, flatten positions cleanly and stop, without operator
-intervention.
+**Honest probability estimate (per critic):** 30-50% chance WA access closes
+within 6 months. The pre-critic "3-12 months" framing was too sanguine. A
+preliminary injunction with 30-day comply-or-cease language would force
+Kalshi to either geofence WA or contest mid-case, either of which can affect
+deposited funds for weeks to months. WA's use of the Recovery of Money Lost
+at Gambling Act treats WA traders as victims rather than complicit (favorable
+for the operator if Kalshi loses or settles), but practical effects on a live
+account during an injunction window are not specified anywhere public.
 
 ### Top federal events to monitor
 
-1. **Ninth Circuit ruling on Kalshi/Robinhood/Crypto.com v. NV Gaming Control
-   Board.** Oral argument 2026-04-16, opinion pending. The most consequential
-   single event for WA access.
+1. **Ninth Circuit ruling on Kalshi/Robinhood/Crypto.com v. NV GCB.** Most
+   consequential single event for WA access. Panel directional signal is
+   unfavorable for Kalshi.
 2. **CFTC final rule on event contracts.** ANPRM comments closed 2026-04-30;
-   final rule possibly Q3 or Q4 2026.
-3. **WA AG preliminary injunction motion** (unscheduled).
-4. **Third Circuit (NJ) ruled 2026-04-06** that CEA preempts state gambling
-   law for sports contracts on a CFTC DCM. Mixed signal.
+   final rule possibly Q3-Q4 2026.
+3. **WA preliminary injunction hearing.** Unscheduled but motion is filed.
+4. **Third Circuit (NJ), 2026-04-06.** Affirmed a preliminary injunction
+   holding CEA preempts state gambling law for sports event contracts. 2-1
+   ruling (Porter, Chagares; Roth dissent). Merits not decided. Sets up a
+   circuit split likely heading to SCOTUS.
 
-### Tax: bot must log to support any of 4 treatments
+### Sports = 89% of Kalshi revenue (critic correction)
 
-Federal classification is unsettled. Logging schema must support all of:
-- **Section 1256** (60/40 long/short, mark-to-market). Aggressive. Defensible
-  because Kalshi is a CFTC DCM.
-- **Short-term capital gains.** Moderate. Form 8949 / Schedule D.
-- **Ordinary income.** Conservative. Schedule 1 line 8 or Schedule C.
-- **Gambling income.** Worst case. OBBBA 2026 caps gambling-loss deduction at
-  90%, creating phantom income for break-even traders.
+The Agent B figure (72% of volume) understates regulatory exposure. Per
+ingame.com / Sportico / Sacra, sports is **89% of Kalshi 2025 revenue**. The
+WA AG suit is squarely targeting Kalshi's main business. If Kalshi loses
+sports nationally (plausible after a 9th Circuit loss + SCOTUS denial),
+platform economics shift and the appetite to keep marginal-revenue WA-
+resident retail accounts open shifts with it.
+
+### Tax: log to support any of 4 treatments (with OBBBA nuance)
+
+Federal classification is unsettled. Bot logs must support:
+- **Section 1256** (60/40 long/short, mark-to-market). Aggressive.
+- **Short-term capital gains.** Moderate.
+- **Ordinary income.** Conservative.
+- **Gambling income.** Worst case.
+
+**OBBBA 90% gambling-loss cap (critic correction).** OBBBA Public Law 119-21
+Section 70114 does amend IRC 165(d), confirmed. **But multiple CPA sources
+(Camuso, Monaco, defirate) argue the 90% cap may NOT apply to prediction-
+market event contracts**, precisely because their classification is
+unsettled. Industry framing is that prediction markets ESCAPE the cap. The
+phantom-income risk only materializes if IRS specifically forces gambling
+treatment. Worth logging defensively, but not the four-alarm fire the
+pre-critic draft implied.
 
 **Per-trade logging requirements:** UTC and WA-local timestamps, market
 ticker, side, quantity, fill price, fees, settlement value, holding period in
-hours, market category, exchange order ID, client order ID. Capture year-end
-mark-to-market FMV of every open position at 23:59 ET on Dec 31.
+hours, market category, exchange order ID, client order ID. Year-end
+mark-to-market FMV at 23:59 ET Dec 31.
 
-**Wash-sale (IRC 1091):** likely does not apply to event contracts.
-Statutorily inapplicable if 1256 is elected. Confirm with CPA.
+**Wash-sale (IRC 1091)** likely does not apply to event contracts. Confirm
+with CPA. **WA capital gains tax** ($278k floor, long-term only) not in
+scope at $100 bankroll.
 
-**WA capital gains tax:** $278k floor and long-term only. Kalshi contracts are
-short-term. Not in scope at $100 bankroll.
-
-**Required action before live capital:** consult a WA-licensed attorney and a
-CPA familiar with CFTC-regulated derivatives. Non-negotiable.
+**Required action before any live capital:** consult a WA-licensed attorney
+and a CPA familiar with CFTC-regulated derivatives. Non-negotiable.
 
 ### 1099 forms (incomplete picture)
 
-- **1099-INT** for $10+ interest on cash balances.
-- **1099-MISC** for referral bonuses or credits ($2,000+ threshold in 2026).
-- **1099-B coverage is disputed.** Some sources say Kalshi sends 1099-B at
-  $600+ proceeds; others say it does not cover event-contract P/L.
-  Conservative posture: **assume Kalshi does NOT send a comprehensive 1099-B;
-  the bot is the authoritative P/L source for tax filing.**
+- 1099-INT for $10+ interest.
+- 1099-MISC for referral bonuses ($2,000+ threshold in 2026).
+- **1099-B coverage disputed.** Conservative posture: assume Kalshi does NOT
+  send a comprehensive 1099-B; the bot is the authoritative P/L source.
 
----
+## 6. Open questions and critical unknowns (re-ordered post-critic)
 
-## 6. Open questions and critical unknowns
+**Phase 1.5 gate (highest priority - must be done before any Phase 2 work
+involving live capital):**
 
-Compiled from all four briefs. The critic pass will pressure-test these.
+1. **Out-of-sample validation of Zerve isotonic recalibration.** Pull
+   500-1000 settled KXHIGHNY contracts from a held-out window, fit isotonic
+   on the first half, score the second half, compute realized edge vs raw
+   market. If the 14.8x ECE figure does not survive a clean train/test split,
+   EC-1 is dead. Estimated effort: 1-2 days on free data (Kalshi
+   `/historical/trades`, Iowa State NWS archive). **This is the single
+   highest-value research item and gates the proceed/kill decision.**
 
-**Edge-related:**
-1. **Maker fill rate vs adverse selection on KXHIGH.** Published 4-7pp gross
-   edge is calibration on settled prices. Whether a passive limit would
-   actually fill at those prices without adverse selection by faster bots is
-   the single biggest unknown. Could be tested with ~$20 over 50 markets.
-2. **EC-1 capital constraint.** Maker quoting on 5 cities x 5-10 strikes each
-   = 25 to 50 resting orders. On $50, average position is $1-$2; minimum-tick
-   and adverse-selection effects may dominate.
-3. **Political underconfidence persistence** outside high-volume election
-   windows is unverified.
+**Secondary, before live capital:**
 
-**Infrastructure:**
-4. **Kalshi fee schedule PDF** returned 429 on direct fetch. Numbers
-   cross-checked via three secondary sources; operator should download the
-   PDF manually before live trading.
-5. **Special-event market fees** can deviate from the standard formula.
-   Per-market rule text must be checked.
-6. **WebSocket rate limits** (subscriptions per connection, message rate,
-   reconnect backoff) not publicly documented. Measure in demo.
-7. **`kalshi-python` license terms** are proprietary. Operator must read
-   before relying in production.
-8. **Lychee historical L2 dataset pricing** is "contact sales." Budget
-   relevance unknown.
-9. **API key scope separation.** Unclear whether Kalshi supports trade-only
-   vs withdraw-enabled scopes on one key. If not, key compromise = bank
-   drain risk; design must keep withdrawals manual-only.
+2. **Live fill-rate test on KXHIGH maker quotes.** $5-10, one week of resting
+   orders on KXHIGHNY shoulder strikes. Log quote-to-fill latency, fill price
+   vs subsequent NWS update, adverse-selection events. Target 50 fills.
+   Kill EC-1 if fill rate < 40% or adverse-selection rate > 60%.
+3. **Counterparty composition on KXHIGH.** Are fills bot-clustered around NWS
+   updates (worst case) or uniform across the day (some retail flow)? Sample
+   50 fills across a week.
+4. **WSocket subscription cap and reconnect behavior on demo.** If cap < 50,
+   the 25-50-resting-orders proposal needs multiple connections.
 
-**Legal/tax:**
-10. **WA AG preliminary injunction motion** timing unscheduled. Could land
-    Q3 2026 or later.
-11. **Kalshi voluntary WA geofence** decision (a Ninth Circuit loss could
-    trigger it).
-12. **Federal tax classification of event contracts** is genuinely
-    unresolved. Consult CPA.
-13. **OBBBA 90% gambling-loss cap exposure** if gambling treatment is forced.
+**Tertiary (verify before live):**
 
----
+5. **Kalshi fee schedule PDF** - download directly from a clean session.
+   Verify formula constants and any KXHIGH-specific schedule.
+6. **Lychee L2 dataset pricing.** "Contact sales" is not a budget.
+7. **WA-licensed attorney 30-minute consult** on restitution / disgorgement /
+   escheatment exposure during a preliminary-injunction window.
+8. **API key scope verification.** Critic indicates Dec 2025 scopes field
+   makes trade-only keys feasible. Operator should verify in dashboard.
 
-## 7. Contradictions and gaps between briefs
+**Monitor continuously:**
 
-- **1099-B coverage.** Agent A briefly mentioned Kalshi sends 1099-B for
-  proceeds > $600; Agent D's deeper review found CPAs split on whether this
-  covers event-contract P/L. Reconciled: **assume not comprehensive**; the
-  bot computes its own P/L authoritatively.
-- **Fee schedule verification.** Agent A confirmed the formula via three
-  secondary sources because Kalshi's PDF returned 429; Agent B independently
-  cited the same formula. Acceptable but warrants direct PDF download by the
-  operator before live.
-- **EC-1 backtest feasibility.** Agent B says "doable" given Kalshi historical
-  trades + NWS + Open-Meteo. Agent A flagged that historical L2 depth is NOT
-  API-accessible. Tension: maker-quoting backtest needs depth data to model
-  fill probability honestly. Trade-print backtests will overstate fill rates.
-- **Demo usefulness.** Reconciled: demo for code correctness; paper-trade-on-
-  prod (live data, zero-size or sandboxed) for execution-quality validation.
+9. WA AG preliminary injunction hearing date.
+10. Ninth Circuit ruling on NV GCB case.
+11. CFTC final rule on event contracts.
+12. Kalshi voluntary WA geofence signals.
 
----
+## 7. Contradictions and gaps between briefs (mostly unchanged)
+
+- **1099-B coverage.** A briefly mentioned 1099-B for $600+; D found CPAs
+  split. Reconciled: bot computes own P/L authoritatively.
+- **Fee schedule verification.** A confirmed via three secondary sources;
+  critic re-confirmed; PDF still 429s on direct fetch. Operator should pull
+  the live PDF before live trading.
+- **EC-1 backtest feasibility.** B said "doable" given Kalshi historical
+  trades + NWS + Open-Meteo. A flagged no historical L2. Critic resolved:
+  trade-print backtest is doable but will overstate fill rates; the Phase
+  1.5 gate (item 1 above) can use it because it tests calibration, not fill.
+- **Demo usefulness.** Demo for correctness; paper-trade-on-prod for
+  execution quality.
+- **Maker fee 4x advantage (NEW post-critic).** Pre-critic framing was too
+  optimistic. Real advantage is conditional on fill rate * (1 - adverse
+  selection). Must be measured live.
 
 ## 8. Recommendation
 
-This is the operator's call. The honest framing:
+Three honest paths. The default is the first.
 
-**If the goal is profit:** kill or defer. Expected EV is near zero with range
--$30 to +$15. The opportunity cost of the engineering hours is large relative
-to the realistic upside.
+### Path A (default): kill live trading
 
-**If the goal is a real-money instrumented research and engineering exercise
-with a $25 to $30 tuition budget:** proceed with a tightly scoped Phase 2 per
-the conditions below.
+Do not move to Phase 2 involving live capital. The single edge candidate is
+unvalidated, the access window is potentially short, and the engineering
+learnings can be obtained for free elsewhere. Expected outcome on $100 is
+near zero, with a realistic floor closer to the cap than to -$30 if
+execution fails.
 
-### Conditional-proceed plan
+### Path B (recommended if the goal is engineering practice): demo-only
 
-1. **Restrict Phase 2 to EC-1 (KXHIGH weather maker-quoting) only.** Treat
-   EC-2 (politics underconfidence) as an opportunistic add-on after EC-1 is
-   live and instrumented.
-2. **Build a wind-down mode from day one.** On a loss-of-access signal,
-   flatten positions cleanly and stop, no operator action required.
-3. **Hard go/no-go gate after 200 live paper-traded fills.** If maker fill
-   rate < 55% on resting orders (adverse selection dominates), pull the plug.
-4. **Start WS orderbook capture now**, in parallel with all other work, to
-   build proprietary L2 history.
-5. **Cap initial live capital at $25**, not $50. Half of half. If it works at
-   $25 it'll work at $50; if it blows up at $25, you saved $25.
-6. **Two-week paper trade requirement** remains non-negotiable. If paper P&L
-   distribution diverges meaningfully from backtest, debug before going live.
-7. **CPA and WA-licensed attorney consults** before live trading. Budget
-   separate from the $100 cap.
+Build the bot end-to-end against Kalshi's demo environment plus a paper-trade
+layer driven by live production market data. Zero capital at risk. Practice
+the full M1-M8 milestone progression: RSA-PSS auth, rate-limit-aware client,
+idempotent orders, reconciliation, kill switch, drawdown breakers, WSL2
+clock-skew check, logging, Discord alerts. The engineering value of this
+project is real. The live-trading value is not.
 
-If any of these conditions are unacceptable, kill the project.
+**Required to defend this path against scope creep:** explicit operator
+agreement that demo and paper-on-prod are the terminal states. No live API
+keys generated. No bank account linked. The $50 capital cap is enforced by
+not depositing $50.
 
----
+### Path C (only if the operator wants the trading research): Phase 1.5 gate first
+
+Before any Phase 2 work involving real capital:
+
+1. **Out-of-sample Zerve replication.** 1-2 days on free data. Fit isotonic
+   on a held-out partition, score on the other half, compute realized edge
+   vs raw market. Concrete pass criteria:
+   - Out-of-sample ECE improvement >= 5x (down from in-sample 14.8x is fine;
+     trivially-low out-of-sample improvement is the failure mode).
+   - Median per-trade gross edge >= 2pp on shoulder strikes (15-40c bucket).
+   - Edge persistence across at least 4 disjoint monthly windows.
+2. If Phase 1.5 passes, then a Phase 2 strategy proposal becomes defensible,
+   gated on the additional requirements below.
+3. **If Phase 1.5 fails**, the project ends. The Zerve study was the only
+   evidence backing the only candidate; without out-of-sample support, there
+   is no edge to chase.
+
+If Phase 1.5 passes, Phase 2 still requires:
+- Initial live cap of **$25** (not $50). Half of half.
+- **200-fill live paper-traded go/no-go gate** on maker fill rate
+  (>= 55% required) and adverse selection (<= 60% required).
+- **Wind-down mode** triggered automatically on any WA access signal.
+- **CPA + WA-licensed attorney consults** completed before live capital.
+- Two-week paper-trade requirement (no real money) before any live capital.
+
+Capital cap remains $50 hard, $25 initial. If at any time during Phase 2 the
+weekly drawdown crosses -15% ($7.50), the project pauses for review.
+
+### Why the critic recommends a clean kill
+
+The critic argues Path C is too generous because: (a) the WA access window may
+close within Phase 1.5 + Phase 2's combined timeline, making the live runtime
+zero; (b) the engineering learnings in Path C are obtainable in Path B for
+zero capital risk; (c) the EC-1 edge claim is single-sourced. I find these
+arguments strong but not dispositive. The honest framing is: Path B if you
+want engineering practice; Path C if and only if the Zerve gate clears and
+you accept that the realistic dollar outcome may be small loss to small win.
+Path A by default.
 
 ## 9. What I need from the operator
 
-To move to Phase 2, please confirm:
+Pick a path:
 
-1. **Goal framing.** Profit-motivated (recommendation: kill) or
-   research/learning with tuition budget (recommendation: conditional
-   proceed)?
-2. **Outcome acceptance.** Realistic range -$30 to +$15 over 3 to 6 months,
-   mode near zero. Acceptable as the honest base case?
-3. **WA legal risk.** Trading open today but may close in 3 to 12 months. Bot
-   will wind down cleanly but cannot prevent access loss. Acceptable?
-4. **Pre-live consults.** CPA + WA attorney short consultations before live
-   trading. In scope?
-5. **Initial live cap of $25** (not $50). Acceptable?
+1. **Path A: kill live trading.** No further work. Project archives at this
+   commit. Recommended if the goal is profit.
+2. **Path B: demo and paper-on-prod only.** Phase 2-6 proceed but with
+   permanent no-live-capital posture. Recommended if the goal is engineering
+   practice.
+3. **Path C: Phase 1.5 Zerve gate, then conditional Phase 2.** I run the
+   out-of-sample replication; we look at the results together; we proceed
+   only if it clears the bar in Section 8.
 
-If yes to all five, Phase 2 will produce a narrowed strategy proposal
-(EC-1 KXHIGH maker-quoting) plus the architecture sketch for evaluation
-before any production code lands.
+If Path C, also confirm:
+- Realistic outcome acceptance (range -$50 to +$15 if execution fails badly,
+  -$30 to +$15 if it functions, mode near zero). Acceptable?
+- WA legal risk acceptance (30-50% chance access closes within 6 months).
+  Acceptable?
+- $25 initial live cap (not $50). Acceptable?
+- CPA + WA attorney consults before live (separate budget). Acceptable?
+- Hard kill of the project if Phase 1.5 out-of-sample replication fails.
+  Acceptable?
 
----
+## Appendix: source documents
 
-## Appendix: individual briefs
-
-- [Agent A: Kalshi API and infrastructure](briefs/agent-a-api-infra.md) (11 sections, ~30 sources)
-- [Agent B: Edge identification](briefs/agent-b-edges.md) (6 sections, ~25 sources)
-- [Agent C: Risk and failure modes](briefs/agent-c-risk.md) (5 sections, ~20 sources)
-- [Agent D: Legal, tax, regulatory](briefs/agent-d-legal.md) (5 sections, ~25 sources)
+- [Agent A: Kalshi API and infrastructure](briefs/agent-a-api-infra.md)
+- [Agent B: Edge identification](briefs/agent-b-edges.md)
+- [Agent C: Risk and failure modes](briefs/agent-c-risk.md)
+- [Agent D: Legal, tax, regulatory](briefs/agent-d-legal.md)
+- [Research Critic report](critic-report.md)
