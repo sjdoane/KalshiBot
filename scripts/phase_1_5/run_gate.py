@@ -23,7 +23,7 @@ REPORT_PATH = Path("research/phase-1.5-results.md")
 def render_report(result: GateResult, dataset_meta: dict) -> str:
     lines: list[str] = []
     lines.append("# Phase 1.5 Results: Zerve Out-of-Sample Replication\n")
-    lines.append(f"**Date generated:** {pd.Timestamp.utcnow().isoformat()}Z")
+    lines.append(f"**Date generated:** {pd.Timestamp.now(tz='UTC').isoformat()}")
     lines.append("**Methodology:** [phase-1.5-methodology.md](phase-1.5-methodology.md)")
     lines.append("**Verdict:** " + ("**GATE PASSES**" if result.passes else "**GATE FAILS**"))
     lines.append("")
