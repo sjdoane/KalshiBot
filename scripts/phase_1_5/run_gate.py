@@ -64,16 +64,30 @@ def render_report(result: GateResult, dataset_meta: dict) -> str:
         lines.append(f"- {k}: {v}")
     lines.append("")
 
+    lines.append("## Informational (not part of pass criteria)")
+    lines.append("")
+    lines.append(
+        f"- median hit rate on trades > 2pp edge: "
+        f"{result.median_hit_rate_at_2pp*100:.1f}% "
+        f"(50% = no directional skill)"
+    )
+    lines.append(
+        f"- median realized P&L per contract after maker fees: "
+        f"${result.median_realized_pnl_after_fees:.4f}"
+    )
+    lines.append("")
     lines.append("## Walk-forward splits")
     lines.append("")
-    lines.append("| Split | n_train | n_test | raw ECE | cal ECE | ratio | shoulder edge | net edge |")
-    lines.append("|---|---|---|---|---|---|---|---|")
+    lines.append("| Split | n_train | n_test | raw ECE | cal ECE | ratio | shoulder edge | net edge | hit rate >2pp | median PnL/contract |")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|")
     for r in result.walk_forward:
         lines.append(
             f"| {r.label} | {r.n_train} | {r.n_test} | "
             f"{r.raw_ece:.4f} | {r.cal_ece:.4f} | {r.ece_ratio:.2f}x | "
             f"{r.median_shoulder_gross_edge*100:.2f}pp | "
-            f"{r.median_shoulder_net_edge*100:.2f}pp |"
+            f"{r.median_shoulder_net_edge*100:.2f}pp | "
+            f"{r.hit_rate_at_2pp*100:.1f}% | "
+            f"${r.median_realized_pnl_per_contract_after_fees:.4f} |"
         )
     lines.append("")
 

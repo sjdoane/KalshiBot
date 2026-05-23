@@ -10,8 +10,10 @@ from kalshi_bot.analysis.metrics import (
     expected_calibration_error,
     hit_rate,
     kalshi_maker_fee_per_contract,
+    kalshi_round_trip_maker_fees,
     kalshi_taker_fee_per_contract,
     per_trade_gross_edge,
+    realized_pnl_per_contract,
     reliability_diagram,
 )
 
@@ -115,3 +117,34 @@ def test_maker_fee_is_quarter_of_taker_at_50() -> None:
     # ceil(1.75 * 0.5 * 0.5) = ceil(0.4375) = 1 cent
     maker = kalshi_maker_fee_per_contract(0.50)
     assert maker == pytest.approx(0.01)
+
+
+def test_kalshi_round_trip_maker_fees_vectorizes() -> None:
+    fees = kalshi_round_trip_maker_fees([0.50, 0.50, 0.50])
+    assert fees.tolist() == pytest.approx([0.02, 0.02, 0.02])  # 2 x $0.01
+
+
+def test_realized_pnl_yes_win_yes_loss_no_trade() -> None:
+    # Three markets: model says YES strongly, NO strongly, neither.
+    # Outcomes: 1, 1, 0.
+    pnl = realized_pnl_per_contract(
+        model_probs=[0.80, 0.20, 0.51],
+        market_probs=[0.50, 0.50, 0.50],
+        outcomes=[1, 1, 0],
+        fee_per_contract=0.01,
+        edge_threshold=0.05,
+    )
+    # Row 0: bet YES at 0.50, outcome=1 -> 1 - 0.50 - 0.01 = 0.49
+    # Row 1: bet NO at 0.50, outcome=1 -> 0.50 - 1 - 0.01 = -0.51
+    # Row 2: |edge|=0.01 < threshold 0.05 -> no trade, no fee, P&L=0
+    assert pnl.tolist() == pytest.approx([0.49, -0.51, 0.0])
+
+
+def test_realized_pnl_no_fee_no_edge_filter() -> None:
+    # Vanilla mode: every row trades, zero fees, P&L equals signed gross
+    pnl = realized_pnl_per_contract(
+        model_probs=[0.7, 0.3],
+        market_probs=[0.5, 0.5],
+        outcomes=[1, 0],
+    )
+    assert pnl.tolist() == pytest.approx([0.5, 0.5])  # both correct directionally

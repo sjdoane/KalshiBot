@@ -18,8 +18,11 @@ import pandas as pd
 from kalshi_bot.analysis.calibration import IsotonicCalibrator
 from kalshi_bot.analysis.metrics import (
     expected_calibration_error,
+    hit_rate,
     kalshi_maker_fee_per_contract,
+    kalshi_round_trip_maker_fees,
     per_trade_gross_edge,
+    realized_pnl_per_contract,
 )
 from kalshi_bot.analysis.train_test_split import (
     apply_split,
@@ -60,6 +63,11 @@ class SplitResult:
     median_shoulder_gross_edge: float
     median_shoulder_net_edge: float
     n_shoulder: int
+    # Informational only - not part of the locked pass criteria. Provides
+    # the reader with directional accuracy and realized P&L context.
+    hit_rate_at_2pp: float = float("nan")
+    median_realized_pnl_per_contract_after_fees: float = float("nan")
+    n_trades_above_2pp: int = 0
 
 
 @dataclass
@@ -82,6 +90,9 @@ class GateResult:
     median_shoulder_net_edge: float = float("nan")
     loco_positive_cities: int = 0
     loco_worst_negative_drift: float = 0.0
+    # Informational summary stats, not part of pass criteria.
+    median_hit_rate_at_2pp: float = float("nan")
+    median_realized_pnl_after_fees: float = float("nan")
     criteria: dict[str, bool] = field(default_factory=dict)
     passes: bool = False
 
@@ -124,6 +135,20 @@ def _split_metrics(train: pd.DataFrame, test: pd.DataFrame, label: str) -> Split
         median_net = float("nan")
         n_shoulder = 0
 
+    # Informational metrics: hit rate and realized P&L on trades that
+    # would clear a 2pp edge filter. These do NOT gate the methodology;
+    # they help the reader decide whether the calibration translates to
+    # tradable returns.
+    h_rate = hit_rate(cal_test, raw_test, y_test, edge_threshold=0.02)
+    fees_round_trip = kalshi_round_trip_maker_fees(raw_test)
+    pnl = realized_pnl_per_contract(
+        cal_test, raw_test, y_test,
+        fee_per_contract=fees_round_trip, edge_threshold=0.02,
+    )
+    pnl_nonzero = pnl[(pnl != 0) | (np.abs(cal_test - raw_test) > 0.02)]
+    median_pnl = float(np.median(pnl_nonzero)) if pnl_nonzero.size else float("nan")
+    n_trades_above_2pp = int((np.abs(cal_test - raw_test) > 0.02).sum())
+
     return SplitResult(
         label=label,
         n_train=len(train),
@@ -134,6 +159,9 @@ def _split_metrics(train: pd.DataFrame, test: pd.DataFrame, label: str) -> Split
         median_shoulder_gross_edge=median_gross,
         median_shoulder_net_edge=median_net,
         n_shoulder=n_shoulder,
+        hit_rate_at_2pp=float(h_rate) if not np.isnan(h_rate) else float("nan"),
+        median_realized_pnl_per_contract_after_fees=median_pnl,
+        n_trades_above_2pp=n_trades_above_2pp,
     )
 
 
@@ -198,6 +226,18 @@ def evaluate(df: pd.DataFrame) -> GateResult:
         )
         res.median_shoulder_gross_edge = float(np.median(gross_edges)) if len(gross_edges) else float("nan")
         res.median_shoulder_net_edge = float(np.median(net_edges)) if len(net_edges) else float("nan")
+        hit_rates = np.array(
+            [r.hit_rate_at_2pp for r in wf if not np.isnan(r.hit_rate_at_2pp)]
+        )
+        pnls = np.array(
+            [
+                r.median_realized_pnl_per_contract_after_fees
+                for r in wf
+                if not np.isnan(r.median_realized_pnl_per_contract_after_fees)
+            ]
+        )
+        res.median_hit_rate_at_2pp = float(np.median(hit_rates)) if len(hit_rates) else float("nan")
+        res.median_realized_pnl_after_fees = float(np.median(pnls)) if len(pnls) else float("nan")
 
     if loco:
         loco_ratios = np.array([r.ece_ratio for r in loco])

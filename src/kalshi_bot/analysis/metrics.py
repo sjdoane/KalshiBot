@@ -164,3 +164,45 @@ def kalshi_maker_fee_per_contract(price: float, *, contracts: int = 1) -> float:
     """Maker fee is 25% of taker."""
     cents = np.ceil(1.75 * contracts * price * (1.0 - price))
     return float(cents / 100.0)
+
+
+def realized_pnl_per_contract(
+    model_probs: Sequence[float] | np.ndarray,
+    market_probs: Sequence[float] | np.ndarray,
+    outcomes: Sequence[int] | np.ndarray,
+    *,
+    fee_per_contract: Sequence[float] | np.ndarray | float = 0.0,
+    edge_threshold: float = 0.0,
+) -> np.ndarray:
+    """Realized P&L per contract under the buy-cheaper rule.
+
+    If model_prob > market_prob + edge_threshold, buy YES at market: per
+    contract P&L = outcome - market_prob - fee.
+    If model_prob < market_prob - edge_threshold, buy NO at (1 - market):
+    per contract P&L = market_prob - outcome - fee.
+    Otherwise, no trade: P&L = 0.
+
+    Returns an array of P&L values aligned with the inputs. Sum or median
+    across the test set to get aggregate P&L.
+    """
+    m = _as_float_array(model_probs)
+    k = _as_float_array(market_probs)
+    y = _as_float_array(outcomes)
+    edge = m - k
+    direction = np.where(
+        edge > edge_threshold, 1.0, np.where(edge < -edge_threshold, -1.0, 0.0)
+    )
+    # signed gross P&L: + for YES win, - for YES loss, mirror for NO
+    gross = direction * (y - k)
+    # Only pay fees when we trade
+    if np.isscalar(fee_per_contract):
+        fees = np.where(direction != 0, float(fee_per_contract), 0.0)
+    else:
+        fees = np.where(direction != 0, np.asarray(fee_per_contract, dtype=float), 0.0)
+    return gross - fees
+
+
+def kalshi_round_trip_maker_fees(prices: Sequence[float] | np.ndarray) -> np.ndarray:
+    """Vectorized round-trip maker fee per contract for an array of prices."""
+    p = _as_float_array(prices)
+    return np.array([2 * kalshi_maker_fee_per_contract(float(x)) for x in p])
