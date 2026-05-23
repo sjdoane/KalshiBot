@@ -1,0 +1,3 @@
+# Hardlinks fail inside OneDrive-synced folders (os error 396); fall back to
+# file copy. Slightly larger venv on disk, but no install errors.
+link-mode = "copy"
