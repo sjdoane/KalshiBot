@@ -7,6 +7,7 @@ findings plus a clean PASS/KILL verdict.
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -17,14 +18,15 @@ from kalshi_bot.analysis.gate import GateResult, evaluate
 from kalshi_bot.logging import configure_logging
 
 DATASET_PATH = Path("data/processed/kxhigh_dataset.parquet")
-REPORT_PATH = Path("research/phase-1.5-results.md")
+DEFAULT_REPORT_PATH = Path("research/phase-1.6-results.md")
 
 
-def render_report(result: GateResult, dataset_meta: dict) -> str:
+def render_report(result: GateResult, dataset_meta: dict, *, phase: str) -> str:
     lines: list[str] = []
-    lines.append("# Phase 1.5 Results: Zerve Out-of-Sample Replication\n")
+    lines.append(f"# Phase {phase} Results: Zerve Out-of-Sample Replication\n")
     lines.append(f"**Date generated:** {pd.Timestamp.now(tz='UTC').isoformat()}")
     lines.append("**Methodology:** [phase-1.5-methodology.md](phase-1.5-methodology.md)")
+    lines.append(f"**Window:** {dataset_meta.get('window', 'unspecified')}")
     lines.append("**Verdict:** " + ("**GATE PASSES**" if result.passes else "**GATE FAILS**"))
     lines.append("")
     lines.append("## Pass criteria")
@@ -124,6 +126,21 @@ def render_report(result: GateResult, dataset_meta: dict) -> str:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--phase", default="1.6", help="Phase label for report title.")
+    parser.add_argument(
+        "--window-label",
+        default="[open + 1h, open + 13h]",
+        help="Window description for report header.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_REPORT_PATH,
+        help="Where to write the results markdown.",
+    )
+    args = parser.parse_args()
+
     configure_logging()
     log = structlog.get_logger("run_gate")
 
@@ -144,6 +161,7 @@ def main() -> int:
         "mid_price_p05": round(float(df["mid_price_at_T"].quantile(0.05)), 4),
         "mid_price_p50": round(float(df["mid_price_at_T"].quantile(0.50)), 4),
         "mid_price_p95": round(float(df["mid_price_at_T"].quantile(0.95)), 4),
+        "window": args.window_label,
     }
     log.info("dataset_loaded", **dataset_meta)
 
@@ -157,8 +175,8 @@ def main() -> int:
         loco_positive=result.loco_positive_cities,
     )
 
-    REPORT_PATH.write_text(render_report(result, dataset_meta), encoding="utf-8")
-    log.info("wrote_report", path=str(REPORT_PATH))
+    args.output.write_text(render_report(result, dataset_meta, phase=args.phase), encoding="utf-8")
+    log.info("wrote_report", path=str(args.output))
 
     return 0 if result.passes else 2  # exit 2 = gate fail (not an error)
 

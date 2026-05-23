@@ -21,7 +21,6 @@ daily high exceeding a given strike.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 from typing import TYPE_CHECKING
 
 import httpx
@@ -29,7 +28,7 @@ import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 if TYPE_CHECKING:
-    pass
+    from datetime import date
 
 log = structlog.get_logger(__name__)
 
