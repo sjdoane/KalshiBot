@@ -1,16 +1,18 @@
 # Phase 1 Research Document: Kalshi Quant Trading Bot
 
 **Date:** 2026-05-22
-**Operator:** Washington state resident, $50 to $100 risk capital
+**Operator:** WA-domiciled, physically in California most of the time
+(USC), $25 initial live capital (down from $50 per critic), $100 hard cap
 **Stack:** Windows 11 + WSL2 Ubuntu, Python with uv
-**Status:** Phase 1 complete (post-critic). Awaiting operator decision.
+**Status:** Phase 1 complete (post-critic + CA addendum). Operator on Path C.
 
 This document synthesizes four parallel research briefs and a Research Critic
 pass. Source files:
 - [Agent A: Kalshi API and infrastructure](briefs/agent-a-api-infra.md)
 - [Agent B: Edge identification](briefs/agent-b-edges.md)
 - [Agent C: Risk and failure modes](briefs/agent-c-risk.md)
-- [Agent D: Legal, tax, regulatory](briefs/agent-d-legal.md)
+- [Agent D: Legal, tax, regulatory (WA-focused)](briefs/agent-d-legal.md)
+- [Agent D CA addendum (post-operator-disclosure)](briefs/agent-d-legal-ca-addendum.md)
 - [Research Critic report](critic-report.md)
 
 ## 0. What changed after the critic pass
@@ -246,9 +248,31 @@ eight SMARS servers, leaving a zombie code path active behind the reused
 Power Peg flag**. The lesson is deploy verification, not just "deploy
 completely."
 
-## 5. Legal and tax (WA-specific, with critic corrections)
+## 5. Legal and tax (WA + CA dual exposure, with critic corrections)
 
-### Access status: Yellow leaning red
+### Two states matter: WA (domicile) and CA (physical presence)
+
+The operator is WA-domiciled but physically in California most of the year
+(USC student). Kalshi's per-state restriction applies based on the
+residential address on file at KYC. So the practical access question
+depends on which address the operator registers with. See full analysis in
+the [CA addendum](briefs/agent-d-legal-ca-addendum.md).
+
+**CA access (cleaner today):**
+- Open. No CA cease-and-desist or suit against Kalshi as of 2026-05-22.
+- N.D. Cal. DENIED the three CA tribes' preliminary injunction in Nov
+  2025; tribes' appeal is now in the 9th Circuit on a separate track
+  from the NV case (consolidation denied 2026-05-06).
+- **Loaded but not fired:** CA AG Rob Bonta is "preparing a
+  cease-and-desist" and "considering" a state suit per CNIGA chair
+  James Siva (Dec 2025). Treat as imminent-but-uncertain.
+- CA tax exposure: nonresident filing (Form 540NR) sources intangible
+  income to domicile state (WA), so Kalshi P/L is NOT CA-taxable for a
+  nonresident. Trivial dollars at $100 cap either way.
+
+**WA access (status quo, see below):**
+
+### Access status (WA): Yellow leaning red
 
 WA resident can open, fund, and trade today. WA is on Kalshi's "fully
 supported" list. But:
@@ -289,6 +313,19 @@ account during an injunction window are not specified anywhere public.
    holding CEA preempts state gambling law for sports event contracts. 2-1
    ruling (Porter, Chagares; Roth dissent). Merits not decided. Sets up a
    circuit split likely heading to SCOTUS.
+
+### Address recommendation
+
+If the operator genuinely lives at a CA dorm/apartment Aug-May, the
+**CA address is the cleaner Kalshi KYC entry today**: it matches
+physical reality, avoids the WA AG suit's class definition, and the CA
+AG threat is not yet operational. Do NOT use a CA address while not
+actually living there - that is misrepresentation. Update Kalshi if/when
+domicile changes. A 30-minute CPA call before scaling past ~$5k PnL is
+recommended given 9-month-presumption edge cases.
+
+The address question gates the rest of Phase 1.5 because the Kalshi API
+keys for historical data must be tied to whichever address is on file.
 
 ### Sports = 89% of Kalshi revenue (critic correction)
 
