@@ -1,8 +1,10 @@
 # Phase 1 Research Document: Kalshi Quant Trading Bot
 
-**Date:** 2026-05-22
-**Operator:** WA-domiciled, physically in California most of the time
-(USC), $25 initial live capital (down from $50 per critic), $100 hard cap
+**Date:** 2026-05-22 (jurisdiction clarified 2026-05-23: CA-only)
+**Operator:** California resident (USC). $25 initial live capital (down
+from $50 per critic), $100 hard cap. WA section retained for historical
+reference but NOT in scope - operator confirmed CA is the only relevant
+jurisdiction. See [CA addendum](briefs/agent-d-legal-ca-addendum.md).
 **Stack:** Windows 11 + WSL2 Ubuntu, Python with uv
 **Status:** Phase 1 complete (post-critic + CA addendum). Operator on Path C.
 
