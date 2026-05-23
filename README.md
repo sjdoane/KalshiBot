@@ -6,26 +6,36 @@ to $100 of real capital autonomously with strict risk controls.
 
 ## Status
 
-**Phase 1: Research - COMPLETE** (2026-05-22). Synthesis +
-[critic pass](research/critic-report.md) found no validated edge candidate.
-One hypothesis (KXHIGH weather maker-quoting) survives if it passes an
-out-of-sample calibration gate.
+**PROJECT KILLED at Phase 1.6 gate (2026-05-23).** The EC-1 KXHIGH
+weather maker-quoting hypothesis is not viable for a $25-$50 retail
+account on Kalshi in 2026. The methodology lock-in's "no third bite"
+commitment was honored; no live capital was deployed. Engineering
+artifacts retained as a reference implementation.
 
-**Phase 1.5: Zerve out-of-sample replication - IN PROGRESS.** Train an
-isotonic recalibrator on a held-out partition of historical KXHIGH market
-data plus contemporaneous NWS forecasts; score on the rest. Pass criteria
-in [research-document.md §8](research/research-document.md). If the gate
-fails, the project ends.
+The honest outcome:
 
-| Phase | Description                                       | State        |
-|-------|---------------------------------------------------|--------------|
-| 1     | Research (API, edges, risk, legal)                | complete     |
-| 1.5   | Out-of-sample Zerve gate                          | in progress  |
-| 2     | Edge selection and strategy design                | gated        |
-| 3     | Architecture and plan                             | gated        |
-| 4     | Build in vertical slices (M1-M8)                  | gated        |
-| 5     | Go-live checklist                                 | gated        |
-| 6     | Live trading and monitoring                       | gated        |
+| Phase | Description                                       | State                 |
+|-------|---------------------------------------------------|-----------------------|
+| 1     | Research (API, edges, risk, legal)                | complete              |
+| 1.5   | OOS Zerve gate (close-window)                     | failed C1 narrowly    |
+| 1.6   | OOS Zerve gate (pre-resolution window)            | **FAILED CLEANLY**    |
+| 2     | Edge selection and strategy design                | not reached (killed)  |
+| 3+    | Architecture, build, go-live                      | not reached (killed)  |
+
+### Why the gate failed
+
+Phase 1.5 (close-window) showed a misleading 9pp shoulder edge, but
+that was an artifact of measuring post-resolution prices on
+near-settled markets. Phase 1.6 with a proper pre-resolution window
+([open+1h, open+13h]) showed only 1.5pp gross edge and -0.5pp net
+edge after maker fees. Both gates failed multiple locked criteria.
+
+The literature predicted this: Bürgi 2026 finds weather has smaller
+bias than the cross-category average; Becker 2026 measures a 2.57pp
+per-trade maker-taker gap in weather (gross of fees); Le 2026 shows
+weather is underconfident at long horizons (the regime we'd actually
+trade in), with even smaller bias to exploit. Our empirical OOS gate
+confirms all three. See [research/phase-1.6-results.md](research/phase-1.6-results.md).
 
 ## Hard Constraints
 
@@ -73,18 +83,32 @@ Project Kalshi/
     phase-1.5-results.md      # Zerve replication writeup (pending)
 ```
 
-## Phase 1 Deliverables
+## Deliverables
 
-- [Synthesized Research Document](research/research-document.md)
-- [Research Critic report](research/critic-report.md)
-- Individual briefs:
+- [Synthesized Research Document](research/research-document.md) - Phase 1 synthesis with critic pass
+- [Research Critic report](research/critic-report.md) - adversarial review
+- [Phase 1.5 methodology lock-in](research/phase-1.5-methodology.md) - includes the Phase 1.6 amendment
+- [Phase 1.5 results](research/phase-1.5-results.md) - close-window gate (misleading 9pp edge)
+- [Phase 1.6 results](research/phase-1.6-results.md) - pre-resolution gate (clean kill)
+- Research briefs:
   [API/infra](research/briefs/agent-a-api-infra.md),
   [edges](research/briefs/agent-b-edges.md),
   [risk](research/briefs/agent-c-risk.md),
-  [legal/tax](research/briefs/agent-d-legal.md)
+  [legal/tax (WA)](research/briefs/agent-d-legal.md),
+  [legal/tax (CA addendum)](research/briefs/agent-d-legal-ca-addendum.md)
+- [Literature corpus](research/literature/INDEX.md) - 7 papers studied with full extractions
 
-## Operating the Bot
+## Reusable engineering
 
-Not applicable yet. This section will be filled in before live trading and
-will cover: how to start, how to stop, kill switch command, where logs go,
-how to read the daily Discord summary, and what to do if something breaks.
+What's still in the repo and works:
+
+- `src/kalshi_bot/data/auth.py` - RSA-PSS signing for Kalshi API, 8 unit tests
+- `src/kalshi_bot/data/kalshi_client.py` - rate-limit-aware HTTP client with cursor pagination, 6 unit tests
+- `src/kalshi_bot/data/kxhigh.py` - KXHIGH event-ticker parser with legacy-format support, 14 unit tests
+- `src/kalshi_bot/analysis/` - calibration, train/test splits with anti-leakage purge, metrics including fee math
+- `src/kalshi_bot/alerts/discord.py` - tested Discord webhook client
+- `scripts/phase_1_5/*` - one-shot data acquisition and analysis pipeline
+- 62/62 unit tests pass; ruff clean
+
+If you want to start a related Kalshi project, these are reusable
+without modification. See [CLAUDE.md](CLAUDE.md) for guidance.
