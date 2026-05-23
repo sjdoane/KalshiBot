@@ -28,13 +28,9 @@ pip-wheel-metadata/
 dist/
 build/
 
-# Data, models, large artifacts (commit small samples only)
-data/raw/
-data/cache/
-data/*.parquet
-data/*.duckdb
-data/*.sqlite
-data/*.db
+# Data, models, large artifacts. Everything under data/ is reproducible
+# from APIs and should not bloat the repo.
+data/**
 *.pkl
 *.joblib
 
