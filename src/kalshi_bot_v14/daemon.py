@@ -72,8 +72,14 @@ log = structlog.get_logger(__name__)
 X_THRESHOLD = 0.006
 HAIRCUT = 0.0007
 SAFETY_BUFFER = 0.005
-V14_PER_TRADE_USD = 0.95
-V14_MAX_DAILY_ORDERS = 10
+# v14 per-fire USD budget. Used as BOTH the headroom floor check AND the
+# size input (contracts = int(V14_PER_TRADE_USD // target_price)). Default
+# 0.95 reproduces the pre-2026-05-28 single-contract behavior at typical
+# $0.47 mean execution price. Operator can override via env to concentrate
+# more capital per fire since v14 fires rarely (1-2/day expected) vs v1's
+# high frequency. At V14_PER_TRADE_USD=5.00 each fire is ~10 contracts.
+V14_PER_TRADE_USD = float(os.environ.get("V14_PER_TRADE_USD", "0.95"))
+V14_MAX_DAILY_ORDERS = int(os.environ.get("V14_MAX_DAILY_ORDERS", "10"))
 V14_CONSECUTIVE_LOSS_KILL = 5
 
 # Capital allocation: fraction of LIVE Kalshi total bankroll (cash + filled
@@ -548,9 +554,14 @@ def one_loop(
     headroom_v14 = v14_cap_usd - v14_exposure
     summary["v14_headroom_usd"] = round(headroom_v14, 2)
 
-    if headroom_v14 < V14_PER_TRADE_USD:
+    # Headroom floor: need at least enough room for ONE contract at typical
+    # MLB-night execution price ($0.40 to $0.55). $0.55 is a conservative
+    # floor; below this v14 can't even place a single contract. We DO NOT
+    # require V14_PER_TRADE_USD of headroom here, because the per-fire
+    # sizing logic below will scale contracts down to whatever fits.
+    if headroom_v14 < 0.55:
         summary["errors"].append(
-            f"v14_headroom_below_per_trade: {headroom_v14:.2f} < {V14_PER_TRADE_USD}"
+            f"v14_headroom_below_one_contract: {headroom_v14:.2f} < 0.55"
         )
         return summary
 
@@ -602,29 +613,33 @@ def one_loop(
         target_implied = p_cur if take_home_side else 1.0 - p_cur
         target_price = min(0.99, target_implied + HAIRCUT + SAFETY_BUFFER)
         target_price = max(0.01, target_price)
-        # Self-meter cash
+        # Size from per-fire budget: aim for V14_PER_TRADE_USD of total
+        # exposure on this fire. Floor at 1 contract so the strategy still
+        # fires even if budget < target_price (preserves pre-2026-05-28
+        # behavior when V14_PER_TRADE_USD ~= 0.95 ~= target_price).
+        contracts = max(1, int(V14_PER_TRADE_USD // target_price))
+        # Trim if either cash or v14 headroom is tighter than the budget,
+        # so we still place SOMETHING rather than skip on borderline cash.
         per_contract_cost = target_price
-        if per_contract_cost > cash_usd:
+        max_by_cash = int(cash_usd // per_contract_cost)
+        max_by_v14 = int(headroom_v14 // per_contract_cost)
+        contracts = min(contracts, max_by_cash, max_by_v14)
+        if contracts < 1:
             summary["skipped_no_cash"] += 1
             log_event({
                 "event": "fire_skipped_no_cash",
-                "ticker": ticker, "cost": per_contract_cost,
-                "kalshi_cash": cash_usd,
+                "ticker": ticker, "per_contract_cost": per_contract_cost,
+                "kalshi_cash": cash_usd, "v14_headroom": headroom_v14,
+                "budget_usd": V14_PER_TRADE_USD,
             })
             continue
-        if per_contract_cost > headroom_v14:
-            summary["skipped_no_cash"] += 1
-            log_event({
-                "event": "fire_skipped_no_v14_headroom",
-                "ticker": ticker, "cost": per_contract_cost,
-                "v14_headroom": headroom_v14,
-            })
-            continue
+        order_cost = per_contract_cost * contracts
         # Place
         log_event({
             "event": "fire_placement_attempt",
             "ticker": ticker, "side": "yes_buy",
             "target_price": round(target_price, 4),
+            "contracts": contracts, "order_cost_usd": round(order_cost, 4),
             "home": g.get("home_team"), "away": g.get("away_team"),
             "take_home_side": take_home_side, "delta_sb_home": round(delta, 4),
             "dry_run": dry_run,
@@ -638,7 +653,7 @@ def one_loop(
                 series_ticker="KXMLBGAME",
                 event_ticker=ticker.rsplit("-", 1)[0],
                 target_price=target_price,
-                contracts=1,
+                contracts=contracts,
                 expected_net_edge=0.15,  # v14 expected mean per backtest
                 market_mid_at_placement=target_implied,
             )
@@ -648,13 +663,16 @@ def one_loop(
                 "ticker": ticker, "intent_id": order.intent_id,
                 "status": order.status.value,
                 "order_id": order.order_id,
+                "contracts": contracts,
+                "order_cost_usd": round(order_cost, 4),
             })
             discord_notify(
-                f"v14 PLACED {ticker} YES BUY @ ${target_price:.2f} "
-                f"(delta_sb {delta:+.4f}; status {order.status.value})"
+                f"v14 PLACED {ticker} YES BUY {contracts}c @ ${target_price:.2f} "
+                f"= ${order_cost:.2f} (delta_sb {delta:+.4f}; "
+                f"status {order.status.value})"
             )
-            cash_usd -= per_contract_cost
-            headroom_v14 -= per_contract_cost
+            cash_usd -= order_cost
+            headroom_v14 -= order_cost
         except Exception as e:
             summary["errors"].append(f"place_error: {type(e).__name__}: {e}")
             log_event({"event": "fire_placement_failed", "ticker": ticker, "error": str(e)})
