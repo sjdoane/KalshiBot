@@ -878,3 +878,107 @@ Each strategy attempt produces:
 When the project finishes (live trading working, or definitively
 killed), update this file to reflect the terminal state for the
 next context window to pick up cleanly.
+
+## Git workflow (BINDING for every context window)
+
+Operator authorized 2026-05-28: this repo pushes to
+`https://github.com/sjdoane/KalshiBot.git` (remote `origin`, branch
+`main`) continually as work is done. Every Claude window operating on
+this project follows this workflow:
+
+### Commit cadence
+
+- **Per meaningful unit of work**, not per file edit. A "meaningful
+  unit" is: a methodology lock, a script + run + report bundle, a
+  bugfix, a verdict close, an operator-decision response.
+- Do NOT batch unrelated work into one commit.
+- Do NOT commit incomplete / broken code; if a change spans
+  multiple files, finish them all before committing.
+- Mid-task uncommitted changes are fine; commit at task boundary.
+
+### Commit message format
+
+```
+<type>: <short imperative summary under 70 chars>
+
+<optional body explaining what + why, wrapped to 72 chars. Reference
+research/v{N}/ docs by path. State the operator decision or critic
+finding that motivated the change.>
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+```
+
+Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `snapshot`.
+
+### Push cadence
+
+- Push after every commit (`git push origin main`). Do NOT
+  accumulate unpushed commits; the GitHub repo is the canonical
+  off-machine backup of state.
+- If push fails (network, auth, etc.), retry once, then surface the
+  failure to the operator. Do NOT silently leave commits unpushed.
+
+### What NEVER goes into the repo
+
+Enforced by `.gitignore`:
+
+- `.env`, `*.pem`, any `kalshi_key*` or `private_key*` (secrets)
+- `.venv*` and any virtual env (regeneratable)
+- `data/**` (operational state including `state.json` with order details;
+  also reproducible from APIs)
+- `prediction-market-analysis/` (85+ GB Becker repo; separate upstream)
+- `logs/`, `*.log` (rotated runtime artifacts)
+- `last_seen_total.txt` and other sidecar bot state
+
+If you find yourself wanting to commit something matching these
+patterns, STOP and ask the operator.
+
+### Before any push, verify no secrets
+
+```powershell
+git diff --cached --name-only | Select-String -Pattern '\.env|\.pem|kalshi_key|private_key'
+# Output should be empty.
+```
+
+### Branching
+
+Stay on `main` for now. Operator has not asked for branch isolation.
+If a future change is risky enough to warrant a feature branch, ASK
+the operator before creating one.
+
+### When a bot is live
+
+Both v1 (`KalshiLiveBot`) and v14 (`KalshiV14Bot`) run as Windows
+scheduled tasks placing real Kalshi orders. Code changes to either
+require operator-initiated restart (`.\scripts\restart_bot.ps1` for
+v1; `Stop-ScheduledTask` + `Start-ScheduledTask` for v14). Do NOT
+restart bots without explicit operator authorization; document
+expected restart steps in the commit body instead.
+
+## v14 + v1 live deployment status (snapshot 2026-05-28)
+
+- **v1 (`KalshiLiveBot`)** runs `scripts/paper_trade_favorite.py` under
+  `scripts/run_live_bot.ps1` supervisor. Strategy: deep-favorite
+  YES-maker on Kalshi sports, 60% bankroll fraction
+  (`V1_BANKROLL_FRACTION=0.60`), stale TTL 6h, `--cancel-on-drift`
+  enabled, intent_id prefix `11`.
+- **v14 (`KalshiV14Bot`)** runs `scripts/v14/v14_daemon.py` under
+  `scripts/v14/run_v14_bot.ps1` supervisor. Strategy: MLB-night
+  sportsbook lead-lag taker (60bp threshold), 40% bankroll fraction
+  (`V14_BANKROLL_FRACTION=0.40`), intent_id prefix `14`, 15-min loop
+  during 18:00 to 06:00 UTC.
+- Both bots **fully Kalshi-state-aware**: each loop polls
+  `/portfolio/balance`, `/portfolio/orders`, `/markets`; detects
+  operator-initiated deposits, withdrawals, and order cancellations
+  automatically. NO hardcoded dollar values; everything fraction-based
+  off live Kalshi total.
+- The 60/40 split applies to v1/v14 deployments specifically; operator
+  manual positions on Kalshi count toward the total but aren't claimed
+  by either bot.
+- Order ownership: `client_order_id` first 2 chars = `11` (v1), `14`
+  (v14), other (operator manual or pre-tagging-era).
+- Discord webhook (configured in `.env` as `DISCORD_WEBHOOK_URL`) used
+  by both bots for STARTED, PLACED, FILLED, KILL events.
+- Deployment guide at `research/v14/04-LIVE-DEPLOYMENT-GUIDE.md`.
+  Architecture review at `research/v14/03-architecture-review.md`.
+  Operator runbook at `OPERATOR_RUNBOOK.md`.
