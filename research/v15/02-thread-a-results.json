@@ -1,0 +1,65 @@
+{
+  "full": {
+    "n_friday": 130,
+    "n_nonfriday": 1006,
+    "mean_friday": 0.031206224498104455,
+    "mean_nonfriday": 0.02581239385309432,
+    "diff_point": 0.005393830645010134,
+    "diff_ci_lo": -0.026521386459718372,
+    "diff_ci_hi": 0.03377038398544605,
+    "label": "full_post_oct_2024",
+    "window": "2024-11-01 to 2025-11-25"
+  },
+  "train": {
+    "n_friday": 74,
+    "n_nonfriday": 605,
+    "mean_friday": 0.02265028830981951,
+    "mean_nonfriday": 0.02800353843041189,
+    "diff_point": -0.00535325012059238,
+    "diff_ci_lo": -0.04868764297545388,
+    "diff_ci_hi": 0.03426424195672702,
+    "label": "train_nov2024_aug2025",
+    "window": "2024-11-01 to 2025-09-01"
+  },
+  "oos": {
+    "n_friday": 56,
+    "n_nonfriday": 402,
+    "mean_friday": 0.04251228303262384,
+    "mean_nonfriday": 0.023017891095256055,
+    "diff_point": 0.019494391937367784,
+    "diff_ci_lo": -0.027597773327425832,
+    "diff_ci_hi": 0.061018719015365264,
+    "label": "oos_sep2025_nov2025",
+    "window": "2025-09-01 to 2025-11-25"
+  },
+  "gates": {
+    "A-G1 (n_Friday >= 100, full window)": {
+      "pass": true,
+      "detail": "n_Friday = 130"
+    },
+    "A-G2 (Friday > non-Friday point estimate)": {
+      "pass": true,
+      "detail": "diff = +0.0054"
+    },
+    "A-G3 (CI excludes zero, full window)": {
+      "pass": false,
+      "detail": "CI = [-0.0265, +0.0338]"
+    },
+    "A-G4-train (CI excludes zero, train window)": {
+      "pass": false,
+      "detail": "CI = [-0.0487, +0.0343]"
+    },
+    "A-G4-oos (CI excludes zero, OOS window)": {
+      "pass": false,
+      "detail": "CI = [-0.0276, +0.0610]"
+    },
+    "A-G5 (round confound stratification)": {
+      "pass": null,
+      "detail": "INCONCLUSIVE: Becker schema lacks tournament round metadata"
+    }
+  },
+  "verdict": "NULL",
+  "n_pass": 2,
+  "n_fail": 3,
+  "n_inconclusive": 1
+}

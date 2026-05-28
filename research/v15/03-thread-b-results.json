@@ -1,0 +1,52 @@
+{
+  "n_rows": 2451,
+  "n_tickers": 317,
+  "ols_full": {
+    "slope": 0.000934815539854468,
+    "intercept": -18.874927498190743,
+    "r2": 0.3288156628322869
+  },
+  "ols_by_prefix": {
+    "KXITFMATCH": {
+      "slope": 0.0009647905555875552,
+      "intercept": -19.480565683093754,
+      "r2": 0.30851406042367957
+    },
+    "KXITFWMATCH": {
+      "slope": 0.0009025772112420352,
+      "intercept": -18.224757273654642,
+      "r2": 0.35920941357987457
+    }
+  },
+  "near_30min_summary": {
+    "n_rows": 0,
+    "n_tickers": 0,
+    "median_spread_overall": 0.21000000000000002,
+    "median_spread_near_close": NaN,
+    "median_diff": NaN
+  },
+  "bootstrap_diff": {
+    "diff_point": null
+  },
+  "gates": {
+    "B-G1 (n_snapshots >= 1000)": {
+      "pass": true,
+      "detail": "n = 2451"
+    },
+    "B-G2 (OLS slope negative)": {
+      "pass": false,
+      "detail": "slope = 0.000934815539854468"
+    },
+    "B-G3 (median diff >= 2c)": {
+      "pass": false,
+      "detail": "diff = +nan"
+    },
+    "B-G4 (CI lower > 0)": {
+      "pass": false,
+      "detail": "diff CI lo = None"
+    }
+  },
+  "verdict": "NULL",
+  "n_pass": 1,
+  "n_fail": 3
+}
