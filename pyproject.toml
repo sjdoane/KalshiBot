@@ -23,6 +23,12 @@ dependencies = [
     "structlog>=24.4.0",
     "rich>=13.9.0",
     "typer>=0.15.0",
+    "lightgbm>=4.6.0",
+    "pybaseball>=2.2.7",
+    "streamlit>=1.57.0",
+    "psutil>=7.2.2",
+    "safetensors>=0.6.2",
+    "tabpfn>=2.0.0,<3.0.0",
 ]
 
 [dependency-groups]
@@ -48,6 +54,10 @@ packages = ["src/kalshi_bot"]
 line-length = 100
 target-version = "py312"
 src = ["src", "tests", "scripts"]
+# scripts/v2/ is research-only scaffolding for the (paused) v2 data-source
+# investigation. Not part of the live-trading codepath. Exclude from lint
+# until that branch resumes.
+exclude = ["scripts/v2/"]
 
 [tool.ruff.lint]
 select = [

@@ -1,0 +1,314 @@
+{
+  "per_prefix": {
+    "KXNBAPLAYOFFWINS": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXWCGAME": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXUFCFIGHT": {
+      "train": {
+        "n_trades": 18830,
+        "n_events": 94,
+        "trade_mean": 0.0384860594795539,
+        "event_mean": 0.03436689297053167,
+        "boot_ci_lo": 0.002811433724284361,
+        "boot_ci_hi": 0.06261960686404738,
+        "win_rate": 0.9151885289431758
+      },
+      "oos": {
+        "n_trades": 15261,
+        "n_events": 82,
+        "trade_mean": 0.021793132822226603,
+        "event_mean": 0.019652700951536133,
+        "boot_ci_lo": -0.007843288331705858,
+        "boot_ci_hi": 0.043455288789935424,
+        "win_rate": 0.9436472052945416
+      },
+      "verdict": "TRAIN_ONLY"
+    },
+    "KXIPLFINALS": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXWCSTAGEOFELIM": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXFOMEN": {
+      "train": {
+        "n_trades": 10685,
+        "n_events": 113,
+        "trade_mean": -0.012531820308844187,
+        "event_mean": 0.00892227755130234,
+        "boot_ci_lo": -0.02234617814662592,
+        "boot_ci_hi": 0.03714305889376446,
+        "win_rate": 0.858586803930744
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXBOXING": {
+      "train": {
+        "n_trades": 542,
+        "n_events": 2,
+        "trade_mean": 0.06700184501845018,
+        "event_mean": -0.08557381221719454,
+        "boot_ci_lo": -0.32737499999999997,
+        "boot_ci_hi": 0.1562273755656109,
+        "win_rate": 0.9298892988929889
+      },
+      "oos": {
+        "n_trades": 5071,
+        "n_events": 2,
+        "trade_mean": 0.10239400512719385,
+        "event_mean": 0.11880149012908126,
+        "boot_ci_lo": 0.09895833333333334,
+        "boot_ci_hi": 0.13864464692482917,
+        "win_rate": 0.9984224018931177
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNHLDRAFTPICK": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXCS2": {
+      "train": {
+        "n_trades": 1,
+        "n_events": 1,
+        "event_mean": 0.03750000000000003
+      },
+      "oos": {
+        "n_trades": 707,
+        "n_events": 19,
+        "trade_mean": -0.12966053748231968,
+        "event_mean": -0.016623401162490843,
+        "boot_ci_lo": -0.108432757650754,
+        "boot_ci_hi": 0.061513621066799,
+        "win_rate": 0.768033946251768
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXWNBAWINS": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXUFCOCCUR": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXOWGRRANK": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXPLAYWC": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNCAAFTOPAPRANK": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNEXTTEAMNBA": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNEXTTEAMNFL": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNEXTTEAMNHL": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXSTARTINGQBWEEK1": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNFLPLAYOFF": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNHLSERIESSPREAD": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXWCSQUAD": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNBAPOLOSE": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXUCLTOTAL": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 75,
+        "n_events": 5,
+        "trade_mean": -0.35916666666666675,
+        "event_mean": -0.18865384615384612,
+        "boot_ci_lo": -0.5924999999999999,
+        "boot_ci_hi": 0.019038461538461546,
+        "win_rate": 0.6266666666666667
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNFLWINS": {
+      "train": {
+        "n_trades": 10,
+        "n_events": 7,
+        "trade_mean": 0.173,
+        "event_mean": 0.19166666666666668,
+        "boot_ci_lo": 0.1360535714285714,
+        "boot_ci_hi": 0.24428571428571427,
+        "win_rate": 1.0
+      },
+      "oos": {
+        "n_trades": 478,
+        "n_events": 25,
+        "trade_mean": 0.12016736401673642,
+        "event_mean": 0.09833416737067995,
+        "boot_ci_lo": 0.08300960430473,
+        "boot_ci_hi": 0.11640795605067522,
+        "win_rate": 1.0
+      },
+      "verdict": "INSUFFICIENT"
+    }
+  }
+}

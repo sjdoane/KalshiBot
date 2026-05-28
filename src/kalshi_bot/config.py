@@ -39,6 +39,34 @@ class Settings(BaseSettings):
     WEEKLY_DD_HALT_PCT: float = 0.15
     TOTAL_DD_HALT_PCT: float = 0.25
 
+    # LIVE mode safety. Default is OFF. Operator must edit .env to enable.
+    # See research/live-mode-design.md and research/LIVE_READINESS_DECISION.md.
+    LIVE_ENABLED: bool = False
+    LIVE_OVERRIDE_GATE: bool = False  # bypass acceptance criteria; loud alert
+    LIVE_PER_TRADE_USD: float = Field(default=0.95, gt=0.0, le=2.00)
+    LIVE_MAX_OPEN_POSITIONS: int = 5
+    LIVE_MAX_CLOCK_SKEW_MS: int = 2000
+
+    # Kill triggers from LIVE_READINESS_DECISION.md acceptance criteria.
+    KILL_YES_RATE_MIN: float = 0.90
+    KILL_YES_RATE_WINDOW: int = 20
+    KILL_ROLLING_MEAN_WINDOW: int = 10
+    KILL_ROLLING_MEAN_DAYS_NEGATIVE: int = 14
+    KILL_ROLLING_30_MEAN_PP_MIN: float = 0.5  # critic-added 6th trigger
+    KILL_DRAWDOWN_PCT: float = 0.20  # tighter than HALT (0.25); rolled into DrawdownMonitor
+    KILL_LOSS_VS_WINNERS_RATIO: float = 15.0
+    KILL_LOSS_VS_WINNERS_MIN_WINNERS: int = 20  # critic-added arming floor
+    KILL_LOSS_DOLLAR_FALLBACK_PCT: float = 0.10  # fallback before 20 winners
+    KILL_FILL_RATE_MIN: float = 0.30
+    KILL_FILL_RATE_MIN_ATTEMPTS: int = 50
+
+    # Acceptance criteria (programmatically enforced unless LIVE_OVERRIDE_GATE)
+    ACCEPT_MIN_PAPER_FILLS: int = 50
+    ACCEPT_MIN_LEAGUES: int = 3
+    ACCEPT_MIN_YES_RATE: float = 0.90
+    ACCEPT_MIN_MEAN_PNL_PP: float = 1.0
+    ACCEPT_MIN_FILL_RATE: float = 0.40
+
     # Kalshi API
     KALSHI_ENV: Literal["demo", "prod"] = "demo"
     KALSHI_API_KEY_ID: str = ""

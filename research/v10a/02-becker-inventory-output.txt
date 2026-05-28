@@ -1,0 +1,97 @@
+markets parquet files: 769
+trades parquet files: 7214
+
+## Auto-discovered prefixes with >= 5 unique close months (top 100)
+============================================================
+  CPI                   months=  41 events=   41 markets=   330 resolved=  330 vol=   5741470
+  TSAW                  months=  40 events=  172 markets=   945 resolved=  945 vol=   1352108
+  U3                    months=  40 events=   40 markets=   393 resolved=  393 vol=    949004
+  HIGHNY                months=  39 events= 1171 markets=  5416 resolved= 5416 vol=   9649347
+  HIGHCHI               months=  39 events= 1159 markets=  5413 resolved= 5413 vol=   9606857
+  APRPOTUS              months=  37 events=  159 markets=  1239 resolved= 1239 vol=   1997747
+  FED                   months=  35 events=   35 markets=   347 resolved=  336 vol=  40837397
+  FRM                   months=  32 events=  132 markets=   505 resolved=  505 vol=    720835
+  538APPROVE            months=  30 events=  131 markets=  1179 resolved= 1179 vol=   3602835
+  CPICORE               months=  29 events=   29 markets=   294 resolved=  294 vol=   2523142
+  USDJPY                months=  27 events=  755 markets=  7019 resolved= 6974 vol=   8211413
+  EURUSD                months=  27 events=  754 markets=  7006 resolved= 6961 vol=   3235143
+  WTI                   months=  26 events=  430 markets=  5142 resolved= 5112 vol=   2126310
+  WTIW                  months=  26 events=  104 markets=  1560 resolved= 1560 vol=    562443
+  GAS                   months=  26 events=  111 markets=   497 resolved=  497 vol=   1077299
+  KXAAAGASM             months=  26 events=   26 markets=   182 resolved=   91 vol=  36583464
+  KXFEDDECISION         months=  26 events=   26 markets=   130 resolved=   40 vol= 278539309
+  KXPAYROLLS            months=  25 events=   25 markets=   255 resolved=   85 vol=  11082522
+  KXTORNADO             months=  25 events=   25 markets=   248 resolved=  111 vol=   1975317
+  KXHMONTHRANGE         months=  25 events=   25 markets=   150 resolved=   60 vol=    582126
+  KXPCECORE             months=  25 events=   25 markets=   121 resolved=   46 vol=    501420
+  KXRAINNYCM            months=  25 events=   25 markets=   108 resolved=   56 vol=   1157272
+  KXHMONTH              months=  25 events=   25 markets=    25 resolved=   10 vol=   2341515
+  CPIYOY                months=  24 events=   24 markets=   356 resolved=  356 vol=   1138849
+  CPICOREYOY            months=  23 events=   23 markets=   392 resolved=  392 vol=   1002242
+  PROLLS                months=  23 events=   24 markets=   172 resolved=  172 vol=    981254
+  INXD                  months=  22 events=  355 markets=  3503 resolved= 3503 vol=  64768878
+  KXIPOSTARLINK         months=  22 events=    1 markets=    22 resolved=    0 vol=      2639
+  KXIPODISCORD          months=  22 events=    1 markets=    22 resolved=    3 vol=     10157
+  KXIPOSPACEX           months=  22 events=    1 markets=    22 resolved=    1 vol=      6117
+
+## Kim mapping inventory
+============================================================
+
+Kim_KXCPI -> prefixes ['CPI', 'CPIYOY', 'CPICORE', 'CPICOREYOY', 'ACPI']
+  CPI                 n_markets=  330 unique_months=  41 resolved=  330 vol=   5741470 range=2021-07-12 .. 2024-11-13
+  CPIYOY              n_markets=  356 unique_months=  24 resolved=  356 vol=   1138849 range=2022-12-13 .. 2024-11-13
+  CPICORE             n_markets=  294 unique_months=  29 resolved=  294 vol=   2523142 range=2022-07-13 .. 2024-11-13
+  CPICOREYOY          n_markets=  392 unique_months=  23 resolved=  392 vol=   1002242 range=2023-01-12 .. 2024-11-13
+  ACPI                n_markets=   27 unique_months=   3 resolved=   27 vol=   1736444 range=2023-01-11 .. 2025-01-13
+  Total release months (any time): 42; post 2024-10-01: 3
+
+Kim_KXNFP -> prefixes ['PAYROLLS']
+  PAYROLLS            n_markets=   75 unique_months=   9 resolved=   75 vol=    836030 range=2024-03-08 .. 2024-11-01
+  Total release months (any time): 9; post 2024-10-01: 2
+
+Kim_KXUNRATE -> prefixes ['U3']
+  U3                  n_markets=  393 unique_months=  40 resolved=  393 vol=    949004 range=2021-08-05 .. 2024-11-01
+  Total release months (any time): 40; post 2024-10-01: 2
+
+Kim_KXFEDFUNDS -> prefixes ['FEDDECISION', 'FED', 'RATECUT', 'RATECUTCOUNT', 'TERMINALRATE']
+  FEDDECISION         n_markets=   70 unique_months=  13 resolved=   70 vol=   8598823 range=2023-05-03 .. 2024-11-07
+  FED                 n_markets=  347 unique_months=  35 resolved=  336 vol=  40837397 range=2021-07-26 .. 2025-12-10
+  RATECUT             n_markets=   11 unique_months=   7 resolved=   11 vol=   9758096 range=2023-12-31 .. 2024-09-19
+  RATECUTCOUNT        n_markets=   15 unique_months=   1 resolved=   15 vol=   6609075 range=2024-12-31 .. 2024-12-31
+  TERMINALRATE        n_markets=   19 unique_months=   1 resolved=   19 vol=   1003305 range=2023-12-31 .. 2023-12-31
+  Total release months (any time): 34; post 2024-10-01: 9
+
+Kim 4-series total release months (any time): 125
+Kim 4-series total release months post 2024-10-01: 16
+
+## Trades coverage on Kim-mapped prefixes
+============================================================
+  CPI                 trades=   39319 tickers_with_trades= 270 range=2021-07-01 .. 2024-11-12
+  CPIYOY              trades=    5790 tickers_with_trades= 202 range=2022-12-08 .. 2024-11-13
+  CPICORE             trades=   11632 tickers_with_trades= 196 range=2022-07-01 .. 2024-11-12
+  CPICOREYOY          trades=    3628 tickers_with_trades= 142 range=2022-12-25 .. 2024-11-12
+  ACPI                trades=   12778 tickers_with_trades=  27 range=2022-03-09 .. 2025-01-13
+  PAYROLLS            trades=    3451 tickers_with_trades=  62 range=2024-02-02 .. 2024-11-01
+  U3                  trades=    7907 tickers_with_trades= 235 range=2021-07-04 .. 2024-10-31
+  FEDDECISION         trades=   19271 tickers_with_trades=  60 range=2023-04-07 .. 2024-11-07
+  FED                 trades=  124957 tickers_with_trades= 323 range=2021-07-02 .. 2025-11-24
+  RATECUT             trades=   16703 tickers_with_trades=  11 range=2022-08-30 .. 2024-09-18
+  RATECUTCOUNT        trades=   20983 tickers_with_trades=  15 range=2023-12-14 .. 2024-12-31
+  TERMINALRATE        trades=    4141 tickers_with_trades=  19 range=2022-12-27 .. 2023-12-30
+
+## Other Finance categories for pivot menu
+============================================================
+  GDP                 n_markets=  113 unique_months=  14 resolved=  113
+  RECSSNBER           n_markets=    4 unique_months=   4 resolved=    3
+  INX                 n_markets= 3296 unique_months=  12 resolved= 3266
+  NASDAQ100           n_markets= 3327 unique_months=  15 resolved= 3297
+  TNOTE               n_markets=   68 unique_months=   7 resolved=   68
+  USDJPY              n_markets= 7019 unique_months=  27 resolved= 6974
+  EURUSD              n_markets= 7006 unique_months=  27 resolved= 6961
+
+Wrote inventory JSON to C:\Users\SamJD\OneDrive\Desktop\AI Projects\Project Kalshi\research\v10a\becker-macro-inventory.json
+
+## Verdict
+============================================================
+VERDICT: REVIVE-PRE-FLIP-ONLY
+Reason: Full-window release months = 125 but post Oct 2024 only 16. Pre-flip data violates CLAUDE.md 2024 sign-flip rule. Decision required: pre-flip data may still inform cross-market lead-lag structure.

@@ -34,6 +34,15 @@ data/**
 *.pkl
 *.joblib
 
+# Becker prediction-market-analysis (85+ GB; separate upstream repo).
+prediction-market-analysis/
+
+# Streamlit and other auto-gen runtime dirs
+.streamlit/
+
+# Sidecar files (per-loop bot state; not source-of-truth)
+last_seen_total.txt
+
 # Logs and runtime state
 logs/
 *.log

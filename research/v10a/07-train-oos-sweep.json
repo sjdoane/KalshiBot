@@ -1,0 +1,273 @@
+[
+  {
+    "prefix": "KXNCAAMBGAME",
+    "train": {
+      "n_trades": 0,
+      "n_events": 0
+    },
+    "oos": {
+      "n_trades": 279457,
+      "n_events": 307,
+      "trade_mean_net": 0.004140297076115462,
+      "event_mean_net": 0.11919927574029891,
+      "event_boot_lo": 0.09874414806809757,
+      "event_boot_hi": 0.14068188762202297,
+      "event_sd": 0.1888336907457264
+    },
+    "verdict": "TRAIN_INSUFFICIENT_N"
+  },
+  {
+    "prefix": "KXNCAAFGAME",
+    "train": {
+      "n_trades": 209434,
+      "n_events": 125,
+      "trade_mean_net": 0.043119980518922435,
+      "event_mean_net": -0.010386552887473475,
+      "event_boot_lo": -0.058720780303996245,
+      "event_boot_hi": 0.036578011455773725,
+      "event_sd": 0.2617604865986922
+    },
+    "oos": {
+      "n_trades": 3554394,
+      "n_events": 585,
+      "trade_mean_net": 0.0037441459781892427,
+      "event_mean_net": 0.05553005328166125,
+      "event_boot_lo": 0.04202763052774935,
+      "event_boot_hi": 0.068901163255773,
+      "event_sd": 0.16182013101522225
+    },
+    "verdict": "OOS_ONLY_RANDOM"
+  },
+  {
+    "prefix": "KXMLBTOTAL",
+    "train": {
+      "n_trades": 0,
+      "n_events": 0
+    },
+    "oos": {
+      "n_trades": 35530,
+      "n_events": 40,
+      "trade_mean_net": 0.03586321418519561,
+      "event_mean_net": 0.03508579090758444,
+      "event_boot_lo": 0.005285006197207725,
+      "event_boot_hi": 0.06350870959346432,
+      "event_sd": 0.094917358669299
+    },
+    "verdict": "TRAIN_INSUFFICIENT_N"
+  },
+  {
+    "prefix": "KXNFLGAME",
+    "train": {
+      "n_trades": 65540,
+      "n_events": 78,
+      "trade_mean_net": -0.004231919438510845,
+      "event_mean_net": 0.03160123023402063,
+      "event_boot_lo": -0.003723490607641599,
+      "event_boot_hi": 0.06696556277126986,
+      "event_sd": 0.1529595992937493
+    },
+    "oos": {
+      "n_trades": 4101219,
+      "n_events": 159,
+      "trade_mean_net": 0.011843023988721384,
+      "event_mean_net": 0.02626723191819087,
+      "event_boot_lo": 0.005686255023329698,
+      "event_boot_hi": 0.04778848005589201,
+      "event_sd": 0.14224951896646304
+    },
+    "verdict": "OOS_ONLY_RANDOM"
+  },
+  {
+    "prefix": "KXWTAMATCH",
+    "train": {
+      "n_trades": 252564,
+      "n_events": 650,
+      "trade_mean_net": 0.010730587098715563,
+      "event_mean_net": 0.03664958798392233,
+      "event_boot_lo": 0.02454872828106225,
+      "event_boot_hi": 0.04866206540625161,
+      "event_sd": 0.15661258604525613
+    },
+    "oos": {
+      "n_trades": 494779,
+      "n_events": 421,
+      "trade_mean_net": 0.006640671895937371,
+      "event_mean_net": 0.03272110096232912,
+      "event_boot_lo": 0.0213498174851365,
+      "event_boot_hi": 0.044695587807466436,
+      "event_sd": 0.12535453890886278
+    },
+    "verdict": "PERSISTENT_EDGE"
+  },
+  {
+    "prefix": "KXNBAGAME",
+    "train": {
+      "n_trades": 454859,
+      "n_events": 78,
+      "trade_mean_net": 0.009217614689387255,
+      "event_mean_net": 0.02932255112372557,
+      "event_boot_lo": -0.0022492820555469898,
+      "event_boot_hi": 0.06100349105467887,
+      "event_sd": 0.14216695484007177
+    },
+    "oos": {
+      "n_trades": 2186754,
+      "n_events": 267,
+      "trade_mean_net": -0.004227668041306895,
+      "event_mean_net": 0.029541769781139326,
+      "event_boot_lo": 0.015306663357178216,
+      "event_boot_hi": 0.04423721603223387,
+      "event_sd": 0.12720955712547102
+    },
+    "verdict": "OOS_ONLY_RANDOM"
+  },
+  {
+    "prefix": "KXATPMATCH",
+    "train": {
+      "n_trades": 299350,
+      "n_events": 656,
+      "trade_mean_net": 0.00168525137798563,
+      "event_mean_net": 0.04014040424333626,
+      "event_boot_lo": 0.028284855446905295,
+      "event_boot_hi": 0.0518318543733546,
+      "event_sd": 0.1532951792190619
+    },
+    "oos": {
+      "n_trades": 615415,
+      "n_events": 471,
+      "trade_mean_net": 0.00285752703460266,
+      "event_mean_net": 0.026258893463517965,
+      "event_boot_lo": 0.015000687905872221,
+      "event_boot_hi": 0.03767167085415918,
+      "event_sd": 0.12498120300775598
+    },
+    "verdict": "PERSISTENT_EDGE"
+  },
+  {
+    "prefix": "KXETHD",
+    "train": {
+      "n_trades": 114940,
+      "n_events": 3543,
+      "trade_mean_net": 0.030235775187054104,
+      "event_mean_net": 0.06454691174176189,
+      "event_boot_lo": 0.0568791243129382,
+      "event_boot_hi": 0.07200047923937448,
+      "event_sd": 0.22580776716320233
+    },
+    "oos": {
+      "n_trades": 73201,
+      "n_events": 1296,
+      "trade_mean_net": 0.00854161828390322,
+      "event_mean_net": 0.02455268495219373,
+      "event_boot_lo": 0.015789926513206813,
+      "event_boot_hi": 0.03324893777140798,
+      "event_sd": 0.15927954373537365
+    },
+    "verdict": "PERSISTENT_EDGE"
+  },
+  {
+    "prefix": "KXNBATOTAL",
+    "train": {
+      "n_trades": 0,
+      "n_events": 0
+    },
+    "oos": {
+      "n_trades": 97378,
+      "n_events": 241,
+      "trade_mean_net": 0.019658649797695577,
+      "event_mean_net": 0.01733234226260666,
+      "event_boot_lo": 0.005951077679678433,
+      "event_boot_hi": 0.029187459469255432,
+      "event_sd": 0.09197742296694794
+    },
+    "verdict": "TRAIN_INSUFFICIENT_N"
+  },
+  {
+    "prefix": "KXNCAAFTOTAL",
+    "train": {
+      "n_trades": 2036,
+      "n_events": 45,
+      "trade_mean_net": 0.00742632612966601,
+      "event_mean_net": -0.013956724295881255,
+      "event_boot_lo": -0.0776869699470953,
+      "event_boot_hi": 0.051506878419352385,
+      "event_sd": 0.22301222540159457
+    },
+    "oos": {
+      "n_trades": 129623,
+      "n_events": 598,
+      "trade_mean_net": 0.0285590134466877,
+      "event_mean_net": 0.019823817012435976,
+      "event_boot_lo": 0.007964054377927148,
+      "event_boot_hi": 0.031122881671889258,
+      "event_sd": 0.14911442500029268
+    },
+    "verdict": "OOS_ONLY_RANDOM"
+  },
+  {
+    "prefix": "KXBTC",
+    "train": {
+      "n_trades": 249166,
+      "n_events": 4045,
+      "trade_mean_net": 0.01779632855204963,
+      "event_mean_net": 0.0209840114982039,
+      "event_boot_lo": 0.015946013058894728,
+      "event_boot_hi": 0.025847037582192294,
+      "event_sd": 0.16857428045939704
+    },
+    "oos": {
+      "n_trades": 93251,
+      "n_events": 1321,
+      "trade_mean_net": 0.010536348135676823,
+      "event_mean_net": 0.009279015013278213,
+      "event_boot_lo": 0.0015586247522829983,
+      "event_boot_hi": 0.01699763874756698,
+      "event_sd": 0.14360145929905704
+    },
+    "verdict": "PERSISTENT_EDGE"
+  },
+  {
+    "prefix": "KXNCAAFSPREAD",
+    "train": {
+      "n_trades": 4740,
+      "n_events": 49,
+      "trade_mean_net": 0.044094936708860756,
+      "event_mean_net": 0.006536501284702855,
+      "event_boot_lo": -0.0387478420221104,
+      "event_boot_hi": 0.04991008471486071,
+      "event_sd": 0.16548097860750077
+    },
+    "oos": {
+      "n_trades": 248274,
+      "n_events": 590,
+      "trade_mean_net": 0.01746662961083319,
+      "event_mean_net": 0.015460667253988664,
+      "event_boot_lo": 0.004299765152848445,
+      "event_boot_hi": 0.02604724145239997,
+      "event_sd": 0.13172145739727542
+    },
+    "verdict": "OOS_ONLY_RANDOM"
+  },
+  {
+    "prefix": "KXBTCD",
+    "train": {
+      "n_trades": 1331904,
+      "n_events": 4076,
+      "trade_mean_net": 0.01295235992984479,
+      "event_mean_net": 0.018626365801954287,
+      "event_boot_lo": 0.016195012923730635,
+      "event_boot_hi": 0.02113000185593938,
+      "event_sd": 0.07883162154054345
+    },
+    "oos": {
+      "n_trades": 667292,
+      "n_events": 1327,
+      "trade_mean_net": 0.004777488715584776,
+      "event_mean_net": 0.012515010722379307,
+      "event_boot_lo": 0.00793782552416126,
+      "event_boot_hi": 0.01687172505720978,
+      "event_sd": 0.08579449497510064
+    },
+    "verdict": "PERSISTENT_EDGE"
+  }
+]

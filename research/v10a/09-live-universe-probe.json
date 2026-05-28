@@ -1,0 +1,189 @@
+{
+  "KXTSAW": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: TSA passenger counts"
+  },
+  "KXVANCEMENTION": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: Vance mentions"
+  },
+  "KXAPRPOTUS": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: POTUS approval"
+  },
+  "KX538APPROVE": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: 538 approval polls"
+  },
+  "KXEARNINGSMENTION": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: Earnings mentions"
+  },
+  "KXSNFMENTION": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: SNF mentions"
+  },
+  "KXSNLMENTION": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: SNL mentions"
+  },
+  "KXHEADLINE": {
+    "px_band": [
+      0.4,
+      0.6
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Media: Headlines"
+  },
+  "KXWTAMATCH": {
+    "px_band": [
+      0.3,
+      0.7
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Sports: WTA tennis"
+  },
+  "KXATPMATCH": {
+    "px_band": [
+      0.3,
+      0.7
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Sports: ATP tennis"
+  },
+  "KXBTCD": {
+    "px_band": [
+      0.3,
+      0.7
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Crypto: Bitcoin daily"
+  },
+  "KXBTC": {
+    "px_band": [
+      0.3,
+      0.7
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Crypto: Bitcoin range"
+  },
+  "KXETHD": {
+    "px_band": [
+      0.3,
+      0.7
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Crypto: Ethereum daily"
+  },
+  "KXELONTWEETS": {
+    "px_band": [
+      0.6,
+      0.8
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Other: Elon tweets"
+  },
+  "KXWHVISIT": {
+    "px_band": [
+      0.6,
+      0.8
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Other: White House visits"
+  },
+  "KXNFLGAME": {
+    "px_band": [
+      0.3,
+      0.7
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Sanity: NFL games (v1 trades nearby)"
+  },
+  "KXMLBGAME": {
+    "px_band": [
+      0.3,
+      0.7
+    ],
+    "stats": {
+      "n_in_band": 0,
+      "n_total_open": 0
+    },
+    "description": "Sanity: MLB games"
+  }
+}

@@ -1,0 +1,1353 @@
+{
+  "markets_files": 769,
+  "trades_files": 7214,
+  "all_macro_prefixes_discovered": [
+    {
+      "prefix": "CPI",
+      "n_markets": 330,
+      "n_unique_months": 41,
+      "n_unique_events": 41,
+      "n_resolved": 330,
+      "total_volume": 5741470,
+      "oldest": "2021-07-12 16:00:00-07:00",
+      "newest": "2024-11-13 05:25:00-08:00"
+    },
+    {
+      "prefix": "TSAW",
+      "n_markets": 945,
+      "n_unique_months": 40,
+      "n_unique_events": 172,
+      "n_resolved": 945,
+      "total_volume": 1352108,
+      "oldest": "2021-07-18 16:00:00-07:00",
+      "newest": "2024-10-20 20:59:00-07:00"
+    },
+    {
+      "prefix": "U3",
+      "n_markets": 393,
+      "n_unique_months": 40,
+      "n_unique_events": 40,
+      "n_resolved": 393,
+      "total_volume": 949004,
+      "oldest": "2021-08-05 16:00:00-07:00",
+      "newest": "2024-11-01 05:25:00-07:00"
+    },
+    {
+      "prefix": "HIGHNY",
+      "n_markets": 5416,
+      "n_unique_months": 39,
+      "n_unique_events": 1171,
+      "n_resolved": 5416,
+      "total_volume": 9649347,
+      "oldest": "2021-08-06 20:59:00-07:00",
+      "newest": "2024-10-23 20:59:00-07:00"
+    },
+    {
+      "prefix": "HIGHCHI",
+      "n_markets": 5413,
+      "n_unique_months": 39,
+      "n_unique_events": 1159,
+      "n_resolved": 5413,
+      "total_volume": 9606857,
+      "oldest": "2021-08-19 20:59:00-07:00",
+      "newest": "2024-10-23 20:59:00-07:00"
+    },
+    {
+      "prefix": "APRPOTUS",
+      "n_markets": 1239,
+      "n_unique_months": 37,
+      "n_unique_events": 159,
+      "n_resolved": 1239,
+      "total_volume": 1997747,
+      "oldest": "2021-10-15 13:00:00-07:00",
+      "newest": "2024-10-18 08:00:00-07:00"
+    },
+    {
+      "prefix": "FED",
+      "n_markets": 347,
+      "n_unique_months": 35,
+      "n_unique_events": 35,
+      "n_resolved": 336,
+      "total_volume": 40837397,
+      "oldest": "2021-07-26 16:00:00-07:00",
+      "newest": "2025-12-10 10:55:00-08:00"
+    },
+    {
+      "prefix": "FRM",
+      "n_markets": 505,
+      "n_unique_months": 32,
+      "n_unique_events": 132,
+      "n_resolved": 505,
+      "total_volume": 720835,
+      "oldest": "2021-07-29 12:00:00-07:00",
+      "newest": "2024-02-22 08:55:00-08:00"
+    },
+    {
+      "prefix": "538APPROVE",
+      "n_markets": 1179,
+      "n_unique_months": 30,
+      "n_unique_events": 131,
+      "n_resolved": 1179,
+      "total_volume": 3602835,
+      "oldest": "2022-05-04 20:59:00-07:00",
+      "newest": "2024-10-23 20:59:00-07:00"
+    },
+    {
+      "prefix": "CPICORE",
+      "n_markets": 294,
+      "n_unique_months": 29,
+      "n_unique_events": 29,
+      "n_resolved": 294,
+      "total_volume": 2523142,
+      "oldest": "2022-07-13 05:25:00-07:00",
+      "newest": "2024-11-13 05:25:00-08:00"
+    },
+    {
+      "prefix": "USDJPY",
+      "n_markets": 7019,
+      "n_unique_months": 27,
+      "n_unique_events": 755,
+      "n_resolved": 6974,
+      "total_volume": 8211413,
+      "oldest": "2022-08-11 15:00:00-07:00",
+      "newest": "2024-10-24 07:00:00-07:00"
+    },
+    {
+      "prefix": "EURUSD",
+      "n_markets": 7006,
+      "n_unique_months": 27,
+      "n_unique_events": 754,
+      "n_resolved": 6961,
+      "total_volume": 3235143,
+      "oldest": "2022-08-11 15:00:00-07:00",
+      "newest": "2024-10-24 07:00:00-07:00"
+    },
+    {
+      "prefix": "WTI",
+      "n_markets": 5142,
+      "n_unique_months": 26,
+      "n_unique_events": 430,
+      "n_resolved": 5112,
+      "total_volume": 2126310,
+      "oldest": "2022-09-09 11:30:00-07:00",
+      "newest": "2024-10-23 11:30:00-07:00"
+    },
+    {
+      "prefix": "WTIW",
+      "n_markets": 1560,
+      "n_unique_months": 26,
+      "n_unique_events": 104,
+      "n_resolved": 1560,
+      "total_volume": 562443,
+      "oldest": "2022-09-30 11:30:00-07:00",
+      "newest": "2024-10-18 11:30:00-07:00"
+    },
+    {
+      "prefix": "GAS",
+      "n_markets": 497,
+      "n_unique_months": 26,
+      "n_unique_events": 111,
+      "n_resolved": 497,
+      "total_volume": 1077299,
+      "oldest": "2021-08-02 14:00:00-07:00",
+      "newest": "2023-09-18 13:59:00-07:00"
+    },
+    {
+      "prefix": "KXAAAGASM",
+      "n_markets": 182,
+      "n_unique_months": 26,
+      "n_unique_events": 26,
+      "n_resolved": 91,
+      "total_volume": 36583464,
+      "oldest": "2024-11-29 20:59:00-08:00",
+      "newest": "2026-12-30 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXFEDDECISION",
+      "n_markets": 130,
+      "n_unique_months": 26,
+      "n_unique_events": 26,
+      "n_resolved": 40,
+      "total_volume": 278539309,
+      "oldest": "2024-12-18 10:55:00-08:00",
+      "newest": "2028-01-26 10:59:00-08:00"
+    },
+    {
+      "prefix": "KXPAYROLLS",
+      "n_markets": 255,
+      "n_unique_months": 25,
+      "n_unique_events": 25,
+      "n_resolved": 85,
+      "total_volume": 11082522,
+      "oldest": "2024-12-06 05:25:00-08:00",
+      "newest": "2026-12-04 05:29:00-08:00"
+    },
+    {
+      "prefix": "KXTORNADO",
+      "n_markets": 248,
+      "n_unique_months": 25,
+      "n_unique_events": 25,
+      "n_resolved": 111,
+      "total_volume": 1975317,
+      "oldest": "2024-11-30 20:59:00-08:00",
+      "newest": "2026-12-31 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXHMONTHRANGE",
+      "n_markets": 150,
+      "n_unique_months": 25,
+      "n_unique_events": 25,
+      "n_resolved": 60,
+      "total_volume": 582126,
+      "oldest": "2024-12-12 09:16:47.781294-08:00",
+      "newest": "2027-01-15 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXPCECORE",
+      "n_markets": 121,
+      "n_unique_months": 25,
+      "n_unique_events": 25,
+      "n_resolved": 46,
+      "total_volume": 501420,
+      "oldest": "2024-12-20 05:25:00-08:00",
+      "newest": "2026-12-23 05:25:00-08:00"
+    },
+    {
+      "prefix": "KXRAINNYCM",
+      "n_markets": 108,
+      "n_unique_months": 25,
+      "n_unique_events": 25,
+      "n_resolved": 56,
+      "total_volume": 1157272,
+      "oldest": "2024-11-30 20:59:00-08:00",
+      "newest": "2026-12-31 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXHMONTH",
+      "n_markets": 25,
+      "n_unique_months": 25,
+      "n_unique_events": 25,
+      "n_resolved": 10,
+      "total_volume": 2341515,
+      "oldest": "2024-11-30 20:59:00-08:00",
+      "newest": "2027-01-15 20:59:00-08:00"
+    },
+    {
+      "prefix": "CPIYOY",
+      "n_markets": 356,
+      "n_unique_months": 24,
+      "n_unique_events": 24,
+      "n_resolved": 356,
+      "total_volume": 1138849,
+      "oldest": "2022-12-13 05:25:00-08:00",
+      "newest": "2024-11-13 05:25:00-08:00"
+    },
+    {
+      "prefix": "CPICOREYOY",
+      "n_markets": 392,
+      "n_unique_months": 23,
+      "n_unique_events": 23,
+      "n_resolved": 392,
+      "total_volume": 1002242,
+      "oldest": "2023-01-12 05:25:00-08:00",
+      "newest": "2024-11-13 05:25:00-08:00"
+    },
+    {
+      "prefix": "PROLLS",
+      "n_markets": 172,
+      "n_unique_months": 23,
+      "n_unique_events": 24,
+      "n_resolved": 172,
+      "total_volume": 981254,
+      "oldest": "2022-04-01 05:25:00-07:00",
+      "newest": "2024-02-02 05:25:00-08:00"
+    },
+    {
+      "prefix": "INXD",
+      "n_markets": 3503,
+      "n_unique_months": 22,
+      "n_unique_events": 355,
+      "n_resolved": 3503,
+      "total_volume": 64768878,
+      "oldest": "2022-05-12 13:00:00-07:00",
+      "newest": "2024-12-31 13:00:00-08:00"
+    },
+    {
+      "prefix": "KXIPOSTARLINK",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 2639,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-06-29 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPODISCORD",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 3,
+      "total_volume": 10157,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOSPACEX",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 1,
+      "total_volume": 6117,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOAPPSFLYER",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 1,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOCLUELY",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 82,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPORAMP",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 861,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOANDURIL",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 10877,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOGLEAN",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 301,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOOLIPOP",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 58,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPORIPPLING",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 197,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOBEASTINDUSTRIES",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 1,
+      "total_volume": 886,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPODEEL",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 5519,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOOPENAI",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 2,
+      "total_volume": 19981,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXSTRIPEIPO",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 7779,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXIPOBREX",
+      "n_markets": 22,
+      "n_unique_months": 22,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 1158,
+      "oldest": "2025-08-31 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "EURUSDH",
+      "n_markets": 125027,
+      "n_unique_months": 21,
+      "n_unique_events": 1489,
+      "n_resolved": 124997,
+      "total_volume": 2236432,
+      "oldest": "2023-02-28 08:00:00-08:00",
+      "newest": "2024-10-21 14:00:00-07:00"
+    },
+    {
+      "prefix": "TNOTED",
+      "n_markets": 4313,
+      "n_unique_months": 21,
+      "n_unique_events": 338,
+      "n_resolved": 4313,
+      "total_volume": 5872017,
+      "oldest": "2023-02-14 12:25:00-08:00",
+      "newest": "2024-10-23 12:25:00-07:00"
+    },
+    {
+      "prefix": "NASDAQ100D",
+      "n_markets": 3641,
+      "n_unique_months": 21,
+      "n_unique_events": 363,
+      "n_resolved": 3641,
+      "total_volume": 50707005,
+      "oldest": "2022-05-09 13:00:00-07:00",
+      "newest": "2024-01-19 13:00:00-08:00"
+    },
+    {
+      "prefix": "TNOTEW",
+      "n_markets": 1269,
+      "n_unique_months": 21,
+      "n_unique_events": 85,
+      "n_resolved": 1269,
+      "total_volume": 9916895,
+      "oldest": "2023-02-17 12:25:00-08:00",
+      "newest": "2024-10-18 12:25:00-07:00"
+    },
+    {
+      "prefix": "KXLLM1",
+      "n_markets": 125,
+      "n_unique_months": 21,
+      "n_unique_events": 21,
+      "n_resolved": 52,
+      "total_volume": 15937266,
+      "oldest": "2025-02-28 07:00:00-08:00",
+      "newest": "2026-10-31 07:00:00-07:00"
+    },
+    {
+      "prefix": "538APPROVEMIN",
+      "n_markets": 81,
+      "n_unique_months": 21,
+      "n_unique_events": 22,
+      "n_resolved": 81,
+      "total_volume": 393522,
+      "oldest": "2023-03-31 20:59:00-07:00",
+      "newest": "2024-12-31 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXIPOFANNIE",
+      "n_markets": 21,
+      "n_unique_months": 21,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 600,
+      "oldest": "2025-09-30 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "KXFREDDIE",
+      "n_markets": 21,
+      "n_unique_months": 21,
+      "n_unique_events": 1,
+      "n_resolved": 0,
+      "total_volume": 0,
+      "oldest": "2025-09-30 20:59:00-07:00",
+      "newest": "2027-05-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "NASDAQ100W",
+      "n_markets": 1197,
+      "n_unique_months": 20,
+      "n_unique_events": 81,
+      "n_resolved": 1197,
+      "total_volume": 10595512,
+      "oldest": "2022-04-29 13:00:00-07:00",
+      "newest": "2023-11-17 13:00:00-08:00"
+    },
+    {
+      "prefix": "INXW",
+      "n_markets": 1165,
+      "n_unique_months": 20,
+      "n_unique_events": 79,
+      "n_resolved": 1165,
+      "total_volume": 12210340,
+      "oldest": "2022-04-29 13:00:00-07:00",
+      "newest": "2023-11-17 13:00:00-08:00"
+    },
+    {
+      "prefix": "538APPROVEMAX",
+      "n_markets": 86,
+      "n_unique_months": 20,
+      "n_unique_events": 21,
+      "n_resolved": 86,
+      "total_volume": 279892,
+      "oldest": "2023-03-31 20:59:00-07:00",
+      "newest": "2024-12-31 20:59:00-08:00"
+    },
+    {
+      "prefix": "HIGHMIA",
+      "n_markets": 3184,
+      "n_unique_months": 18,
+      "n_unique_events": 531,
+      "n_resolved": 3184,
+      "total_volume": 2893581,
+      "oldest": "2023-05-11 20:59:00-07:00",
+      "newest": "2024-10-23 20:59:00-07:00"
+    },
+    {
+      "prefix": "HIGHAUS",
+      "n_markets": 3165,
+      "n_unique_months": 18,
+      "n_unique_events": 528,
+      "n_resolved": 3165,
+      "total_volume": 3690359,
+      "oldest": "2023-05-11 21:59:00-07:00",
+      "newest": "2024-10-23 21:59:00-07:00"
+    },
+    {
+      "prefix": "KXADP",
+      "n_markets": 150,
+      "n_unique_months": 18,
+      "n_unique_events": 21,
+      "n_resolved": 59,
+      "total_volume": 189468,
+      "oldest": "2025-04-02 05:14:00-07:00",
+      "newest": "2026-12-02 05:14:00-08:00"
+    },
+    {
+      "prefix": "TOPSONG",
+      "n_markets": 475,
+      "n_unique_months": 17,
+      "n_unique_events": 70,
+      "n_resolved": 475,
+      "total_volume": 489867,
+      "oldest": "2023-06-04 20:59:00-07:00",
+      "newest": "2024-10-20 20:59:00-07:00"
+    },
+    {
+      "prefix": "HURCAT",
+      "n_markets": 244,
+      "n_unique_months": 17,
+      "n_unique_events": 54,
+      "n_resolved": 244,
+      "total_volume": 410456,
+      "oldest": "2021-08-31 11:00:00-07:00",
+      "newest": "2024-11-30 20:59:00-08:00"
+    },
+    {
+      "prefix": "JOBLESS",
+      "n_markets": 74,
+      "n_unique_months": 17,
+      "n_unique_events": 69,
+      "n_resolved": 74,
+      "total_volume": 109687,
+      "oldest": "2021-07-21 16:00:00-07:00",
+      "newest": "2022-11-30 16:00:00-08:00"
+    },
+    {
+      "prefix": "TORNADO",
+      "n_markets": 126,
+      "n_unique_months": 16,
+      "n_unique_events": 16,
+      "n_resolved": 126,
+      "total_volume": 260565,
+      "oldest": "2023-07-31 20:59:00-07:00",
+      "newest": "2024-10-31 20:59:00-07:00"
+    },
+    {
+      "prefix": "NASDAQ100",
+      "n_markets": 3327,
+      "n_unique_months": 15,
+      "n_unique_events": 209,
+      "n_resolved": 3297,
+      "total_volume": 31927396,
+      "oldest": "2022-04-26 13:00:00-07:00",
+      "newest": "2024-10-25 13:00:00-07:00"
+    },
+    {
+      "prefix": "KXTNOTED",
+      "n_markets": 3165,
+      "n_unique_months": 15,
+      "n_unique_events": 211,
+      "n_resolved": 3090,
+      "total_volume": 159396,
+      "oldest": "2024-10-24 12:25:00-07:00",
+      "newest": "2025-12-31 07:00:00-08:00"
+    },
+    {
+      "prefix": "CPIAPPAREL",
+      "n_markets": 95,
+      "n_unique_months": 15,
+      "n_unique_events": 15,
+      "n_resolved": 95,
+      "total_volume": 67745,
+      "oldest": "2023-09-13 05:25:00-07:00",
+      "newest": "2024-11-13 05:25:00-08:00"
+    },
+    {
+      "prefix": "CPIFOOD",
+      "n_markets": 74,
+      "n_unique_months": 15,
+      "n_unique_events": 15,
+      "n_resolved": 74,
+      "total_volume": 51792,
+      "oldest": "2023-09-13 05:25:00-07:00",
+      "newest": "2024-11-13 05:25:00-08:00"
+    },
+    {
+      "prefix": "KXINXU",
+      "n_markets": 435308,
+      "n_unique_months": 14,
+      "n_unique_events": 1455,
+      "n_resolved": 432848,
+      "total_volume": 94622515,
+      "oldest": "2024-10-24 13:00:00-07:00",
+      "newest": "2025-11-24 13:00:00-08:00"
+    },
+    {
+      "prefix": "KXNASDAQ100U",
+      "n_markets": 435237,
+      "n_unique_months": 14,
+      "n_unique_events": 1455,
+      "n_resolved": 432777,
+      "total_volume": 53285362,
+      "oldest": "2024-10-24 13:00:00-07:00",
+      "newest": "2025-11-24 13:00:00-08:00"
+    },
+    {
+      "prefix": "KXBTCD",
+      "n_markets": 391205,
+      "n_unique_months": 14,
+      "n_unique_events": 5448,
+      "n_resolved": 389200,
+      "total_volume": 465236379,
+      "oldest": "2024-10-24 14:00:00-07:00",
+      "newest": "2025-11-28 14:00:00-08:00"
+    },
+    {
+      "prefix": "KXETHD",
+      "n_markets": 390525,
+      "n_unique_months": 14,
+      "n_unique_events": 5447,
+      "n_resolved": 388570,
+      "total_volume": 61474960,
+      "oldest": "2024-10-24 14:00:00-07:00",
+      "newest": "2025-11-24 21:00:00-08:00"
+    },
+    {
+      "prefix": "KXBTC",
+      "n_markets": 390525,
+      "n_unique_months": 14,
+      "n_unique_events": 5447,
+      "n_resolved": 388570,
+      "total_volume": 142575482,
+      "oldest": "2024-10-24 14:00:00-07:00",
+      "newest": "2025-11-24 21:00:00-08:00"
+    },
+    {
+      "prefix": "KXETH",
+      "n_markets": 390525,
+      "n_unique_months": 14,
+      "n_unique_events": 5447,
+      "n_resolved": 388570,
+      "total_volume": 41772237,
+      "oldest": "2024-10-24 14:00:00-07:00",
+      "newest": "2025-11-24 21:00:00-08:00"
+    },
+    {
+      "prefix": "KXEURUSDH",
+      "n_markets": 231300,
+      "n_unique_months": 14,
+      "n_unique_events": 2313,
+      "n_resolved": 228100,
+      "total_volume": 443041,
+      "oldest": "2024-10-28 06:00:00-07:00",
+      "newest": "2025-11-24 14:00:00-08:00"
+    },
+    {
+      "prefix": "KXUSDJPYH",
+      "n_markets": 231300,
+      "n_unique_months": 14,
+      "n_unique_events": 2313,
+      "n_resolved": 229000,
+      "total_volume": 519360,
+      "oldest": "2024-10-28 06:00:00-07:00",
+      "newest": "2025-11-24 14:00:00-08:00"
+    },
+    {
+      "prefix": "KXINX",
+      "n_markets": 8250,
+      "n_unique_months": 14,
+      "n_unique_events": 275,
+      "n_resolved": 8160,
+      "total_volume": 16673409,
+      "oldest": "2024-10-24 13:00:00-07:00",
+      "newest": "2025-11-28 10:00:00-08:00"
+    },
+    {
+      "prefix": "KXNASDAQ100",
+      "n_markets": 8250,
+      "n_unique_months": 14,
+      "n_unique_events": 275,
+      "n_resolved": 8160,
+      "total_volume": 7050297,
+      "oldest": "2024-10-24 13:00:00-07:00",
+      "newest": "2025-11-28 10:00:00-08:00"
+    },
+    {
+      "prefix": "KXSPOTIFYD",
+      "n_markets": 5498,
+      "n_unique_months": 14,
+      "n_unique_events": 383,
+      "n_resolved": 5468,
+      "total_volume": 19125002,
+      "oldest": "2024-10-29 08:45:10.352224-07:00",
+      "newest": "2025-11-24 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXWTI",
+      "n_markets": 4080,
+      "n_unique_months": 14,
+      "n_unique_events": 272,
+      "n_resolved": 720,
+      "total_volume": 25048,
+      "oldest": "2024-10-24 11:30:00-07:00",
+      "newest": "2025-11-24 11:30:00-08:00"
+    },
+    {
+      "prefix": "KXEURUSD",
+      "n_markets": 4035,
+      "n_unique_months": 14,
+      "n_unique_events": 269,
+      "n_resolved": 3915,
+      "total_volume": 959817,
+      "oldest": "2024-10-25 07:00:00-07:00",
+      "newest": "2025-11-24 07:00:00-08:00"
+    },
+    {
+      "prefix": "KXUSDJPY",
+      "n_markets": 4035,
+      "n_unique_months": 14,
+      "n_unique_events": 269,
+      "n_resolved": 3945,
+      "total_volume": 1021371,
+      "oldest": "2024-10-25 07:00:00-07:00",
+      "newest": "2025-11-24 07:00:00-08:00"
+    },
+    {
+      "prefix": "KXHIGHCHI",
+      "n_markets": 2382,
+      "n_unique_months": 14,
+      "n_unique_events": 397,
+      "n_resolved": 2370,
+      "total_volume": 39062421,
+      "oldest": "2024-10-24 20:59:00-07:00",
+      "newest": "2025-11-24 21:59:00-08:00"
+    },
+    {
+      "prefix": "KXHIGHNY",
+      "n_markets": 2382,
+      "n_unique_months": 14,
+      "n_unique_events": 397,
+      "n_resolved": 2370,
+      "total_volume": 52070182,
+      "oldest": "2024-10-24 20:59:00-07:00",
+      "newest": "2025-11-24 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXHIGHMIA",
+      "n_markets": 2382,
+      "n_unique_months": 14,
+      "n_unique_events": 397,
+      "n_resolved": 2370,
+      "total_volume": 29747775,
+      "oldest": "2024-10-24 20:59:00-07:00",
+      "newest": "2025-11-24 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXHIGHAUS",
+      "n_markets": 2382,
+      "n_unique_months": 14,
+      "n_unique_events": 397,
+      "n_resolved": 2370,
+      "total_volume": 39199934,
+      "oldest": "2024-10-24 21:59:00-07:00",
+      "newest": "2025-11-24 21:59:00-08:00"
+    },
+    {
+      "prefix": "KXTSAW",
+      "n_markets": 1098,
+      "n_unique_months": 14,
+      "n_unique_events": 56,
+      "n_resolved": 1077,
+      "total_volume": 3760945,
+      "oldest": "2024-10-27 20:59:00-07:00",
+      "newest": "2025-11-23 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXTNOTEW",
+      "n_markets": 855,
+      "n_unique_months": 14,
+      "n_unique_events": 57,
+      "n_resolved": 840,
+      "total_volume": 437822,
+      "oldest": "2024-10-25 12:25:00-07:00",
+      "newest": "2025-11-28 11:00:00-08:00"
+    },
+    {
+      "prefix": "KXWTIW",
+      "n_markets": 855,
+      "n_unique_months": 14,
+      "n_unique_events": 57,
+      "n_resolved": 150,
+      "total_volume": 140084,
+      "oldest": "2024-10-25 11:30:00-07:00",
+      "newest": "2025-11-28 11:30:00-08:00"
+    },
+    {
+      "prefix": "KXTOPSONG",
+      "n_markets": 552,
+      "n_unique_months": 14,
+      "n_unique_events": 58,
+      "n_resolved": 532,
+      "total_volume": 902124,
+      "oldest": "2024-10-27 20:59:00-07:00",
+      "newest": "2025-11-30 19:59:00-08:00"
+    },
+    {
+      "prefix": "KXAPRPOTUS",
+      "n_markets": 411,
+      "n_unique_months": 14,
+      "n_unique_events": 57,
+      "n_resolved": 394,
+      "total_volume": 982334,
+      "oldest": "2024-10-25 08:00:00-07:00",
+      "newest": "2025-11-28 08:00:00-08:00"
+    },
+    {
+      "prefix": "CASED",
+      "n_markets": 262,
+      "n_unique_months": 14,
+      "n_unique_events": 256,
+      "n_resolved": 262,
+      "total_volume": 993985,
+      "oldest": "2021-07-24 17:00:00-07:00",
+      "newest": "2022-08-20 09:29:00-07:00"
+    },
+    {
+      "prefix": "GDP",
+      "n_markets": 113,
+      "n_unique_months": 14,
+      "n_unique_events": 14,
+      "n_resolved": 113,
+      "total_volume": 1234787,
+      "oldest": "2021-07-28 16:00:00-07:00",
+      "newest": "2024-10-30 05:25:00-07:00"
+    },
+    {
+      "prefix": "CPIUSEDCAR",
+      "n_markets": 99,
+      "n_unique_months": 14,
+      "n_unique_events": 14,
+      "n_resolved": 99,
+      "total_volume": 317301,
+      "oldest": "2023-10-12 05:25:00-07:00",
+      "newest": "2024-11-13 05:25:00-08:00"
+    },
+    {
+      "prefix": "SNOWNYM",
+      "n_markets": 66,
+      "n_unique_months": 14,
+      "n_unique_events": 14,
+      "n_resolved": 66,
+      "total_volume": 738424,
+      "oldest": "2021-12-03 07:00:00-08:00",
+      "newest": "2024-04-03 07:00:00-07:00"
+    },
+    {
+      "prefix": "KXAAAGASW",
+      "n_markets": 57,
+      "n_unique_months": 14,
+      "n_unique_events": 57,
+      "n_resolved": 56,
+      "total_volume": 2120693,
+      "oldest": "2024-10-27 20:59:00-07:00",
+      "newest": "2025-11-23 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXBTCMAX150",
+      "n_markets": 14,
+      "n_unique_months": 14,
+      "n_unique_events": 1,
+      "n_resolved": 7,
+      "total_volume": 15008499,
+      "oldest": "2025-01-31 20:59:00-08:00",
+      "newest": "2026-05-31 07:40:11-07:00"
+    },
+    {
+      "prefix": "KXDOGE",
+      "n_markets": 69550,
+      "n_unique_months": 13,
+      "n_unique_events": 1114,
+      "n_resolved": 67629,
+      "total_volume": 2037000,
+      "oldest": "2024-11-21 14:00:00-08:00",
+      "newest": "2025-11-24 21:00:00-08:00"
+    },
+    {
+      "prefix": "KXDOGED",
+      "n_markets": 69550,
+      "n_unique_months": 13,
+      "n_unique_events": 1114,
+      "n_resolved": 67577,
+      "total_volume": 1730965,
+      "oldest": "2024-11-21 14:00:00-08:00",
+      "newest": "2025-11-24 21:00:00-08:00"
+    },
+    {
+      "prefix": "KXSHIBAD",
+      "n_markets": 14316,
+      "n_unique_months": 13,
+      "n_unique_events": 359,
+      "n_resolved": 14209,
+      "total_volume": 526979,
+      "oldest": "2024-11-29 14:00:00-08:00",
+      "newest": "2025-11-24 14:00:00-08:00"
+    },
+    {
+      "prefix": "KXSHIBA",
+      "n_markets": 14316,
+      "n_unique_months": 13,
+      "n_unique_events": 359,
+      "n_resolved": 14248,
+      "total_volume": 485563,
+      "oldest": "2024-11-29 14:00:00-08:00",
+      "newest": "2025-11-24 14:00:00-08:00"
+    },
+    {
+      "prefix": "KXHIGHDEN",
+      "n_markets": 2220,
+      "n_unique_months": 13,
+      "n_unique_events": 370,
+      "n_resolved": 2208,
+      "total_volume": 26219521,
+      "oldest": "2024-11-20 22:59:00-08:00",
+      "newest": "2025-11-24 22:59:00-08:00"
+    },
+    {
+      "prefix": "KXHIGHPHIL",
+      "n_markets": 2220,
+      "n_unique_months": 13,
+      "n_unique_events": 370,
+      "n_resolved": 2208,
+      "total_volume": 17290446,
+      "oldest": "2024-11-20 20:59:00-08:00",
+      "newest": "2025-11-24 20:59:00-08:00"
+    },
+    {
+      "prefix": "KXAPPRANKFREE",
+      "n_markets": 1541,
+      "n_unique_months": 13,
+      "n_unique_events": 302,
+      "n_resolved": 1541,
+      "total_volume": 3943570,
+      "oldest": "2024-11-15 07:00:00-08:00",
+      "newest": "2025-11-14 07:00:00-08:00"
+    }
+  ],
+  "kim_mapping": {
+    "Kim_KXCPI": {
+      "prefixes": [
+        "CPI",
+        "CPIYOY",
+        "CPICORE",
+        "CPICOREYOY",
+        "ACPI"
+      ],
+      "per_prefix": {
+        "CPI": {
+          "prefix": "CPI",
+          "n_markets": 330,
+          "n_unique_release_months": 41,
+          "n_unique_release_days": 41,
+          "n_unique_event_tickers": 41,
+          "total_volume": 5741470,
+          "n_resolved": 330,
+          "oldest_close": "2021-07-12T16:00:00-07:00",
+          "newest_close": "2024-11-13T05:25:00-08:00"
+        },
+        "CPIYOY": {
+          "prefix": "CPIYOY",
+          "n_markets": 356,
+          "n_unique_release_months": 24,
+          "n_unique_release_days": 24,
+          "n_unique_event_tickers": 24,
+          "total_volume": 1138849,
+          "n_resolved": 356,
+          "oldest_close": "2022-12-13T05:25:00-08:00",
+          "newest_close": "2024-11-13T05:25:00-08:00"
+        },
+        "CPICORE": {
+          "prefix": "CPICORE",
+          "n_markets": 294,
+          "n_unique_release_months": 29,
+          "n_unique_release_days": 29,
+          "n_unique_event_tickers": 29,
+          "total_volume": 2523142,
+          "n_resolved": 294,
+          "oldest_close": "2022-07-13T05:25:00-07:00",
+          "newest_close": "2024-11-13T05:25:00-08:00"
+        },
+        "CPICOREYOY": {
+          "prefix": "CPICOREYOY",
+          "n_markets": 392,
+          "n_unique_release_months": 23,
+          "n_unique_release_days": 23,
+          "n_unique_event_tickers": 23,
+          "total_volume": 1002242,
+          "n_resolved": 392,
+          "oldest_close": "2023-01-12T05:25:00-08:00",
+          "newest_close": "2024-11-13T05:25:00-08:00"
+        },
+        "ACPI": {
+          "prefix": "ACPI",
+          "n_markets": 27,
+          "n_unique_release_months": 3,
+          "n_unique_release_days": 3,
+          "n_unique_event_tickers": 3,
+          "total_volume": 1736444,
+          "n_resolved": 27,
+          "oldest_close": "2023-01-11T05:25:00-08:00",
+          "newest_close": "2025-01-13T05:25:00-08:00"
+        }
+      },
+      "n_release_months_total": 42,
+      "n_release_months_post_oct_2024": 3
+    },
+    "Kim_KXNFP": {
+      "prefixes": [
+        "PAYROLLS"
+      ],
+      "per_prefix": {
+        "PAYROLLS": {
+          "prefix": "PAYROLLS",
+          "n_markets": 75,
+          "n_unique_release_months": 9,
+          "n_unique_release_days": 9,
+          "n_unique_event_tickers": 9,
+          "total_volume": 836030,
+          "n_resolved": 75,
+          "oldest_close": "2024-03-08T05:25:00-08:00",
+          "newest_close": "2024-11-01T05:25:00-07:00"
+        }
+      },
+      "n_release_months_total": 9,
+      "n_release_months_post_oct_2024": 2
+    },
+    "Kim_KXUNRATE": {
+      "prefixes": [
+        "U3"
+      ],
+      "per_prefix": {
+        "U3": {
+          "prefix": "U3",
+          "n_markets": 393,
+          "n_unique_release_months": 40,
+          "n_unique_release_days": 40,
+          "n_unique_event_tickers": 40,
+          "total_volume": 949004,
+          "n_resolved": 393,
+          "oldest_close": "2021-08-05T16:00:00-07:00",
+          "newest_close": "2024-11-01T05:25:00-07:00"
+        }
+      },
+      "n_release_months_total": 40,
+      "n_release_months_post_oct_2024": 2
+    },
+    "Kim_KXFEDFUNDS": {
+      "prefixes": [
+        "FEDDECISION",
+        "FED",
+        "RATECUT",
+        "RATECUTCOUNT",
+        "TERMINALRATE"
+      ],
+      "per_prefix": {
+        "FEDDECISION": {
+          "prefix": "FEDDECISION",
+          "n_markets": 70,
+          "n_unique_release_months": 13,
+          "n_unique_release_days": 14,
+          "n_unique_event_tickers": 14,
+          "total_volume": 8598823,
+          "n_resolved": 70,
+          "oldest_close": "2023-05-03T10:55:00-07:00",
+          "newest_close": "2024-11-07T10:55:00-08:00"
+        },
+        "FED": {
+          "prefix": "FED",
+          "n_markets": 347,
+          "n_unique_release_months": 35,
+          "n_unique_release_days": 35,
+          "n_unique_event_tickers": 35,
+          "total_volume": 40837397,
+          "n_resolved": 336,
+          "oldest_close": "2021-07-26T16:00:00-07:00",
+          "newest_close": "2025-12-10T10:55:00-08:00"
+        },
+        "RATECUT": {
+          "prefix": "RATECUT",
+          "n_markets": 11,
+          "n_unique_release_months": 7,
+          "n_unique_release_days": 9,
+          "n_unique_event_tickers": 11,
+          "total_volume": 9758096,
+          "n_resolved": 11,
+          "oldest_close": "2023-12-31T20:59:00-08:00",
+          "newest_close": "2024-09-19T07:00:09.200083-07:00"
+        },
+        "RATECUTCOUNT": {
+          "prefix": "RATECUTCOUNT",
+          "n_markets": 15,
+          "n_unique_release_months": 1,
+          "n_unique_release_days": 1,
+          "n_unique_event_tickers": 1,
+          "total_volume": 6609075,
+          "n_resolved": 15,
+          "oldest_close": "2024-12-31T20:59:00-08:00",
+          "newest_close": "2024-12-31T20:59:00-08:00"
+        },
+        "TERMINALRATE": {
+          "prefix": "TERMINALRATE",
+          "n_markets": 19,
+          "n_unique_release_months": 1,
+          "n_unique_release_days": 1,
+          "n_unique_event_tickers": 2,
+          "total_volume": 1003305,
+          "n_resolved": 19,
+          "oldest_close": "2023-12-31T20:59:00-08:00",
+          "newest_close": "2023-12-31T20:59:00-08:00"
+        }
+      },
+      "n_release_months_total": 34,
+      "n_release_months_post_oct_2024": 9
+    }
+  },
+  "other_finance": {
+    "GDP": {
+      "prefix": "GDP",
+      "n_markets": 113,
+      "n_unique_release_months": 14,
+      "n_unique_release_days": 14,
+      "n_unique_event_tickers": 14,
+      "total_volume": 1234787,
+      "n_resolved": 113,
+      "oldest_close": "2021-07-28T16:00:00-07:00",
+      "newest_close": "2024-10-30T05:25:00-07:00"
+    },
+    "RECSSNBER": {
+      "prefix": "RECSSNBER",
+      "n_markets": 4,
+      "n_unique_release_months": 4,
+      "n_unique_release_days": 4,
+      "n_unique_event_tickers": 4,
+      "total_volume": 4815072,
+      "n_resolved": 3,
+      "oldest_close": "2022-07-28T07:04:19.522950-07:00",
+      "newest_close": "2026-01-31T05:25:00-08:00"
+    },
+    "INX": {
+      "prefix": "INX",
+      "n_markets": 3296,
+      "n_unique_release_months": 12,
+      "n_unique_release_days": 202,
+      "n_unique_event_tickers": 204,
+      "total_volume": 47059925,
+      "n_resolved": 3266,
+      "oldest_close": "2022-04-28T13:00:00-07:00",
+      "newest_close": "2024-10-25T13:00:00-07:00"
+    },
+    "NASDAQ100": {
+      "prefix": "NASDAQ100",
+      "n_markets": 3327,
+      "n_unique_release_months": 15,
+      "n_unique_release_days": 205,
+      "n_unique_event_tickers": 209,
+      "total_volume": 31927396,
+      "n_resolved": 3297,
+      "oldest_close": "2022-04-26T13:00:00-07:00",
+      "newest_close": "2024-10-25T13:00:00-07:00"
+    },
+    "TNOTE": {
+      "prefix": "TNOTE",
+      "n_markets": 68,
+      "n_unique_release_months": 7,
+      "n_unique_release_days": 18,
+      "n_unique_event_tickers": 18,
+      "total_volume": 151663,
+      "n_resolved": 68,
+      "oldest_close": "2022-01-31T12:25:00-08:00",
+      "newest_close": "2023-05-02T12:25:00-07:00"
+    },
+    "USDJPY": {
+      "prefix": "USDJPY",
+      "n_markets": 7019,
+      "n_unique_release_months": 27,
+      "n_unique_release_days": 557,
+      "n_unique_event_tickers": 755,
+      "total_volume": 8211413,
+      "n_resolved": 6974,
+      "oldest_close": "2022-08-11T15:00:00-07:00",
+      "newest_close": "2024-10-24T07:00:00-07:00"
+    },
+    "EURUSD": {
+      "prefix": "EURUSD",
+      "n_markets": 7006,
+      "n_unique_release_months": 27,
+      "n_unique_release_days": 556,
+      "n_unique_event_tickers": 754,
+      "total_volume": 3235143,
+      "n_resolved": 6961,
+      "oldest_close": "2022-08-11T15:00:00-07:00",
+      "newest_close": "2024-10-24T07:00:00-07:00"
+    }
+  },
+  "trades_coverage": {
+    "CPI": {
+      "prefix": "CPI",
+      "n_trades": 39319,
+      "n_tickers_with_trades": 270,
+      "oldest_trade": "2021-07-01T07:53:38.613666-07:00",
+      "newest_trade": "2024-11-12T21:36:31.114859-08:00"
+    },
+    "CPIYOY": {
+      "prefix": "CPIYOY",
+      "n_trades": 5790,
+      "n_tickers_with_trades": 202,
+      "oldest_trade": "2022-12-08T13:46:03.800490-08:00",
+      "newest_trade": "2024-11-13T05:13:57.835683-08:00"
+    },
+    "CPICORE": {
+      "prefix": "CPICORE",
+      "n_trades": 11632,
+      "n_tickers_with_trades": 196,
+      "oldest_trade": "2022-07-01T09:14:48.588289-07:00",
+      "newest_trade": "2024-11-12T21:35:14.374229-08:00"
+    },
+    "CPICOREYOY": {
+      "prefix": "CPICOREYOY",
+      "n_trades": 3628,
+      "n_tickers_with_trades": 142,
+      "oldest_trade": "2022-12-25T05:00:18.224122-08:00",
+      "newest_trade": "2024-11-12T11:27:18.637092-08:00"
+    },
+    "ACPI": {
+      "prefix": "ACPI",
+      "n_trades": 12778,
+      "n_tickers_with_trades": 27,
+      "oldest_trade": "2022-03-09T08:10:30.787691-08:00",
+      "newest_trade": "2025-01-13T05:18:07.788974-08:00"
+    },
+    "PAYROLLS": {
+      "prefix": "PAYROLLS",
+      "n_trades": 3451,
+      "n_tickers_with_trades": 62,
+      "oldest_trade": "2024-02-02T05:44:20.292786-08:00",
+      "newest_trade": "2024-11-01T05:24:32.750120-07:00"
+    },
+    "U3": {
+      "prefix": "U3",
+      "n_trades": 7907,
+      "n_tickers_with_trades": 235,
+      "oldest_trade": "2021-07-04T14:28:53.892375-07:00",
+      "newest_trade": "2024-10-31T21:29:42.484343-07:00"
+    },
+    "FEDDECISION": {
+      "prefix": "FEDDECISION",
+      "n_trades": 19271,
+      "n_tickers_with_trades": 60,
+      "oldest_trade": "2023-04-07T11:50:01.508464-07:00",
+      "newest_trade": "2024-11-07T10:46:49.831167-08:00"
+    },
+    "FED": {
+      "prefix": "FED",
+      "n_trades": 124957,
+      "n_tickers_with_trades": 323,
+      "oldest_trade": "2021-07-02T07:46:02.929841-07:00",
+      "newest_trade": "2025-11-24T17:13:55.452307-08:00"
+    },
+    "RATECUT": {
+      "prefix": "RATECUT",
+      "n_trades": 16703,
+      "n_tickers_with_trades": 11,
+      "oldest_trade": "2022-08-30T08:55:47.550119-07:00",
+      "newest_trade": "2024-09-18T11:00:20.878365-07:00"
+    },
+    "RATECUTCOUNT": {
+      "prefix": "RATECUTCOUNT",
+      "n_trades": 20983,
+      "n_tickers_with_trades": 15,
+      "oldest_trade": "2023-12-14T16:09:17.391606-08:00",
+      "newest_trade": "2024-12-31T12:58:21.487439-08:00"
+    },
+    "TERMINALRATE": {
+      "prefix": "TERMINALRATE",
+      "n_trades": 4141,
+      "n_tickers_with_trades": 19,
+      "oldest_trade": "2022-12-27T15:45:07.065507-08:00",
+      "newest_trade": "2023-12-30T09:09:00.534636-08:00"
+    }
+  },
+  "kim_total_release_months": 125,
+  "kim_total_release_months_post_flip": 16,
+  "verdict": "REVIVE-PRE-FLIP-ONLY",
+  "reason": "Full-window release months = 125 but post Oct 2024 only 16. Pre-flip data violates CLAUDE.md 2024 sign-flip rule. Decision required: pre-flip data may still inform cross-market lead-lag structure."
+}

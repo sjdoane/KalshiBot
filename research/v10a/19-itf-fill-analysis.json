@@ -1,0 +1,102 @@
+{
+  "n_cycles": 13,
+  "n_orderbook_snapshots": 2451,
+  "n_trades": 13490,
+  "summary_by_prefix": {
+    "KXITFMATCH": {
+      "n_trades_total": 6105,
+      "n_trades_matched_to_orderbook": 4381,
+      "n_synthetic_fills": 4381,
+      "fill_rate_pct_of_matched": 100.0,
+      "n_fills_in_midband_0.30_0.70": 4381,
+      "median_spread_at_fill_cents": 2.0000000000000018,
+      "mean_spread_at_fill_cents": 3.8226432321387818,
+      "median_entry_price": 0.535,
+      "mean_entry_price": 0.5042832686601232
+    },
+    "KXITFWMATCH": {
+      "n_trades_total": 7385,
+      "n_trades_matched_to_orderbook": 4801,
+      "n_synthetic_fills": 4801,
+      "fill_rate_pct_of_matched": 100.0,
+      "n_fills_in_midband_0.30_0.70": 4801,
+      "median_spread_at_fill_cents": 3.0000000000000027,
+      "mean_spread_at_fill_cents": 5.754634451156009,
+      "median_entry_price": 0.44,
+      "mean_entry_price": 0.4821599666736097
+    }
+  },
+  "n_unique_tickers_with_fills": 85,
+  "top10_tickers_by_fills": [
+    {
+      "ticker": "KXITFMATCH-26MAY27ROLMES-ROL",
+      "n_synthetic_fills": 709,
+      "mean_maker_entry": 0.5370239774330042,
+      "sample_close_time": "2026-06-10T19:00:00Z",
+      "sample_mid": 0.5370239774330042
+    },
+    {
+      "ticker": "KXITFMATCH-26MAY27ROLMES-MES",
+      "n_synthetic_fills": 632,
+      "mean_maker_entry": 0.46616297468354434,
+      "sample_close_time": "2026-06-10T19:00:00Z",
+      "sample_mid": 0.46616297468354434
+    },
+    {
+      "ticker": "KXITFMATCH-26MAY27MAYVAN-VAN",
+      "n_synthetic_fills": 602,
+      "mean_maker_entry": 0.5247093023255814,
+      "sample_close_time": "2026-06-10T17:00:00Z",
+      "sample_mid": 0.5247093023255814
+    },
+    {
+      "ticker": "KXITFWMATCH-26MAY27BROKOS-BRO",
+      "n_synthetic_fills": 600,
+      "mean_maker_entry": 0.423125,
+      "sample_close_time": "2026-06-10T19:00:00Z",
+      "sample_mid": 0.423125
+    },
+    {
+      "ticker": "KXITFMATCH-26MAY27MAYVAN-MAY",
+      "n_synthetic_fills": 595,
+      "mean_maker_entry": 0.48135294117647054,
+      "sample_close_time": "2026-06-10T17:00:00Z",
+      "sample_mid": 0.48135294117647054
+    },
+    {
+      "ticker": "KXITFMATCH-26MAY27LEEKAL-LEE",
+      "n_synthetic_fills": 551,
+      "mean_maker_entry": 0.5192558983666062,
+      "sample_close_time": "2026-06-10T19:00:00Z",
+      "sample_mid": 0.5192558983666062
+    },
+    {
+      "ticker": "KXITFMATCH-26MAY27LEEKAL-KAL",
+      "n_synthetic_fills": 508,
+      "mean_maker_entry": 0.49286417322834647,
+      "sample_close_time": "2026-06-10T19:00:00Z",
+      "sample_mid": 0.49286417322834647
+    },
+    {
+      "ticker": "KXITFWMATCH-26MAY27DMISHA-SHA",
+      "n_synthetic_fills": 450,
+      "mean_maker_entry": 0.5203888888888889,
+      "sample_close_time": "2026-06-10T17:00:00Z",
+      "sample_mid": 0.5203888888888889
+    },
+    {
+      "ticker": "KXITFWMATCH-26MAY27SUHALV-ALV",
+      "n_synthetic_fills": 431,
+      "mean_maker_entry": 0.4534338747099768,
+      "sample_close_time": "2026-06-10T19:00:00Z",
+      "sample_mid": 0.4534338747099768
+    },
+    {
+      "ticker": "KXITFWMATCH-26MAY27SUHALV-SUH",
+      "n_synthetic_fills": 414,
+      "mean_maker_entry": 0.5351690821256039,
+      "sample_close_time": "2026-06-10T19:00:00Z",
+      "sample_mid": 0.5351690821256039
+    }
+  ]
+}

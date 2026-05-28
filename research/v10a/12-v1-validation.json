@@ -1,0 +1,550 @@
+{
+  "per_prefix": {
+    "KXNFLGAME": {
+      "train": {
+        "n_trades": 8393,
+        "n_events": 54,
+        "trade_mean": 0.03465953770999643,
+        "event_mean": 0.07235275277363967,
+        "boot_ci_lo": 0.02349252343362624,
+        "boot_ci_hi": 0.11502687263991458,
+        "win_rate": 0.9115929941618015
+      },
+      "oos": {
+        "n_trades": 377232,
+        "n_events": 164,
+        "trade_mean": -0.017460395724646898,
+        "event_mean": 0.036485580758229545,
+        "boot_ci_lo": 0.011632870681574444,
+        "boot_ci_hi": 0.059367539995604776,
+        "win_rate": 0.8469297408491326
+      },
+      "verdict": "PERSIST"
+    },
+    "KXNFLSPREAD": {
+      "train": {
+        "n_trades": 19,
+        "n_events": 6,
+        "trade_mean": 0.07118421052631578,
+        "event_mean": 0.05416666666666667,
+        "boot_ci_lo": 0.026770833333333337,
+        "boot_ci_hi": 0.08083854166666664,
+        "win_rate": 1.0
+      },
+      "oos": {
+        "n_trades": 24992,
+        "n_events": 160,
+        "trade_mean": 0.0350968309859155,
+        "event_mean": -0.08396108882915543,
+        "boot_ci_lo": -0.13140973298934694,
+        "boot_ci_hi": -0.03826342402893539,
+        "win_rate": 0.908690781049936
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXNFLTOTAL": {
+      "train": {
+        "n_trades": 28,
+        "n_events": 7,
+        "trade_mean": 0.06473214285714286,
+        "event_mean": 0.05295493197278912,
+        "boot_ci_lo": 0.02013392857142858,
+        "boot_ci_hi": 0.09291369047619033,
+        "win_rate": 1.0
+      },
+      "oos": {
+        "n_trades": 29393,
+        "n_events": 153,
+        "trade_mean": -0.028669240975742513,
+        "event_mean": -0.09813206102067173,
+        "boot_ci_lo": -0.1542094690861502,
+        "boot_ci_hi": -0.04441407658183482,
+        "win_rate": 0.8298234273466472
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXNBAGAME": {
+      "train": {
+        "n_trades": 54494,
+        "n_events": 86,
+        "trade_mean": -0.03857176936910485,
+        "event_mean": 0.00986476654468646,
+        "boot_ci_lo": -0.029437767009657494,
+        "boot_ci_hi": 0.04781040582286106,
+        "win_rate": 0.8286049840349397
+      },
+      "oos": {
+        "n_trades": 273837,
+        "n_events": 283,
+        "trade_mean": 0.012639782060130667,
+        "event_mean": 0.04506559927704736,
+        "boot_ci_lo": 0.028860417135823848,
+        "boot_ci_hi": 0.05969322908388538,
+        "win_rate": 0.8820466189740612
+      },
+      "verdict": "OOS_ONLY"
+    },
+    "KXNBASPREAD": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 3380,
+        "n_events": 224,
+        "trade_mean": 0.03391715976331362,
+        "event_mean": -0.029597462056805215,
+        "boot_ci_lo": -0.06421692780068988,
+        "boot_ci_hi": 0.001944771506422443,
+        "win_rate": 0.9319526627218935
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXNBATOTAL": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 15125,
+        "n_events": 233,
+        "trade_mean": 0.03840181818181818,
+        "event_mean": -0.06640321296376418,
+        "boot_ci_lo": -0.10942955619913886,
+        "boot_ci_hi": -0.023740195680730002,
+        "win_rate": 0.9070413223140495
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXNBAWINS": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXMLBGAME": {
+      "train": {
+        "n_trades": 160492,
+        "n_events": 1789,
+        "trade_mean": 0.010067589038705986,
+        "event_mean": 0.0341785978853614,
+        "boot_ci_lo": 0.02763207777765032,
+        "boot_ci_hi": 0.040661816091070696,
+        "win_rate": 0.897776836228597
+      },
+      "oos": {
+        "n_trades": 126316,
+        "n_events": 414,
+        "trade_mean": 0.029956201114664818,
+        "event_mean": 0.03579322536247227,
+        "boot_ci_lo": 0.021935118825767378,
+        "boot_ci_hi": 0.048423362816950984,
+        "win_rate": 0.9108268152886412
+      },
+      "verdict": "PERSIST"
+    },
+    "KXMLBSPREAD": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 1691,
+        "n_events": 35,
+        "trade_mean": 0.064081904198699,
+        "event_mean": -0.03026350882034868,
+        "boot_ci_lo": -0.1414210409679462,
+        "boot_ci_hi": 0.061294162855301364,
+        "win_rate": 0.9373151981076286
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXMLBTOTAL": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 3891,
+        "n_events": 40,
+        "trade_mean": 0.0008815214597789971,
+        "event_mean": -0.05828635381619081,
+        "boot_ci_lo": -0.13943212585162826,
+        "boot_ci_hi": 0.011410581652006478,
+        "win_rate": 0.9054227704960165
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXMLBWINS": {
+      "train": {
+        "n_trades": 491,
+        "n_events": 18,
+        "trade_mean": 0.16313136456211813,
+        "event_mean": 0.035168066424242875,
+        "boot_ci_lo": -0.1332737683817266,
+        "boot_ci_hi": 0.16676507149093353,
+        "win_rate": 0.9755600814663951
+      },
+      "oos": {
+        "n_trades": 193,
+        "n_events": 18,
+        "trade_mean": -0.03126943005181344,
+        "event_mean": -0.05668787544759765,
+        "boot_ci_lo": -0.1862045575463631,
+        "boot_ci_hi": 0.044637925668724154,
+        "win_rate": 0.8911917098445595
+      },
+      "verdict": "NULL"
+    },
+    "KXNHLGAME": {
+      "train": {
+        "n_trades": 12865,
+        "n_events": 83,
+        "trade_mean": 0.0204760979401477,
+        "event_mean": 0.04244816445684599,
+        "boot_ci_lo": 0.0022191410212474613,
+        "boot_ci_hi": 0.07863379298328517,
+        "win_rate": 0.8865915273999223
+      },
+      "oos": {
+        "n_trades": 94895,
+        "n_events": 403,
+        "trade_mean": -0.01099881447916117,
+        "event_mean": 0.0064092421025013085,
+        "boot_ci_lo": -0.013327793394186101,
+        "boot_ci_hi": 0.024935852709126804,
+        "win_rate": 0.8671795141999051
+      },
+      "verdict": "TRAIN_ONLY"
+    },
+    "KXNHLSPREAD": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 274,
+        "n_events": 82,
+        "trade_mean": 0.03231751824817519,
+        "event_mean": -0.00970780772302703,
+        "boot_ci_lo": -0.07426431727039023,
+        "boot_ci_hi": 0.051974168062259955,
+        "win_rate": 0.9233576642335767
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXNCAAFGAME": {
+      "train": {
+        "n_trades": 29309,
+        "n_events": 145,
+        "trade_mean": 0.059792981677982866,
+        "event_mean": 0.04922231028459974,
+        "boot_ci_lo": 0.015313478018905034,
+        "boot_ci_hi": 0.07857366985500486,
+        "win_rate": 0.9250059708621925
+      },
+      "oos": {
+        "n_trades": 461432,
+        "n_events": 717,
+        "trade_mean": 0.004285360573172215,
+        "event_mean": 0.04246675738608911,
+        "boot_ci_lo": 0.03253247232731758,
+        "boot_ci_hi": 0.052110556421087105,
+        "win_rate": 0.8737105358969469
+      },
+      "verdict": "PERSIST"
+    },
+    "KXNCAAFSPREAD": {
+      "train": {
+        "n_trades": 92,
+        "n_events": 12,
+        "trade_mean": 0.015434782608695666,
+        "event_mean": -0.09232012195121948,
+        "boot_ci_lo": -0.3046510416666666,
+        "boot_ci_hi": 0.06501496443089431,
+        "win_rate": 0.967391304347826
+      },
+      "oos": {
+        "n_trades": 11194,
+        "n_events": 487,
+        "trade_mean": 0.029163614436305173,
+        "event_mean": -0.04911575612350066,
+        "boot_ci_lo": -0.07554410408390787,
+        "boot_ci_hi": -0.02545242509746208,
+        "win_rate": 0.9209397891727711
+      },
+      "verdict": "NULL"
+    },
+    "KXNCAAFTOTAL": {
+      "train": {
+        "n_trades": 46,
+        "n_events": 10,
+        "trade_mean": -0.0024999999999999866,
+        "event_mean": -0.12504779411764702,
+        "boot_ci_lo": -0.37801250000000003,
+        "boot_ci_hi": 0.052883180147058784,
+        "win_rate": 0.9565217391304348
+      },
+      "oos": {
+        "n_trades": 12928,
+        "n_events": 467,
+        "trade_mean": -0.003593169863861373,
+        "event_mean": -0.10130068839495027,
+        "boot_ci_lo": -0.13052825019433292,
+        "boot_ci_hi": -0.0717043299580856,
+        "win_rate": 0.8948019801980198
+      },
+      "verdict": "NULL"
+    },
+    "KXNCAAFPLAYOFF": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXNCAAMBGAME": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 65041,
+        "n_events": 573,
+        "trade_mean": 0.0030288202825909864,
+        "event_mean": 0.039794285224101424,
+        "boot_ci_lo": 0.030882320974120126,
+        "boot_ci_hi": 0.04823836370341209,
+        "win_rate": 0.891837456373672
+      },
+      "verdict": "OOS_THIN_TRAIN"
+    },
+    "KXNCAAMBTOTAL": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 1726,
+        "n_events": 212,
+        "trade_mean": 0.038176419466975677,
+        "event_mean": -0.025234328348440027,
+        "boot_ci_lo": -0.06550741206647054,
+        "boot_ci_hi": 0.012189738680262768,
+        "win_rate": 0.9287369640787949
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXNCAAMBSPREAD": {
+      "train": {
+        "n_trades": 0,
+        "n_events": 0
+      },
+      "oos": {
+        "n_trades": 747,
+        "n_events": 189,
+        "trade_mean": 0.025726238286479266,
+        "event_mean": -0.02334036111357183,
+        "boot_ci_lo": -0.0666245896135744,
+        "boot_ci_hi": 0.018260459262207287,
+        "win_rate": 0.9170013386880856
+      },
+      "verdict": "OOS_NULL"
+    },
+    "KXWNBAGAME": {
+      "train": {
+        "n_trades": 30322,
+        "n_events": 248,
+        "trade_mean": -0.0005621331046764589,
+        "event_mean": 0.029520376583185542,
+        "boot_ci_lo": 0.011164090334623004,
+        "boot_ci_hi": 0.047312570898859645,
+        "win_rate": 0.8788998087197415
+      },
+      "oos": {
+        "n_trades": 12611,
+        "n_events": 53,
+        "trade_mean": -0.010974942510506708,
+        "event_mean": 0.01951230337941666,
+        "boot_ci_lo": -0.028992221812585955,
+        "boot_ci_hi": 0.059840020388192465,
+        "win_rate": 0.8641662041075252
+      },
+      "verdict": "TRAIN_ONLY"
+    },
+    "KXATPMATCH": {
+      "train": {
+        "n_trades": 57651,
+        "n_events": 698,
+        "trade_mean": -0.0010639017536556087,
+        "event_mean": 0.03072683497660124,
+        "boot_ci_lo": 0.0174684862713386,
+        "boot_ci_hi": 0.04292641432220308,
+        "win_rate": 0.871970997901164
+      },
+      "oos": {
+        "n_trades": 94630,
+        "n_events": 495,
+        "trade_mean": 0.007742206488428617,
+        "event_mean": 0.03592061776550433,
+        "boot_ci_lo": 0.022687564982040897,
+        "boot_ci_hi": 0.04941524474579477,
+        "win_rate": 0.8853851844024094
+      },
+      "verdict": "PERSIST"
+    },
+    "KXWTAMATCH": {
+      "train": {
+        "n_trades": 43408,
+        "n_events": 679,
+        "trade_mean": -0.009876059712495385,
+        "event_mean": 0.02742012089149608,
+        "boot_ci_lo": 0.013967571897666975,
+        "boot_ci_hi": 0.040654391665854,
+        "win_rate": 0.8648866568374494
+      },
+      "oos": {
+        "n_trades": 70814,
+        "n_events": 458,
+        "trade_mean": -0.015967358149518447,
+        "event_mean": 0.02540148486925736,
+        "boot_ci_lo": 0.009445651970634829,
+        "boot_ci_hi": 0.040991909108108626,
+        "win_rate": 0.8551275171576243
+      },
+      "verdict": "PERSIST"
+    },
+    "KXUFCFIGHT": {
+      "train": {
+        "n_trades": 18830,
+        "n_events": 94,
+        "trade_mean": 0.03848605947955391,
+        "event_mean": 0.03436689297053167,
+        "boot_ci_lo": 0.002811433724284361,
+        "boot_ci_hi": 0.06261960686404738,
+        "win_rate": 0.9151885289431758
+      },
+      "oos": {
+        "n_trades": 15261,
+        "n_events": 82,
+        "trade_mean": 0.021793132822226603,
+        "event_mean": 0.019652700951536133,
+        "boot_ci_lo": -0.007843288331705858,
+        "boot_ci_hi": 0.043455288789935424,
+        "win_rate": 0.9436472052945416
+      },
+      "verdict": "TRAIN_ONLY"
+    },
+    "KXBOXING": {
+      "train": {
+        "n_trades": 542,
+        "n_events": 2,
+        "trade_mean": 0.06700184501845018,
+        "event_mean": -0.08557381221719454,
+        "boot_ci_lo": -0.32737499999999997,
+        "boot_ci_hi": 0.1562273755656109,
+        "win_rate": 0.9298892988929889
+      },
+      "oos": {
+        "n_trades": 5071,
+        "n_events": 2,
+        "trade_mean": 0.10239400512719385,
+        "event_mean": 0.11880149012908126,
+        "boot_ci_lo": 0.09895833333333334,
+        "boot_ci_hi": 0.13864464692482917,
+        "win_rate": 0.9984224018931177
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXPGATOUR": {
+      "train": {
+        "n_trades": 9376,
+        "n_events": 26,
+        "trade_mean": 0.05263491894197953,
+        "event_mean": -0.029121604052551726,
+        "boot_ci_lo": -0.1254050015421121,
+        "boot_ci_hi": 0.05995769355214135,
+        "win_rate": 0.9130759385665529
+      },
+      "oos": {
+        "n_trades": 1439,
+        "n_events": 6,
+        "trade_mean": 0.08794127866574011,
+        "event_mean": 0.08494900754484602,
+        "boot_ci_lo": 0.06808163808265696,
+        "boot_ci_hi": 0.09986608740425772,
+        "win_rate": 0.9958304378040306
+      },
+      "verdict": "INSUFFICIENT"
+    },
+    "KXEPLGAME": {
+      "train": {
+        "n_trades": 6168,
+        "n_events": 37,
+        "trade_mean": -0.0021145428015564094,
+        "event_mean": 0.019226696959884066,
+        "boot_ci_lo": -0.03563332499054063,
+        "boot_ci_hi": 0.06348047037107765,
+        "win_rate": 0.8821335927367056
+      },
+      "oos": {
+        "n_trades": 22432,
+        "n_events": 87,
+        "trade_mean": -0.018346781383737517,
+        "event_mean": 0.00019504426918434266,
+        "boot_ci_lo": -0.04814279422359612,
+        "boot_ci_hi": 0.042284970357771234,
+        "win_rate": 0.8548502139800286
+      },
+      "verdict": "NULL"
+    },
+    "KXUCLGAME": {
+      "train": {
+        "n_trades": 299,
+        "n_events": 4,
+        "trade_mean": -0.18714046822742478,
+        "event_mean": -0.12468898809523812,
+        "boot_ci_lo": -0.3380133928571429,
+        "boot_ci_hi": 0.08863541666666666,
+        "win_rate": 0.6989966555183946
+      },
+      "oos": {
+        "n_trades": 26743,
+        "n_events": 72,
+        "trade_mean": 0.01325982500093483,
+        "event_mean": 0.005945431276324768,
+        "boot_ci_lo": -0.043629684249899416,
+        "boot_ci_hi": 0.04855191669599961,
+        "win_rate": 0.8973189245783944
+      },
+      "verdict": "OOS_NULL"
+    }
+  },
+  "aggregate_train": {
+    "n_trades": 432825,
+    "n_events": 3998,
+    "trade_mean": 0.005969236989545435,
+    "event_mean": 0.031373989465172246,
+    "boot_ci_lo": 0.02621297715530234,
+    "boot_ci_hi": 0.03650262581507475,
+    "win_rate": 0.8836781609195402
+  },
+  "aggregate_oos": {
+    "n_trades": 1753288,
+    "n_events": 6109,
+    "trade_mean": 0.0019300009467925442,
+    "event_mean": -0.002308520651391716,
+    "boot_ci_lo": -0.008224100503998296,
+    "boot_ci_hi": 0.0032409191104048507,
+    "win_rate": 0.8740765920943964
+  }
+}

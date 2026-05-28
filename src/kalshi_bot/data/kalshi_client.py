@@ -124,6 +124,17 @@ class KalshiClient:
     def post(self, endpoint: str, json: dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", endpoint, json=json)
 
+    def delete(self, endpoint: str, **params: Any) -> dict[str, Any]:
+        return self._request("DELETE", endpoint, params=params or None)
+
+    def get_response_date_header(self) -> str | None:
+        """Hit /exchange/status (unauthenticated path) and return the server's
+        Date header. Used by the live-mode pre-flight clock-skew check."""
+        path = self._prefix + "/exchange/status"
+        url = self._host + path
+        response = self._client.get(url)
+        return response.headers.get("Date")
+
     def paginate(
         self,
         endpoint: str,

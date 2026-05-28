@@ -26,10 +26,8 @@ relative to train_end (so we drop test markets that started before train ended).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import pandas as pd
+import pandas as pd
 
 
 @dataclass(frozen=True)
@@ -145,4 +143,76 @@ def leave_one_city_out(
         )
     test = df[df[city_col] == test_city].copy()
     train = df[df[city_col] != test_city].copy()
+    return train, test
+
+
+def apply_split_phase2(
+    df: pd.DataFrame,
+    split: TimeSplit,
+    *,
+    open_col: str = "market_open_time",
+    close_col: str = "market_close_time",
+    lifetime_straddle_purge_days: int = 14,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Phase 2 split: long-horizon politics-aware purge.
+
+    Train: markets that fully resolved before `train_end`. Their VWAP
+    windows are at [resolution - 35d, resolution - 28d] so the entire
+    feature + outcome is observable strictly before train_end.
+
+    Test: markets whose RESOLUTION falls in [test_start, test_end] AND
+    whose `market_open_time` is AFTER `train_end + lifetime_straddle_purge_days`.
+    The straddle filter prevents the isotonic / logistic fit on train from
+    absorbing test-market price dynamics through shared trading-period
+    news events.
+
+    This is the methodology-critic-required IMPORTANT fix (Section 5.1 of
+    phase-2-methodology.md). It differs from `apply_split` (Phase 1) in
+    that:
+      - Phase 1: test requires market FULLY INSIDE [test_start, test_end].
+        That assumes short-lived markets (KXHIGH ~24h lifetimes).
+      - Phase 2: test allows long-horizon markets (politics often 60+ day
+        lifetimes) but enforces no lifetime overlap with train.
+    """
+    purge = pd.Timedelta(days=lifetime_straddle_purge_days)
+    train_mask = df[close_col] < split.train_end
+    test_mask = (
+        (df[close_col] >= split.test_start)
+        & (df[close_col] <= split.test_end)
+        & (df[open_col] > split.train_end + purge)
+    )
+    train = df[train_mask].copy()
+    test = df[test_mask].copy()
+    return train, test
+
+
+def leave_one_event_window_out(
+    df: pd.DataFrame,
+    window_start: pd.Timestamp,
+    window_end: pd.Timestamp,
+    *,
+    close_col: str = "market_close_time",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Train on markets resolving outside the event window; test on inside.
+
+    Used for the Phase 2 leave-one-event-out check (Section 5.2 of
+    phase-2-methodology.md). The event windows are explicit time bounds
+    (e.g., Nov-2024 federal election cycle = 2024-10-01 to 2024-12-31).
+
+    Test set: markets with `close_time` in [window_start, window_end].
+    Train set: all other markets in the corpus.
+
+    No purge is applied at the event-window boundary because the event-
+    holdout is designed to test cross-EVENT generalization; markets resolved
+    one day before window_start vs one day after are conceptually adjacent
+    and intentionally not given a buffer. The walk-forward split is the
+    primary leakage guard; LOEO is the cross-regime generalization check.
+    """
+    if window_end <= window_start:
+        raise ValueError(
+            f"window_end ({window_end}) must be after window_start ({window_start})"
+        )
+    test_mask = (df[close_col] >= window_start) & (df[close_col] <= window_end)
+    test = df[test_mask].copy()
+    train = df[~test_mask].copy()
     return train, test
