@@ -48,9 +48,13 @@ from kalshi_bot.strategy.live_order_manager import LiveOrderManager, LiveOrderSt
 from kalshi_bot_v14.ticker_match import find_kalshi_ticker_for_side
 
 try:
-    from kalshi_bot.alerts.discord import post as _discord_post
+    from kalshi_bot.alerts.discord import (
+        format_loop_heartbeat,
+        post as _discord_post,
+    )
 except Exception:
     _discord_post = None
+    format_loop_heartbeat = None  # type: ignore[assignment]
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
@@ -683,6 +687,57 @@ def one_loop(
     return summary
 
 
+def _v14_post_loop_heartbeat(om: LiveOrderManager, summary: dict) -> None:
+    """Post a per-loop Discord heartbeat in the same format as v1.
+
+    Uses the live Kalshi balance numbers already in `summary` (read at
+    the top of one_loop), so no extra API calls. Skip-counts surface
+    every non-zero skip reason from the loop. Safe-no-op if Discord
+    isn't configured.
+    """
+    if not DISCORD_WEBHOOK_URL or format_loop_heartbeat is None:
+        return
+    skip_counts: dict[str, int] = {}
+    skip_map = {
+        "skipped_outside_window": "outside_window",
+        "skipped_no_historical": "no_historical",
+        "skipped_no_ticker": "no_ticker",
+        "skipped_v1_collision": "v1_collision",
+        "skipped_v14_dedup": "v14_dedup",
+        "skipped_no_cash": "no_cash",
+        "skipped_kill": "kill",
+    }
+    for src, label in skip_map.items():
+        v = int(summary.get(src) or 0)
+        if v:
+            skip_counts[label] = v
+    extras = [
+        f"fires={summary.get('fires', 0)} "
+        f"placements={summary.get('placements', 0)} "
+        f"open_mkts={summary.get('kalshi_open_mlb_markets', 0)} "
+        f"credits={summary.get('credits_remaining', 0)}",
+        f"v14_exposure=${summary.get('v14_current_exposure_usd', 0):.2f} "
+        f"/ cap ${summary.get('v14_dynamic_cap_usd', 0):.2f} "
+        f"(headroom ${summary.get('v14_headroom_usd', 0):.2f})",
+        f"resting={len(om.state.resting)} "
+        f"filled={len(om.state.filled)} "
+        f"closed={len(om.state.closed)} "
+        f"realized_pnl=${om.state.realized_pnl_total_usd:+.2f}",
+    ]
+    errors = summary.get("errors") or []
+    if errors:
+        extras.append(f"errors: {'; '.join(str(e) for e in errors[:3])}")
+    msg = format_loop_heartbeat(
+        bot_name="v14",
+        cash_usd=summary.get("kalshi_cash_usd"),
+        positions_usd=summary.get("kalshi_positions_usd"),
+        placed=int(summary.get("placements") or 0),
+        skip_counts=skip_counts,
+        extra_lines=extras,
+    )
+    discord_notify(msg)
+
+
 def main() -> int:
     if not KEY:
         print("FATAL: THE_ODDS_API_KEY not set in .env", file=sys.stderr)
@@ -735,9 +790,11 @@ def main() -> int:
                     summary = one_loop(oddsc, kc, om, dry_run)
                     print(f"  loop summary: {summary}", flush=True)
                     log_event({"event": "loop_summary", **summary})
+                    _v14_post_loop_heartbeat(om, summary)
                 except Exception as e:
                     print(f"  loop error: {e}", flush=True)
                     log_event({"event": "loop_error", "error": str(e), "type": type(e).__name__})
+                    discord_notify(f"v14 LOOP ERROR: {type(e).__name__}: {e}")
                 time.sleep(LOOP_INTERVAL_SECONDS)
     return 0
 

@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from kalshi_bot.alerts.discord import post as send_discord
+from kalshi_bot.alerts.discord import format_loop_heartbeat, post as send_discord
 from kalshi_bot.config import load_settings
 from kalshi_bot.data.kalshi_client import KalshiClient
 from kalshi_bot.logging import configure_logging
@@ -648,6 +648,51 @@ def one_loop_favorite_live(
     notional) each loop. Auto resolves before any other gate check.
     """
     write_heartbeat()
+    # Read LIVE Kalshi balance ONCE at the top of the loop so the Discord
+    # heartbeat (sent in finally) always reflects current Kalshi truth,
+    # not persisted-state bankroll. Pass cached values down into the
+    # budget gate so the same numbers drive decisions and Discord.
+    try:
+        live_cash_usd, live_pos_usd = _read_kalshi_balance_and_positions(client)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("loop_balance_read_failed", error=str(exc))
+        live_cash_usd, live_pos_usd = None, None
+
+    skip_counts: dict[str, int] = {}
+    n_placed = 0
+
+    def _emit_v1_heartbeat(reason: str) -> None:
+        """Post a per-loop Discord heartbeat using LIVE Kalshi balance.
+
+        Called from every loop-exit point so the operator always sees
+        the bot's current state and the most recent decision summary.
+        Safe-no-op if discord_url is falsy or the post fails.
+        """
+        if not discord_url:
+            return
+        try:
+            extra = []
+            extra.append(
+                f"resting={len(lm.state.resting)} "
+                f"filled={len(lm.state.filled)} "
+                f"closed={len(lm.state.closed)} "
+                f"realized_pnl=${lm.state.realized_pnl_total_usd:+.2f}"
+            )
+            extra.append(f"loop_exit: {reason}")
+            send_discord(
+                discord_url,
+                content=format_loop_heartbeat(
+                    bot_name="v1",
+                    cash_usd=live_cash_usd,
+                    positions_usd=live_pos_usd,
+                    placed=n_placed,
+                    skip_counts=skip_counts,
+                    extra_lines=extra,
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("v1_heartbeat_post_failed", error=str(exc))
+
     max_concurrent = _resolve_max_concurrent_live(max_concurrent, lm, client)
     log.info("max_concurrent_resolved", value=max_concurrent)
 
@@ -745,6 +790,9 @@ def one_loop_favorite_live(
         kt.state.tripped
         or not dd.allowed_to_place_orders()
     ):
+        _emit_v1_heartbeat(
+            "kill_or_drawdown" if kt.state.tripped else "drawdown_pause"
+        )
         return
 
     # Stale-bid sweep: cancel maker bids that have been sitting on the
@@ -795,24 +843,23 @@ def one_loop_favorite_live(
     candidates = scan(client, scanner_cfg)
     if not candidates:
         log.info("no_candidates_this_loop_live")
+        _emit_v1_heartbeat("no_candidates")
         return
 
     n_open = lm.open_order_count()
     slots_left = max(0, max_concurrent - n_open)
     if slots_left <= 0:
+        skip_counts["all_slots_full"] = n_open
+        _emit_v1_heartbeat(f"slots_full(open={n_open}, cap={max_concurrent})")
         return
 
-    # Budget check setup: fetch live Kalshi cash so we can refuse any
-    # new bid that would push total resting exposure above the actual
-    # spendable cash on the exchange. Kalshi does not lock cash on
-    # resting maker bids, so without this check the bot can stack
-    # bids whose combined fill cost exceeds the account balance.
-    # On read failure, fall back to local current_live_bankroll (the
-    # safer half: we'd rather skip a loop than over-commit).
-    try:
-        cash_usd, pos_usd = _read_kalshi_balance_and_positions(client)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("budget_check_balance_read_failed", error=str(exc))
+    # Budget check setup: re-use the live Kalshi balance read at the top
+    # of the loop. On the top-of-loop read failure we fall back to the
+    # local LiveOrderManager bankroll (the safer half: we'd rather skip
+    # a loop than over-commit).
+    if live_cash_usd is not None and live_pos_usd is not None:
+        cash_usd, pos_usd = live_cash_usd, live_pos_usd
+    else:
         cash_usd = lm.current_live_bankroll()
         pos_usd = 0.0
     current_resting_exposure = lm.total_resting_exposure_usd()
@@ -891,16 +938,18 @@ def one_loop_favorite_live(
                 poly_mid=getattr(_decision, "poly_mid", None),
                 sportsbook_implied=getattr(_decision, "sportsbook_implied", None),
             )
+            skip_counts["v5_filter"] = skip_counts.get("v5_filter", 0) + 1
             continue
         if not is_eligible(target_price):
+            skip_counts["price_band"] = skip_counts.get("price_band", 0) + 1
             continue
         net = expected_net_edge(target_price)
         if net < min_net_edge:
+            skip_counts["low_edge"] = skip_counts.get("low_edge", 0) + 1
             continue
         scored.append((net, snap, target_price))
 
     scored.sort(key=lambda x: -x[0])
-    n_placed = 0
     # Iterate the full sorted list; break once we have placed slots_left
     # new orders. Previously sliced scored[:slots_left] BEFORE the
     # already_known check, which silently dropped slots when the top
@@ -916,6 +965,7 @@ def one_loop_favorite_live(
             o.ticker == snap.ticker for o in lm.state.intents.values()
         )
         if already_known:
+            skip_counts["dedup"] = skip_counts.get("dedup", 0) + 1
             continue
         contracts = int(per_trade_usd // target_price)
         if contracts < 1:
@@ -924,6 +974,7 @@ def one_loop_favorite_live(
                 ticker=snap.ticker, target_price=target_price,
                 per_trade_usd=per_trade_usd,
             )
+            skip_counts["size"] = skip_counts.get("size", 0) + 1
             continue
         # Budget gate: total resting exposure (this order + everything
         # already on the book) must not exceed live Kalshi cash. If
@@ -940,6 +991,7 @@ def one_loop_favorite_live(
                 projected_exposure=round(projected_exposure, 2),
                 cash_usd=round(cash_usd, 2),
             )
+            skip_counts["budget"] = skip_counts.get("budget", 0) + 1
             continue
         kt.record_attempt()
         order = lm.place_live_order(
@@ -957,11 +1009,9 @@ def one_loop_favorite_live(
                  intent_id=order.intent_id, status=order.status.value,
                  ticker=order.ticker, target_price=target_price,
                  contracts=contracts)
-    if n_placed > 0 and discord_url:
-        send_discord(
-            discord_url,
-            content=f"LIVE FAV placed {n_placed}; bankroll ${bankroll:.2f}",
-        )
+    _emit_v1_heartbeat(
+        f"loop_end (n_placed={n_placed}, candidates={len(candidates)})"
+    )
 
 
 def _install_signal_handlers(

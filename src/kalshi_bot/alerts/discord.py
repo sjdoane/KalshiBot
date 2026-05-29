@@ -45,3 +45,55 @@ def post(webhook_url: str, content: str, *, username: str = "Project Kalshi") ->
     if response.status_code >= 400:
         raise DiscordAlertError(f"Discord {response.status_code}: {response.text[:200]}")
     log.info("discord_sent", bytes=len(body), status=response.status_code)
+
+
+def format_loop_heartbeat(
+    *,
+    bot_name: str,
+    cash_usd: float | None,
+    positions_usd: float | None,
+    placed: int,
+    skip_counts: dict[str, int] | None = None,
+    extra_lines: list[str] | None = None,
+) -> str:
+    """Build a unified per-loop heartbeat Discord message used by BOTH
+    the v1 and v14 bots so the operator sees identical structure.
+
+    Format:
+        [bot_name] $cash + $positions = $total | placed N (skip: k1=v1, k2=v2) | extra ...
+
+    `cash_usd` and `positions_usd` are the LIVE Kalshi /portfolio/balance
+    numbers, NOT persisted state. Pass None if the read failed (the
+    function falls back to "?" placeholders so the heartbeat still goes
+    out, signaling the bot is alive but its balance read failed).
+
+    `skip_counts` is a flat dict of skip-reason -> count. Keys are short
+    snake_case strings (e.g. "budget", "dedup", "denylist"). Zero counts
+    are dropped to keep the line readable.
+
+    `extra_lines` is a list of additional short status lines appended
+    after the main heartbeat line.
+    """
+    def _money(x: float | None) -> str:
+        return f"${x:.2f}" if x is not None else "$?.??"
+    total = (
+        (cash_usd or 0.0) + (positions_usd or 0.0)
+        if cash_usd is not None and positions_usd is not None
+        else None
+    )
+    skip_parts = []
+    if skip_counts:
+        for k in sorted(skip_counts):
+            v = skip_counts[k]
+            if v:
+                skip_parts.append(f"{k}={v}")
+    skip_str = (
+        f" (skip: {', '.join(skip_parts)})" if skip_parts else ""
+    )
+    main = (
+        f"[{bot_name}] {_money(cash_usd)} cash + {_money(positions_usd)} pos "
+        f"= {_money(total)} | placed {placed}{skip_str}"
+    )
+    if extra_lines:
+        return main + "\n" + "\n".join(extra_lines)
+    return main
