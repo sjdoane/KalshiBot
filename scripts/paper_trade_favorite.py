@@ -676,7 +676,7 @@ def one_loop_favorite_live(
                 f"resting={len(lm.state.resting)} "
                 f"filled={len(lm.state.filled)} "
                 f"closed={len(lm.state.closed)} "
-                f"realized_pnl=${lm.state.realized_pnl_total_usd:+.2f}"
+                f"realized_pnl_usd={lm.state.realized_pnl_total_usd:+.2f}"
             )
             extra.append(f"loop_exit: {reason}")
             send_discord(

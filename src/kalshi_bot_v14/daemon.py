@@ -722,7 +722,7 @@ def _v14_post_loop_heartbeat(om: LiveOrderManager, summary: dict) -> None:
         f"resting={len(om.state.resting)} "
         f"filled={len(om.state.filled)} "
         f"closed={len(om.state.closed)} "
-        f"realized_pnl=${om.state.realized_pnl_total_usd:+.2f}",
+        f"realized_pnl_usd={om.state.realized_pnl_total_usd:+.2f}",
     ]
     errors = summary.get("errors") or []
     if errors:
