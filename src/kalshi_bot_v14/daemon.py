@@ -848,8 +848,11 @@ def main() -> int:
         acquire_live_lock,
         release_live_lock,
     )
-    v14_lock = DATA_DIR / "v14_bot.lock"
-    v14_pid = DATA_DIR / "v14_bot.pid"
+    # Distinct paths from the supervisor's own v14_bot.pid (run_v14_bot.ps1
+    # writes the daemon PID there). The daemon lock manages its own
+    # v14_daemon.lock (JSON, authoritative) + v14_daemon.pid (plain int).
+    v14_lock = DATA_DIR / "v14_daemon.lock"
+    v14_pid = DATA_DIR / "v14_daemon.pid"
     acquire_live_lock(lock_path=v14_lock, pid_path=v14_pid)
 
     discord_notify(

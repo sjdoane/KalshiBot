@@ -51,6 +51,26 @@ function Get-NextBackoffSeconds {
 
 Write-LauncherLog "v14 supervisor starting; ProjectRoot=$ProjectRoot"
 
+# SUPERVISOR DOUBLE-LAUNCH GUARD. Mirrors run_live_bot.ps1. Without this,
+# Task Scheduler restart-on-failure + logon triggers spawned MULTIPLE
+# concurrent supervisors (observed 2026-05-29), each launching its own
+# daemon -> multi-daemon double-placement before the daemon lock existed.
+# If another run_v14_bot.ps1 supervisor (different PID) is already alive,
+# this one exits immediately. The daemon-level single_instance lock is the
+# last line of defense; this guard prevents the wasteful supervisor churn.
+$SupervisorPidFile = Join-Path $StateDir "v14_supervisor.pid"
+if (Test-Path $SupervisorPidFile) {
+    $existing = Get-Content $SupervisorPidFile -ErrorAction SilentlyContinue
+    if ($existing) {
+        $p = Get-Process -Id ([int]$existing) -ErrorAction SilentlyContinue
+        if ($p -and $p.ProcessName -eq 'powershell' -and $p.Id -ne $PID) {
+            Write-LauncherLog "Another v14 supervisor already running (PID $existing); exiting."
+            exit 0
+        }
+    }
+}
+Set-Content -Path $SupervisorPidFile -Value $PID -Encoding ascii
+
 if (Test-Path $StopFile) {
     Write-LauncherLog "STOP file present at launcher start; removing it (operator must re-create to stop)"
     Remove-Item $StopFile -Force
