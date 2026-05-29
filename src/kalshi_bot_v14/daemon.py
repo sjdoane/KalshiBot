@@ -78,15 +78,52 @@ log = structlog.get_logger(__name__)
 X_THRESHOLD = 0.006
 HAIRCUT = 0.0007
 SAFETY_BUFFER = 0.005
-# v14 per-fire USD budget. Used as BOTH the headroom floor check AND the
-# size input (contracts = int(V14_PER_TRADE_USD // target_price)). Default
-# 0.95 reproduces the pre-2026-05-28 single-contract behavior at typical
-# $0.47 mean execution price. Operator can override via env to concentrate
-# more capital per fire since v14 fires rarely (1-2/day expected) vs v1's
-# high frequency. At V14_PER_TRADE_USD=5.00 each fire is ~10 contracts.
+
+# --- Position sizing (Round 20, 2026-05-29) -------------------------------
+# v14 fires rarely (1-2/day) so each fire can concentrate more capital than
+# v1's high-frequency maker bids. Sizing is FRACTIONAL KELLY on v14's
+# allocated cap, NOT a flat dollar amount.
+#
+# Full Kelly from the v14 backtest (research/v14/FINAL-VERDICT.md):
+#   win rate p = 0.643, net odds b = 1.03  ->  f* = (p*b - (1-p))/b = 0.295
+# We round to 0.30 as the documented full-Kelly estimate. Because v14's
+# edge is UNCONFIRMED (day-block bootstrap CI [-0.020, +0.332] includes
+# zero), full Kelly would over-bet a maybe-zero edge. We apply a fractional
+# Kelly haircut. Default 0.50 (half Kelly) per operator decision 2026-05-29.
+#
+# per_fire_budget_usd = V14_KELLY_FRACTION * V14_FULL_KELLY_ESTIMATE * v14_cap_usd
+# contracts = floor(per_fire_budget_usd / target_price), clamped to cash and
+# v14 headroom, floor 1 contract.
+#
+# NO confidence (delta-magnitude) scaling: the backtest showed |delta_sb|
+# does not cleanly predict per-fire P&L (corr +0.15, non-monotonic terciles,
+# high-minus-low CI includes zero at n=28). Adding it would be overfitting.
+# See research/v14/05-position-sizing.md.
+V14_FULL_KELLY_ESTIMATE = 0.30
+V14_KELLY_FRACTION = float(os.environ.get("V14_KELLY_FRACTION", "0.50"))
+# Hard ceiling on any single fire as a fraction of v14's cap, independent of
+# Kelly math, as a backstop against a mis-estimated edge. Even at full Kelly
+# (0.30) we never want a single fire to exceed this share of v14 capital.
+V14_MAX_FIRE_FRACTION_OF_CAP = float(
+    os.environ.get("V14_MAX_FIRE_FRACTION_OF_CAP", "0.40")
+)
+# Deprecated flat-budget knob (pre-Kelly). Retained only as the
+# minimum-headroom floor so the daemon still requires room for at least a
+# small order before entering the placement path. No longer sizes orders.
 V14_PER_TRADE_USD = float(os.environ.get("V14_PER_TRADE_USD", "0.95"))
 V14_MAX_DAILY_ORDERS = int(os.environ.get("V14_MAX_DAILY_ORDERS", "10"))
 V14_CONSECUTIVE_LOSS_KILL = 5
+
+
+def v14_per_fire_budget_usd(v14_cap_usd: float) -> float:
+    """Fractional-Kelly per-fire budget, capped by V14_MAX_FIRE_FRACTION_OF_CAP.
+
+    Pure function so it is unit-testable. Returns the dollar budget for a
+    single fire given v14's current allocated cap (40% of live bankroll).
+    """
+    kelly_budget = V14_KELLY_FRACTION * V14_FULL_KELLY_ESTIMATE * v14_cap_usd
+    hard_ceiling = V14_MAX_FIRE_FRACTION_OF_CAP * v14_cap_usd
+    return max(0.0, min(kelly_budget, hard_ceiling))
 
 # Capital allocation: fraction of LIVE Kalshi total bankroll (cash + filled
 # positions) controlled by v14. v1 gets the complementary fraction. Read
@@ -670,11 +707,12 @@ def one_loop(
         target_implied = p_cur if take_home_side else 1.0 - p_cur
         target_price = min(0.99, target_implied + HAIRCUT + SAFETY_BUFFER)
         target_price = max(0.01, target_price)
-        # Size from per-fire budget: aim for V14_PER_TRADE_USD of total
-        # exposure on this fire. Floor at 1 contract so the strategy still
-        # fires even if budget < target_price (preserves pre-2026-05-28
-        # behavior when V14_PER_TRADE_USD ~= 0.95 ~= target_price).
-        contracts = max(1, int(V14_PER_TRADE_USD // target_price))
+        # Fractional-Kelly per-fire budget on v14's allocated cap. No
+        # confidence (delta-magnitude) scaling: backtest does not support
+        # it (see V14_FULL_KELLY_ESTIMATE comment + research/v14/
+        # 05-position-sizing.md). Floor at 1 contract.
+        per_fire_budget = v14_per_fire_budget_usd(v14_cap_usd)
+        contracts = max(1, int(per_fire_budget // target_price))
         # Trim if either cash or v14 headroom is tighter than the budget,
         # so we still place SOMETHING rather than skip on borderline cash.
         per_contract_cost = target_price
@@ -687,7 +725,7 @@ def one_loop(
                 "event": "fire_skipped_no_cash",
                 "ticker": ticker, "per_contract_cost": per_contract_cost,
                 "kalshi_cash": cash_usd, "v14_headroom": headroom_v14,
-                "budget_usd": V14_PER_TRADE_USD,
+                "per_fire_budget_usd": round(per_fire_budget, 4),
             })
             continue
         order_cost = per_contract_cost * contracts
@@ -697,6 +735,9 @@ def one_loop(
             "ticker": ticker, "side": "yes_buy",
             "target_price": round(target_price, 4),
             "contracts": contracts, "order_cost_usd": round(order_cost, 4),
+            "per_fire_budget_usd": round(per_fire_budget, 4),
+            "kelly_fraction": V14_KELLY_FRACTION,
+            "v14_cap_usd": round(v14_cap_usd, 2),
             "home": g.get("home_team"), "away": g.get("away_team"),
             "take_home_side": take_home_side, "delta_sb_home": round(delta, 4),
             "dry_run": dry_run,
