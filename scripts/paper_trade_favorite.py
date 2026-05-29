@@ -1409,14 +1409,14 @@ def main() -> int:
         for r in results:
             log_main.info("preflight_check", name=r.name, detail=r.detail)
 
-        if settings.LIVE_OVERRIDE_GATE and discord_url:
-            send_discord(
-                discord_url,
-                content=(
-                    "LIVE FAV STARTING WITH OVERRIDE: "
-                    "LIVE_OVERRIDE_GATE=true bypassed acceptance criteria. "
-                    "Operator-authorized risk."
-                ),
+        # Log-only: override + bypass are noisy as Discord messages,
+        # especially during crash loops. Operator already knows these
+        # are on because they configured .env that way. Log them so the
+        # state is recoverable, but don't spam Discord.
+        if settings.LIVE_OVERRIDE_GATE:
+            log_main.warning(
+                "live_override_gate_active",
+                detail="LIVE_OVERRIDE_GATE=true bypasses acceptance criteria",
             )
 
         bankroll = lm.current_live_bankroll()
@@ -1433,25 +1433,19 @@ def main() -> int:
                 bankroll=bankroll,
                 per_trade=settings.LIVE_PER_TRADE_USD,
             )
-            if discord_url:
-                send_discord(
-                    discord_url,
-                    content=(
-                        f"LIVE FAV interactive prompt BYPASSED via "
-                        f"--yes-i-authorize ({args.mode}): "
-                        f"bankroll ${bankroll:.2f}, "
-                        f"per-trade ${settings.LIVE_PER_TRADE_USD:.2f}"
-                    ),
-                )
 
         _install_signal_handlers(lm, discord_url)
+        # Single STARTED line matches v14's terser style. Includes the
+        # only info the operator cares about at boot: bankroll, per-trade,
+        # max-concurrent, and whether the override gate is active.
         if discord_url:
+            override_tag = " override=ON" if settings.LIVE_OVERRIDE_GATE else ""
             send_discord(
                 discord_url,
                 content=(
-                    f"LIVE FAV STARTED ({args.mode}) bankroll ${bankroll:.2f} "
-                    f"per-trade ${settings.LIVE_PER_TRADE_USD:.2f} "
-                    f"max-concurrent={args.max_concurrent}"
+                    f"[v1] STARTED ({args.mode}) bankroll=${bankroll:.2f} "
+                    f"per_trade=${settings.LIVE_PER_TRADE_USD:.2f} "
+                    f"max_concurrent={args.max_concurrent}{override_tag}"
                 ),
             )
 
