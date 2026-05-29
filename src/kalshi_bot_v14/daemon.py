@@ -50,11 +50,13 @@ from kalshi_bot_v14.ticker_match import find_kalshi_ticker_for_side
 try:
     from kalshi_bot.alerts.discord import (
         format_loop_heartbeat,
+        format_settlement_alert,
         post as _discord_post,
     )
 except Exception:
     _discord_post = None
     format_loop_heartbeat = None  # type: ignore[assignment]
+    format_settlement_alert = None  # type: ignore[assignment]
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
@@ -545,6 +547,57 @@ def one_loop(
     sync_summary = sync_with_kalshi_orders(om, kc)
     if sync_summary.get("externally_cancelled", 0) > 0:
         summary["externally_cancelled"] = sync_summary["externally_cancelled"]
+
+    # Reconcile fills + settlements so v14 actually tracks resolved bets
+    # (previously v14 never moved filled -> closed so realized_pnl stayed
+    # at 0 forever). LiveOrderManager handles the API calls; we just need
+    # to call it and forward the per-settlement Discord alert.
+    try:
+        om.reconcile_fills()
+    except Exception as e:
+        summary["errors"].append(f"reconcile_fills_error: {type(e).__name__}: {e}")
+    try:
+        settled = om.reconcile_settlements()
+    except Exception as e:
+        summary["errors"].append(f"reconcile_settlements_error: {type(e).__name__}: {e}")
+        settled = []
+    for s in settled:
+        log_event({
+            "event": "v14_order_settled",
+            "ticker": s.ticker,
+            "intent_id": s.intent_id,
+            "outcome": s.resolution_outcome,
+            "filled_count": s.filled_count,
+            "filled_price_cents": s.filled_price_cents,
+            "realized_pnl_usd": s.realized_pnl_usd,
+        })
+        if not DISCORD_WEBHOOK_URL or format_settlement_alert is None:
+            continue
+        try:
+            settled_orders = [
+                o for o in om.state.closed.values()
+                if o.realized_pnl_usd is not None
+            ]
+            winners = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) > 0)
+            losers = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) < 0)
+            discord_notify(format_settlement_alert(
+                bot_name="v14",
+                ticker=s.ticker,
+                outcome=s.resolution_outcome,
+                realized_pnl_usd=float(s.realized_pnl_usd or 0.0),
+                filled_count=int(s.filled_count or 0),
+                entry_price=(
+                    (s.filled_price_cents or 0) / 100.0
+                    if s.filled_price_cents else None
+                ),
+                cumulative_pnl_usd=float(om.state.realized_pnl_total_usd or 0.0),
+                settled_count=len(settled_orders),
+                winners=winners,
+                losers=losers,
+            ))
+        except Exception as e:
+            summary["errors"].append(f"settlement_alert_failed: {type(e).__name__}: {e}")
+
     stale_summary = cancel_v14_stale_orders(om, kc, open_markets)
     for k in ("cancelled_near_close", "cancelled_stale_age", "cancelled_drift"):
         if stale_summary.get(k, 0) > 0:

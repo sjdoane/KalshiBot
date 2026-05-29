@@ -41,7 +41,11 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from kalshi_bot.alerts.discord import format_loop_heartbeat, post as send_discord
+from kalshi_bot.alerts.discord import (
+    format_loop_heartbeat,
+    format_settlement_alert,
+    post as send_discord,
+)
 from kalshi_bot.config import load_settings
 from kalshi_bot.data.kalshi_client import KalshiClient
 from kalshi_bot.logging import configure_logging
@@ -777,6 +781,37 @@ def one_loop_favorite_live(
             outcome=outcome,
             settle_ts=s.resolution_ts or datetime.now(UTC).isoformat(),
         )
+        # Per-settlement Discord notification with running totals.
+        if discord_url:
+            settled_orders = [
+                o for o in lm.state.closed.values()
+                if o.realized_pnl_usd is not None
+            ]
+            winners = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) > 0)
+            losers = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) < 0)
+            try:
+                send_discord(
+                    discord_url,
+                    content=format_settlement_alert(
+                        bot_name="v1",
+                        ticker=s.ticker,
+                        outcome=s.resolution_outcome,
+                        realized_pnl_usd=float(s.realized_pnl_usd or 0.0),
+                        filled_count=int(s.filled_count or 0),
+                        entry_price=(
+                            (s.filled_price_cents or 0) / 100.0
+                            if s.filled_price_cents else None
+                        ),
+                        cumulative_pnl_usd=float(
+                            lm.state.realized_pnl_total_usd or 0.0
+                        ),
+                        settled_count=len(settled_orders),
+                        winners=winners,
+                        losers=losers,
+                    ),
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.warning("v1_settlement_alert_failed", error=str(exc))
         if reason and discord_url:
             send_discord(
                 discord_url,
