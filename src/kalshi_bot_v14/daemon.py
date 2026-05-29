@@ -838,6 +838,20 @@ def main() -> int:
         return 2
     dry_run = PAPER_MODE_FILE.exists()
     print(f"v14 daemon starting (dry_run={dry_run})", flush=True)
+
+    # SINGLE-INSTANCE LOCK: refuse to start if another v14 daemon is alive.
+    # Mirrors v1's protection (reuses the same tested module with v14-
+    # specific lock paths). Prevents the multi-daemon double-placement /
+    # state-clobber bug observed 2026-05-29 where the crash loop + restarts
+    # left several daemons running, each with its own in-memory state.
+    from kalshi_bot.strategy.single_instance import (
+        acquire_live_lock,
+        release_live_lock,
+    )
+    v14_lock = DATA_DIR / "v14_bot.lock"
+    v14_pid = DATA_DIR / "v14_bot.pid"
+    acquire_live_lock(lock_path=v14_lock, pid_path=v14_pid)
+
     discord_notify(
         f"v14 STARTED (dry_run={dry_run}); fraction={V14_BANKROLL_FRACTION:.0%}; "
         f"X_threshold={X_THRESHOLD*10000:.0f}bp"
@@ -870,26 +884,29 @@ def main() -> int:
                     "error": str(exc),
                 })
 
-        with httpx.Client() as oddsc:
-            while True:
-                if STOP_FILE.exists():
-                    print("STOP file present; exiting cleanly", flush=True)
-                    log_event({"event": "daemon_stopped_via_stop_file"})
-                    break
-                if not is_active_hour(now_utc()):
-                    print(f"  {now_utc().isoformat()} outside active hours; sleeping", flush=True)
+        try:
+            with httpx.Client() as oddsc:
+                while True:
+                    if STOP_FILE.exists():
+                        print("STOP file present; exiting cleanly", flush=True)
+                        log_event({"event": "daemon_stopped_via_stop_file"})
+                        break
+                    if not is_active_hour(now_utc()):
+                        print(f"  {now_utc().isoformat()} outside active hours; sleeping", flush=True)
+                        time.sleep(LOOP_INTERVAL_SECONDS)
+                        continue
+                    try:
+                        summary = one_loop(oddsc, kc, om, dry_run)
+                        print(f"  loop summary: {summary}", flush=True)
+                        log_event({"event": "loop_summary", **summary})
+                        _v14_post_loop_heartbeat(om, summary)
+                    except Exception as e:
+                        print(f"  loop error: {e}", flush=True)
+                        log_event({"event": "loop_error", "error": str(e), "type": type(e).__name__})
+                        discord_notify(f"v14 LOOP ERROR: {type(e).__name__}: {e}")
                     time.sleep(LOOP_INTERVAL_SECONDS)
-                    continue
-                try:
-                    summary = one_loop(oddsc, kc, om, dry_run)
-                    print(f"  loop summary: {summary}", flush=True)
-                    log_event({"event": "loop_summary", **summary})
-                    _v14_post_loop_heartbeat(om, summary)
-                except Exception as e:
-                    print(f"  loop error: {e}", flush=True)
-                    log_event({"event": "loop_error", "error": str(e), "type": type(e).__name__})
-                    discord_notify(f"v14 LOOP ERROR: {type(e).__name__}: {e}")
-                time.sleep(LOOP_INTERVAL_SECONDS)
+        finally:
+            release_live_lock(lock_path=v14_lock, pid_path=v14_pid)
     return 0
 
 
