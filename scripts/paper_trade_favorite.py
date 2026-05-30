@@ -771,25 +771,46 @@ def one_loop_favorite_live(
                 ),
             )
     settled = lm.reconcile_settlements()
+    # 1) Kill-trigger recording: per-order, OUTSIDE any Discord try/except so
+    #    a webhook failure can never skip a kill check. Voids
+    #    (resolution_outcome == -1) are skipped: a refund-to-entry void is not
+    #    a directional loss, and recording outcome -1 would drag the YES-rate
+    #    trigger's sum negative (a false-kill hazard). The void's capital
+    #    release + P&L are already booked by reconcile_settlements.
+    kill_reason = None
     for s in settled:
-        pnl_per_contract = (
-            (s.realized_pnl_usd or 0.0) / max(s.filled_count, 1)
-        )
-        outcome = s.resolution_outcome if s.resolution_outcome is not None else -1
-        reason = kt.record_settlement(
+        if s.resolution_outcome == -1:
+            continue
+        pnl_per_contract = (s.realized_pnl_usd or 0.0) / max(s.filled_count, 1)
+        r = kt.record_settlement(
             pnl_per_contract=pnl_per_contract,
-            outcome=outcome,
+            outcome=s.resolution_outcome if s.resolution_outcome is not None else 0,
             settle_ts=s.resolution_ts or datetime.now(UTC).isoformat(),
         )
-        # Per-settlement Discord notification with running totals.
-        if discord_url:
-            settled_orders = [
+        if r is not None:
+            kill_reason = r
+    # 2) Discord: ONE message per settle pass, not one per order (the first
+    #    loop after a settlement fix back-settles many at once). Voids tallied
+    #    separately so winners + losers + voids == count.
+    if settled and discord_url:
+        try:
+            settled_closed = [
                 o for o in lm.state.closed.values()
                 if o.realized_pnl_usd is not None
             ]
-            winners = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) > 0)
-            losers = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) < 0)
-            try:
+
+            def _wlv(orders: list) -> tuple[int, int, int]:
+                # Bucket by OUTCOME, not P&L sign: a YES bet that resolved in
+                # our favor is a win even if fees made the net <= 0, and this
+                # keeps W + L + V == count exact (every settled order is 1/0/-1).
+                w = sum(1 for o in orders if o.resolution_outcome == 1)
+                lo = sum(1 for o in orders if o.resolution_outcome == 0)
+                v = sum(1 for o in orders if o.resolution_outcome == -1)
+                return w, lo, v
+
+            winners, losers, voids = _wlv(settled_closed)
+            if len(settled) == 1:
+                s = settled[0]
                 send_discord(
                     discord_url,
                     content=format_settlement_alert(
@@ -805,19 +826,65 @@ def one_loop_favorite_live(
                         cumulative_pnl_usd=float(
                             lm.state.realized_pnl_total_usd or 0.0
                         ),
-                        settled_count=len(settled_orders),
+                        settled_count=len(settled_closed),
                         winners=winners,
                         losers=losers,
                     ),
                 )
-            except Exception as exc:  # noqa: BLE001
-                log.warning("v1_settlement_alert_failed", error=str(exc))
-        if reason and discord_url:
+            else:
+                res_label = {1: "YES", 0: "NO", -1: "VOID"}
+                batch_pnl = sum(float(s.realized_pnl_usd or 0.0) for s in settled)
+                b_w, b_l, b_v = _wlv(settled)
+                lines = [
+                    f"v1 SETTLED {len(settled)} orders (batch back-settle): "
+                    f"{b_w}W / {b_l}L / {b_v}V",
+                    f"batch P&L ${batch_pnl:+.2f}; realized total "
+                    f"${float(lm.state.realized_pnl_total_usd or 0.0):+.2f} "
+                    f"({winners}W/{losers}L/{voids}V of {len(settled_closed)} all-time)",
+                ]
+                for s in settled[:10]:
+                    res = res_label.get(s.resolution_outcome, "?")
+                    lines.append(
+                        f"  {s.ticker} {res} {s.filled_count}c @ "
+                        f"${(s.filled_price_cents or 0) / 100:.2f} -> "
+                        f"${float(s.realized_pnl_usd or 0):+.2f}"
+                    )
+                send_discord(discord_url, content="\n".join(lines))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("v1_settlement_alert_failed", error=str(exc))
+    if kill_reason and discord_url:
+        send_discord(
+            discord_url,
+            content=(
+                f"KILL TRIGGER tripped: {kill_reason.value} "
+                f"({kt.state.trip_detail})"
+            ),
+        )
+
+    # Stuck-position detection (alert-only): a long-horizon position past its
+    # own close_time that never reached a terminal status. v1 does NOT
+    # auto-void (operator-tracked season-long bets); it flags once for review.
+    # Runs every loop, even when killed, so detection stays current.
+    try:
+        stuck = lm.flag_stuck_past_close(
+            min_hours_past_close=float(
+                os.environ.get("V1_STUCK_HOURS_PAST_CLOSE", "48")
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("v1_stuck_flag_failed", error=str(exc))
+        stuck = []
+    for o in stuck:
+        locked = (o.filled_price_cents or 0) * (o.filled_count or 0) / 100.0
+        log.warning("v1_stuck_position", ticker=o.ticker, locked_usd=locked)
+        if discord_url:
             send_discord(
                 discord_url,
                 content=(
-                    f"KILL TRIGGER tripped: {reason.value} "
-                    f"({kt.state.trip_detail})"
+                    f"v1 STUCK POSITION {o.ticker}: past its close date and "
+                    f"not resolved on Kalshi. ${locked:.2f} held. v1 is NOT "
+                    f"auto-voiding; check the market and reconcile manually. "
+                    f"(One-time alert.)"
                 ),
             )
 

@@ -711,6 +711,64 @@ class LiveOrderManager:
             self._save()
         return settled_void, newly_flagged
 
+    def flag_stuck_past_close(
+        self, *, min_hours_past_close: float = 48.0,
+    ) -> list[LiveOrder]:
+        """Alert-only stuck detection for a long-horizon book (v1).
+
+        A filled order whose market is PAST its own close_time by
+        `min_hours_past_close` but has NOT reached a terminal status is
+        flagged ONCE (via stuck_alert_ts) for an operator alert. Unlike
+        reconcile_stuck_positions (v14), this does NOT void or mutate P&L:
+        for an operator-tracked season-long book, a silent auto-void of a
+        months-long position is the wrong action; the operator decides.
+
+        Gates on the market's close_time, NOT fill age, so a normal
+        still-open long-horizon position (close_time in the future) is never
+        flagged. Terminal markets are left to reconcile_settlements. A
+        per-ticker fetch failure or a missing close_time is logged/skipped;
+        it never flags on absent data.
+
+        Returns the list of newly-flagged orders.
+        """
+        now = datetime.now(UTC)
+        newly: list[LiveOrder] = []
+        for intent_id, order in list(self.state.filled.items()):
+            if order.stuck_alert_ts is not None:
+                continue
+            try:
+                resp = self._client.get(f"/markets/{order.ticker}")
+            except Exception as exc:
+                log.warning(
+                    "live_stuck_market_fetch_failed",
+                    ticker=order.ticker, error=str(exc),
+                )
+                continue
+            market = resp.get("market", {}) or {}
+            status = (market.get("status") or "").lower()
+            if status in ("finalized", "settled"):
+                continue  # reconcile_settlements owns terminal markets
+            close_str = market.get("close_time")
+            if not close_str:
+                continue
+            try:
+                close_dt = datetime.fromisoformat(
+                    str(close_str).replace("Z", "+00:00"),
+                )
+            except (ValueError, TypeError):
+                continue
+            if now <= close_dt + timedelta(hours=min_hours_past_close):
+                continue
+            order.stuck_alert_ts = now.isoformat()
+            newly.append(order)
+            log.warning(
+                "live_stuck_past_close_flagged",
+                intent_id=intent_id, ticker=order.ticker, close_time=close_str,
+            )
+        if newly:
+            self._save()
+        return newly
+
     def cancel_all_resting(self) -> list[str]:
         """Best-effort cancel for every order in `state.resting`.
 

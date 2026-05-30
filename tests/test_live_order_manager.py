@@ -455,6 +455,89 @@ def test_stuck_position_fetch_error_is_safe(tmp_state_path: Path) -> None:
     assert o.intent_id in mgr.state.filled
 
 
+def _iso(hours_from_now: float) -> str:
+    from datetime import UTC, datetime, timedelta
+    return (datetime.now(UTC) + timedelta(hours=hours_from_now)).isoformat()
+
+
+def test_flag_stuck_past_close_flags_once_no_void(tmp_state_path: Path) -> None:
+    # Past its close_time + buffer, not terminal -> flag once. v1 NEVER voids:
+    # the order stays in filled and realized P&L is not mutated.
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, ticker="KXNFLGAME-26X-T", age_hours=1.0)
+    client.get_responses.append(
+        {"market": {"status": "active", "close_time": _iso(-72)}},
+    )
+    flagged = mgr.flag_stuck_past_close(min_hours_past_close=48.0)
+    assert len(flagged) == 1
+    assert o.intent_id in mgr.state.filled  # NOT voided
+    assert mgr.state.filled[o.intent_id].stuck_alert_ts is not None
+    assert mgr.state.realized_pnl_total_usd == 0.0
+    # Already flagged -> no re-flag and no fetch (no staged response needed).
+    assert mgr.flag_stuck_past_close(min_hours_past_close=48.0) == []
+
+
+def test_flag_stuck_past_close_future_close_not_flagged(tmp_state_path: Path) -> None:
+    # A normal long-horizon OPEN position (close_time in the future) is never
+    # flagged. This is the guard against false-flagging v1's 24 season-long bets.
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=1.0)
+    client.get_responses.append(
+        {"market": {"status": "active", "close_time": _iso(24 * 60)}},
+    )
+    flagged = mgr.flag_stuck_past_close(min_hours_past_close=48.0)
+    assert flagged == []
+    assert o.intent_id in mgr.state.filled
+
+
+def test_flag_stuck_past_close_terminal_left_for_settlement(tmp_state_path: Path) -> None:
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    _fill_and_age(mgr, age_hours=1.0)
+    client.get_responses.append(
+        {"market": {"status": "finalized", "result": "yes", "close_time": _iso(-72)}},
+    )
+    assert mgr.flag_stuck_past_close(min_hours_past_close=48.0) == []
+
+
+def test_flag_stuck_past_close_missing_close_time(tmp_state_path: Path) -> None:
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=1.0)
+    client.get_responses.append({"market": {"status": "active"}})
+    assert mgr.flag_stuck_past_close(min_hours_past_close=48.0) == []
+    assert o.intent_id in mgr.state.filled
+
+
+def test_flag_stuck_past_close_fetch_error_safe(tmp_state_path: Path) -> None:
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=1.0)
+    client.get_raises.append(RuntimeError("rate limit"))
+    assert mgr.flag_stuck_past_close(min_hours_past_close=48.0) == []
+    assert o.intent_id in mgr.state.filled
+
+
+def test_flag_stuck_past_close_garbage_close_time(tmp_state_path: Path) -> None:
+    # An unparseable close_time must not flag (never act on garbage data).
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=1.0)
+    client.get_responses.append(
+        {"market": {"status": "active", "close_time": "soon-ish"}},
+    )
+    assert mgr.flag_stuck_past_close(min_hours_past_close=48.0) == []
+    assert o.intent_id in mgr.state.filled
+
+
 def test_cancel_all_resting_calls_delete(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({

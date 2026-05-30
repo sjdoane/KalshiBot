@@ -637,10 +637,11 @@ def one_loop(
             ]
 
             def _wlv(orders: list) -> tuple[int, int, int]:
-                w = sum(1 for o in orders if o.resolution_outcome != -1
-                        and (o.realized_pnl_usd or 0) > 0)
-                lo = sum(1 for o in orders if o.resolution_outcome != -1
-                         and (o.realized_pnl_usd or 0) < 0)
+                # Bucket by OUTCOME, not P&L sign: a bet that resolved in our
+                # favor is a win even if fees made the net <= 0, and this keeps
+                # W + L + V == count exact (every settled order is 1/0/-1).
+                w = sum(1 for o in orders if o.resolution_outcome == 1)
+                lo = sum(1 for o in orders if o.resolution_outcome == 0)
                 v = sum(1 for o in orders if o.resolution_outcome == -1)
                 return w, lo, v
 
