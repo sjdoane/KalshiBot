@@ -186,8 +186,11 @@ def check_clock_skew(
             "clock_skew", False,
             (
                 f"local clock differs from Kalshi by {delta_ms:.0f}ms "
-                f"(> {max_skew_ms}ms); fix with `sudo hwclock -s` (WSL2) "
-                "or NTP resync"
+                f"(> {max_skew_ms}ms). The bot runs under Windows: fix in an "
+                "elevated PowerShell with `Set-Service W32Time -StartupType "
+                "Automatic; Start-Service W32Time; w32tm /resync /force` "
+                "(the Windows Time service is often stopped, which lets the "
+                "clock drift). Under WSL2 instead use `sudo hwclock -s`."
             ),
         )
     return CheckResult(
