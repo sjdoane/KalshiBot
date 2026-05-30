@@ -15,6 +15,32 @@ def test_paper_trade_favorite_imports_cleanly() -> None:
     assert callable(mod.expected_net_edge_for_favorite)
 
 
+def test_v1_per_bid_contracts_scales_with_bankroll() -> None:
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    f = mod.v1_per_bid_contracts
+    # 3% of a $30 cap = $0.90 -> 1 contract at 0.75; same as today's fixed $.
+    assert f(0.75, v1_cap_total=30.0, per_bid_fraction=0.03, fallback_usd=0.95) == 1
+    # Scales up as the operator deposits: $60 cap -> $1.80 -> 2 contracts.
+    assert f(0.75, v1_cap_total=60.0, per_bid_fraction=0.03, fallback_usd=0.95) == 2
+    # $300 cap -> $9.00 -> 12 contracts at 0.75.
+    assert f(0.75, v1_cap_total=300.0, per_bid_fraction=0.03, fallback_usd=0.95) == 12
+
+
+def test_v1_per_bid_contracts_floors_at_one() -> None:
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    f = mod.v1_per_bid_contracts
+    # Tiny cap: sub-1 budget still places the minimum 1 contract.
+    assert f(0.90, v1_cap_total=10.0, per_bid_fraction=0.03, fallback_usd=0.95) == 1
+
+
+def test_v1_per_bid_contracts_fallback_when_no_cap() -> None:
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    f = mod.v1_per_bid_contracts
+    # No fraction cap -> legacy fixed-dollar fallback.
+    assert f(0.75, v1_cap_total=None, per_bid_fraction=0.03, fallback_usd=0.95) == 1
+    assert f(0.30, v1_cap_total=None, per_bid_fraction=0.03, fallback_usd=0.95) == 3
+
+
 def test_expected_net_edge_for_favorite_positive_at_85c() -> None:
     """Post-Round-5: empirical YES rate now defaults to 0.95 (was 0.97).
 

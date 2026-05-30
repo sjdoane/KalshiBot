@@ -32,11 +32,34 @@ log = structlog.get_logger(__name__)
 # trades them via the full /series?category=Sports scan. Denylisting
 # them removes the untested exposure pending W2 (re-measure v1's edge
 # on the denylisted-residual universe).
-DEFAULT_SERIES_DENYLIST: frozenset[str] = frozenset({
+# V4-H edge denylist: three series where v1's measured favorite edge does
+# NOT generalize (negative realized P&L on the dominant subgroup).
+_V4H_EDGE_DENYLIST: frozenset[str] = frozenset({
     "KXNFLWINS",
     "KXNFLPLAYOFF",
     "KXMLBPLAYOFFS",
 })
+
+
+# 2026-05-30 fill-efficiency denylist (council-approved). Empirical live fill
+# rates showed these illiquid futures / long-horizon series almost never fill
+# v1's resting maker bids: each had >= 8 placements at <= 10% fill, wasting a
+# large share of v1's attempts (e.g. KXWCGAME 3/26, KXUFCFIGHT 2/19,
+# KXPGAMAKECUT 0/13). Unfilled bids cost $0, but bidding here drags the fill
+# metric and is not a Becker-validated edge. Excluding them concentrates v1
+# on series that actually transact. Re-review as live data accumulates.
+LOW_FILL_DENYLIST: frozenset[str] = frozenset({
+    "KXWCGAME",          # 3/26 filled (10%)
+    "KXUFCFIGHT",        # 2/19 (10%)
+    "KXPGAMAKECUT",      # 0/13
+    "KXWCSTAGEOFELIM",   # 1/11
+    "KXWNBAWINS",        # 1/9
+    "KXNBADRAFTTOP",     # 0/8
+    "KXSTARTINGQBWEEK1",  # 0/8
+})
+
+
+DEFAULT_SERIES_DENYLIST: frozenset[str] = _V4H_EDGE_DENYLIST | LOW_FILL_DENYLIST
 
 
 # Round 15b extension (2026-05-27): Becker post-October-2024 cluster

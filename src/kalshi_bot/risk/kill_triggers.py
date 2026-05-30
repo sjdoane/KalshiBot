@@ -79,6 +79,13 @@ class KillTriggerConfig:
     loss_dollar_fallback_pct: float = 0.10
     fill_rate_min: float = 0.30
     fill_rate_min_attempts: int = 50
+    # Fill rate is a liquidity-matching diagnostic, not an EV signal: a
+    # patient deep-favorite maker is inherently low-fill, and the counters
+    # also include still-resting bids (pending, not failed). Per the
+    # 2026-05-30 council it is DEMOTED to a logged health metric by default;
+    # the EV-relevant kills (drawdown, consecutive-loss, edge) remain. Set
+    # True only to restore the hard kill.
+    fill_rate_kill: bool = False
     max_history_entries: int = 200
 
 
@@ -259,15 +266,21 @@ class KillTriggerMonitor:
                     )
                     return KillReason.SINGLE_LOSS_DOLLAR
 
-        # Trigger 5: fill rate.
+        # Trigger 5: fill rate. Demoted to a logged health metric by default
+        # (c.fill_rate_kill). It only HALTS trading when explicitly re-enabled;
+        # otherwise a low fill rate is logged for the heartbeat and does not
+        # trip, because it is a liquidity diagnostic, not an EV failure.
         if s.placement_attempts_total >= c.fill_rate_min_attempts:
             fill_rate = s.placement_filled_total / s.placement_attempts_total
             if fill_rate < c.fill_rate_min:
-                self.state.trip_detail = (
+                detail = (
                     f"fill rate {fill_rate:.3f} < {c.fill_rate_min} "
                     f"after {s.placement_attempts_total} attempts"
                 )
-                return KillReason.FILL_RATE_LOW
+                if c.fill_rate_kill:
+                    self.state.trip_detail = detail
+                    return KillReason.FILL_RATE_LOW
+                log.info("fill_rate_low_metric", detail=detail)
 
         return None
 
@@ -286,13 +299,23 @@ class KillTriggerMonitor:
     def allowed_to_place_orders(self) -> bool:
         return not self.state.tripped
 
-    def clear(self) -> None:
-        """Operator-only: clear the tripped state to resume trading."""
+    def clear(self, *, reset_fill_counters: bool = False) -> None:
+        """Operator-only: clear the tripped state to resume trading.
+
+        Mutates the loaded state in place (preserves P&L / outcome / winner
+        history that feeds the other triggers). With reset_fill_counters=True,
+        also zeroes the cumulative placement counters so the fill-rate metric
+        starts a fresh window (the old totals accumulated during the
+        dormant-settlement era and include still-resting bids).
+        """
         self.state.tripped = False
         self.state.trip_reason = None
         self.state.trip_ts = None
         self.state.trip_detail = None
         self.state.rolling_mean_first_negative_ts = None
+        if reset_fill_counters:
+            self.state.placement_attempts_total = 0
+            self.state.placement_filled_total = 0
         self._save()
 
     def fill_rate(self) -> float | None:

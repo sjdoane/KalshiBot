@@ -102,14 +102,45 @@ def test_fill_rate_does_not_trip_under_min_attempts(tmp_state_path: Path) -> Non
     assert m.allowed_to_place_orders() is True
 
 
-def test_fill_rate_trips_at_or_above_min_attempts(tmp_state_path: Path) -> None:
+def test_fill_rate_demoted_does_not_trip_by_default(tmp_state_path: Path) -> None:
+    # 2026-05-30 council: fill_rate is a logged health metric, not a kill, by
+    # default. A low fill rate must NOT halt trading.
     m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path)
+    for _ in range(50):
+        m.record_attempt()
+    for _ in range(10):  # 20% fill rate, below the 0.30 floor
+        m.record_fill()
+    reason = m.record_settlement(pnl_per_contract=0.05, outcome=1, settle_ts=_ts(0))
+    assert reason is None
+    assert not m.state.tripped
+
+
+def test_fill_rate_still_trips_when_kill_explicitly_enabled(tmp_state_path: Path) -> None:
+    from kalshi_bot.risk.kill_triggers import KillTriggerConfig
+    m = KillTriggerMonitor(
+        starting_bankroll_usd=25.0, state_path=tmp_state_path,
+        config=KillTriggerConfig(fill_rate_kill=True),
+    )
     for _ in range(50):
         m.record_attempt()
     for _ in range(10):  # 20% fill rate
         m.record_fill()
     reason = m.record_settlement(pnl_per_contract=0.05, outcome=1, settle_ts=_ts(0))
     assert reason == KillReason.FILL_RATE_LOW
+
+
+def test_clear_reset_fill_counters(tmp_state_path: Path) -> None:
+    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path)
+    for _ in range(50):
+        m.record_attempt()
+    for _ in range(10):
+        m.record_fill()
+    m.record_settlement(pnl_per_contract=0.05, outcome=1, settle_ts=_ts(0))
+    m.clear(reset_fill_counters=True)
+    assert m.state.placement_attempts_total == 0
+    assert m.state.placement_filled_total == 0
+    assert not m.state.tripped
+    assert len(m.state.recent_outcomes) == 1  # P&L/outcome history preserved
 
 
 def test_rolling_30_mean_below_half_pp_trips(tmp_state_path: Path) -> None:

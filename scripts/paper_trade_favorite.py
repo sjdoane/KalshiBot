@@ -455,6 +455,29 @@ def _compute_v1_filled_exposure(lm: LiveOrderManager) -> float:
     return total
 
 
+def v1_per_bid_contracts(
+    target_price: float,
+    *,
+    v1_cap_total: float | None,
+    per_bid_fraction: float,
+    fallback_usd: float,
+) -> int:
+    """Dynamic per-bid contract count (2026-05-30 council).
+
+    When a fraction cap is active, the per-bid budget is
+    per_bid_fraction * v1_cap_total (v1's live bankroll slice), so each bid
+    auto-scales as the operator deposits/withdraws, mirroring v14. With no
+    fraction cap, falls back to the legacy fixed dollar. Floors at 1 contract
+    so a sub-1 budget still places the minimum (helps fill rate); the
+    aggregate budget gate caps total exposure separately.
+    """
+    if v1_cap_total is not None:
+        budget = per_bid_fraction * v1_cap_total
+    else:
+        budget = fallback_usd
+    return max(1, int(budget // target_price))
+
+
 def write_heartbeat() -> None:
     """Best-effort heartbeat file write for an external watchdog."""
     try:
@@ -664,6 +687,11 @@ def one_loop_favorite_live(
 
     skip_counts: dict[str, int] = {}
     n_placed = 0
+    # Sizing state, initialized before the heartbeat closure so it can read
+    # them at any loop-exit point. v1_cap_total gets its live value in the
+    # bankroll-fraction block below; stays None under no fraction cap.
+    v1_cap_total: float | None = None
+    v1_per_bid_fraction = float(os.environ.get("V1_PER_BID_FRACTION", "0.03"))
 
     def _emit_v1_heartbeat(reason: str) -> None:
         """Post a per-loop Discord heartbeat using LIVE Kalshi balance.
@@ -682,6 +710,23 @@ def one_loop_favorite_live(
                 f"closed={len(lm.state.closed)} "
                 f"realized_pnl_usd={lm.state.realized_pnl_total_usd:+.2f}"
             )
+            # Fill-rate health metric (demoted from a kill; shown so it is
+            # never hidden again) + dynamic per-bid sizing tracking the
+            # operator's live bankroll.
+            fr = kt.fill_rate()
+            if fr is not None:
+                extra.append(
+                    f"fill_rate={fr:.0%} "
+                    f"({kt.state.placement_filled_total}/"
+                    f"{kt.state.placement_attempts_total}; metric only, no kill)"
+                )
+            if v1_cap_total is not None:
+                per_bid = v1_per_bid_fraction * v1_cap_total
+                extra.append(
+                    f"per_bid=~${per_bid:.2f} "
+                    f"({v1_per_bid_fraction:.0%} of ${v1_cap_total:.2f} v1 cap; "
+                    f"scales with your balance)"
+                )
             extra.append(f"loop_exit: {reason}")
             send_discord(
                 discord_url,
@@ -971,6 +1016,9 @@ def one_loop_favorite_live(
     # already-deployed filled exposure. Resting exposure is enforced
     # naturally via the budget gate (current_resting + new_order > cap).
     bankroll_fraction = float(os.environ.get("V1_BANKROLL_FRACTION", "1.0"))
+    # v1_cap_total (initialized at function top) is v1's live bankroll slice,
+    # recomputed here each loop, so per-bid sizing auto-scales on deposits/
+    # withdrawals (mirrors v14). Stays None under no fraction cap.
     if bankroll_fraction < 1.0:
         total_bankroll = cash_usd + pos_usd
         v1_cap_total = bankroll_fraction * total_bankroll
@@ -1069,15 +1117,17 @@ def one_loop_favorite_live(
         if already_known:
             skip_counts["dedup"] = skip_counts.get("dedup", 0) + 1
             continue
-        contracts = int(per_trade_usd // target_price)
-        if contracts < 1:
-            log.info(
-                "skip_size_insufficient",
-                ticker=snap.ticker, target_price=target_price,
-                per_trade_usd=per_trade_usd,
-            )
-            skip_counts["size"] = skip_counts.get("size", 0) + 1
-            continue
+        # Dynamic per-bid budget (2026-05-30 council): scale each bid with
+        # the live bankroll like v14. Base on v1_cap_total (the 60% slice
+        # already derived from the live balance), NOT the headroom-shrunk
+        # cash_usd, so we never double-cap; the budget gate below still caps
+        # AGGREGATE resting exposure.
+        contracts = v1_per_bid_contracts(
+            target_price,
+            v1_cap_total=v1_cap_total,
+            per_bid_fraction=v1_per_bid_fraction,
+            fallback_usd=per_trade_usd,
+        )
         # Budget gate: total resting exposure (this order + everything
         # already on the book) must not exceed live Kalshi cash. If
         # every resting bid filled, we need cash to cover them. Kalshi

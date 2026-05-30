@@ -199,6 +199,27 @@ def test_default_series_denylist_contains_v4_h_finding() -> None:
     assert "KXMLBPLAYOFFS" in DEFAULT_SERIES_DENYLIST
 
 
+def test_default_denylist_contains_low_fill_series() -> None:
+    """2026-05-30 fill-efficiency denylist: the proven never-fill series must
+    be excluded by default so v1 stops wasting bids on them."""
+    from kalshi_bot.strategy.market_scanner import LOW_FILL_DENYLIST
+    for prefix in ("KXWCGAME", "KXUFCFIGHT", "KXPGAMAKECUT"):
+        assert prefix in LOW_FILL_DENYLIST
+        assert prefix in DEFAULT_SERIES_DENYLIST
+
+
+def test_filter_candidates_denies_low_fill_series() -> None:
+    cfg = ScannerConfig(category="Sports", min_lifetime_days=30)
+    raws = [
+        {**_raw_market(ticker="KXWCGAME-26-ARG", yes_bid="0.78", yes_ask="0.80"),
+         "series_ticker": "KXWCGAME"},
+        {**_raw_market(ticker="KXNBAWINS-LAL-26-T55", yes_bid="0.75", yes_ask="0.77"),
+         "series_ticker": "KXNBAWINS"},
+    ]
+    tickers = [snap.ticker for _, snap in filter_candidates(raws, cfg)]
+    assert "KXWCGAME-26-ARG" not in tickers
+
+
 def test_filter_candidates_denies_kxnflwins() -> None:
     """Default ScannerConfig must skip KXNFLWINS markets (W1 closure)."""
     cfg = ScannerConfig(category="Sports", min_lifetime_days=30)
