@@ -577,18 +577,36 @@ class LiveOrderManager:
                 continue
             market = response.get("market", {}) or {}
             status = (market.get("status") or "").lower()
-            if status != "settled":
+            # Kalshi's terminal resolved status on the live API is
+            # "finalized" (verified against the prod API, 2026-05-30 UTC);
+            # "settled" is accepted defensively in case the convention
+            # changes. Every other status (including the intermediate
+            # "determined" state, where the result is known but the ~120s
+            # settlement timer has not elapsed) is left for a later loop.
+            if status not in ("finalized", "settled"):
                 continue
-            result = (market.get("result") or "").lower()
+            # A market in a terminal status MUST be settled now so its
+            # capital is released. yes/no map to win/loss; ANY other result
+            # (an explicit "void", a non-binary token like "scalar", or an
+            # unexpected/empty value) is treated as void (return to entry,
+            # fees only). Never leave a terminal market in `filled`, or its
+            # exposure strands forever (the bug this method is fixing).
+            result = (market.get("result") or "").strip().lower()
             if result == "yes":
                 outcome = 1
             elif result == "no":
                 outcome = 0
             else:
-                outcome = -1  # void or unexpected
+                outcome = -1  # void / scalar / unrecognized: refund-to-entry
+                if result != "void":
+                    log.warning(
+                        "live_settlement_unrecognized_result",
+                        ticker=order.ticker, status=status, result=result,
+                    )
             order.resolution_outcome = outcome
             order.resolution_ts = (
-                market.get("settled_time")
+                market.get("settlement_ts")
+                or market.get("settled_time")
                 or market.get("close_time")
                 or datetime.now(UTC).isoformat()
             )

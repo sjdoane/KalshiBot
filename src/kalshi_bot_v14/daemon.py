@@ -497,11 +497,16 @@ def check_kill_triggers(
             f"{drawdown_threshold:.2f}_({V14_DRAWDOWN_KILL_FRACTION:.0%}_of_cap)"
         )
 
-    # Consecutive losses: scan closed pool in reverse, count from latest
+    # Consecutive losses: scan closed pool in reverse, count from latest.
     closed_orders = list(om.state.closed.values())
     closed_orders.sort(key=lambda o: o.resolution_ts or "", reverse=True)
     streak = 0
     for o in closed_orders:
+        # Voids (resolution_outcome == -1) are economic non-events (refund
+        # to entry, fees only). They are transparent to the streak: a
+        # rained-out game neither counts as a loss nor resets a real run.
+        if o.resolution_outcome == -1:
+            continue
         pnl = o.realized_pnl_usd
         if pnl is None or pnl >= 0:
             break

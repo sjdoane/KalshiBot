@@ -251,13 +251,15 @@ def test_reconcile_settlements_yes_winner(tmp_state_path: Path) -> None:
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=2)
-    # Filled inline above. Now market settles YES.
+    # Filled inline above. Now market settles YES. Live Kalshi reports the
+    # terminal state as status "finalized" with a "settlement_ts" field.
     client.get_responses.append({
-        "market": {"status": "settled", "result": "yes",
-                   "settled_time": "2026-05-24T01:00:00Z"},
+        "market": {"status": "finalized", "result": "yes",
+                   "settlement_ts": "2026-05-24T01:00:00Z"},
     })
     settled = mgr.reconcile_settlements()
     assert len(settled) == 1
+    assert settled[0].resolution_ts == "2026-05-24T01:00:00Z"
     # 2 contracts * (1.0 - 0.75 - fee). Fee at 0.75 = 2 * ceil(1.75*0.75*0.25)/100
     # = 2 * ceil(0.328)/100 = 2 * 1/100 = 0.02. Net per contract = 0.25 - 0.02
     # = 0.23. Total = 0.46.
@@ -273,6 +275,7 @@ def test_reconcile_settlements_no_loser(tmp_state_path: Path) -> None:
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.80, contracts=1)
+    # "settled" kept here to cover the defensively-accepted status value.
     client.get_responses.append({
         "market": {"status": "settled", "result": "no"},
     })
@@ -290,7 +293,7 @@ def test_reconcile_settlements_void(tmp_state_path: Path) -> None:
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.75, contracts=1)
     client.get_responses.append({
-        "market": {"status": "settled", "result": "void"},
+        "market": {"status": "finalized", "result": "void"},
     })
     settled = mgr.reconcile_settlements()
     # Outcome -1 (void); payoff=0, fees still apply.
@@ -312,6 +315,44 @@ def test_reconcile_settlements_unsettled_market_no_change(tmp_state_path: Path) 
     assert len(settled) == 0
     # Still in filled, not closed.
     assert len(mgr.state.filled) == 1
+
+
+def test_reconcile_settlements_determined_not_yet_settled(tmp_state_path: Path) -> None:
+    # "determined" is the result-known-but-pre-payout intermediate state.
+    # We deliberately wait for "finalized" rather than settle early.
+    client = MockKalshiClient()
+    client.post_responses.append({
+        "order": {"order_id": "k-1", "status": "filled"},
+    })
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    _place(mgr, target_price=0.75, contracts=1)
+    client.get_responses.append({
+        "market": {"status": "determined", "result": "yes"},
+    })
+    settled = mgr.reconcile_settlements()
+    assert len(settled) == 0
+    assert len(mgr.state.filled) == 1
+
+
+def test_reconcile_settlements_finalized_unrecognized_result_voids(tmp_state_path: Path) -> None:
+    # A market in a TERMINAL status (finalized) with a non-yes/no result
+    # must settle as void and release its capital, never strand in filled.
+    # Covers empty, scalar, and any other unexpected token.
+    for bad_result in ("", "scalar", "all_no"):
+        client = MockKalshiClient()
+        client.post_responses.append({
+            "order": {"order_id": "k-1", "status": "filled"},
+        })
+        mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+        _place(mgr, target_price=0.75, contracts=1)
+        client.get_responses.append({
+            "market": {"status": "finalized", "result": bad_result},
+        })
+        settled = mgr.reconcile_settlements()
+        assert len(settled) == 1, f"result={bad_result!r} should settle"
+        assert settled[0].resolution_outcome == -1
+        assert len(mgr.state.filled) == 0  # capital released
+        assert mgr.state.closed[settled[0].intent_id].realized_pnl_usd is not None
 
 
 def test_cancel_all_resting_calls_delete(tmp_state_path: Path) -> None:
