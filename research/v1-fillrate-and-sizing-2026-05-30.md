@@ -61,6 +61,21 @@ low-stakes and self-policing. Allowlist deferred to the capital-scale-up gate.
   shows fill_rate (metric, no kill) and per-bid sizing ($/% of live cap).
 - `scripts/reset_v1_kill.py`: one-shot to clear tripped + reset counters.
 
+## Follow-up diagnosis: v1 placed AND cancelled nothing overnight
+Operator screenshots showed 9 stale resting bids (0 filled), none placed or
+cancelled overnight. Root cause: the v1 loop ran reconcile, then
+`if kt.state.tripped or not dd.allowed: return` BEFORE the stale-bid sweep,
+cancel-on-drift, AND placement. So the (then-tripped) fill-rate kill froze the
+ENTIRE maintenance+placement section: no new bids, no cancellations, no
+rotation. Fix: (1) the demote (above) un-trips it, AND (2) order MAINTENANCE
+now runs even when killed (cancelling unfilled bids is risk-reducing; only NEW
+PLACEMENT stays gated). Added `LiveOrderManager.cancel_resting_by_series` so
+resting bids on now-denylisted series are cancelled promptly. Read-only check
+of the live book: the denylist sweep will cancel 6 of the 9 (the never-fillers)
+on restart and keep KXPGATOP20 (fills 75%) + 2 small-sample futures (left to
+stale-TTL/drift). Review: 0 Critical / 0 High (cancel-only is position-safe,
+placement still gated, no double-cancel). 3 new tests.
+
 ## Review + verification
 Post-impl review: 0 Critical / 0 High. Confirmed EV kills intact + v14
 untouched; no double-cap; sizing = 1 contract at the current bankroll (no stake

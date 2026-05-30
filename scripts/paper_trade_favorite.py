@@ -933,21 +933,32 @@ def one_loop_favorite_live(
                 ),
             )
 
-    if (
-        kt.state.tripped
-        or not dd.allowed_to_place_orders()
-    ):
-        _emit_v1_heartbeat(
-            "kill_or_drawdown" if kt.state.tripped else "drawdown_pause"
-        )
-        return
+    # Order maintenance runs EVERY loop, even when KILLED. Cancelling
+    # unfilled resting bids carries no position and locks no cash, so it is
+    # always safe and risk-reducing; a killed bot should keep its book clean
+    # rather than freeze. Only NEW PLACEMENT (further below) is gated by the
+    # kill / drawdown state. Diagnosed 2026-05-30: a tripped fill-rate kill
+    # early-returned BEFORE these sweeps, so overnight v1 placed nothing AND
+    # cancelled nothing.
 
-    # Stale-bid sweep: cancel maker bids that have been sitting on the
-    # book longer than the configured TTL. Kalshi does NOT lock cash on
-    # resting maker bids, so the bot's "exposure" budget would otherwise
-    # accumulate unfilled bids indefinitely. The default TTL (env-
-    # overridable) is 5 days. Failures here are non-fatal; we just lose
-    # one loop's worth of recycling.
+    # 1. Cancel resting bids on now-denylisted series (no longer traded).
+    try:
+        cancelled_deny = lm.cancel_resting_by_series(scanner_cfg.series_denylist)
+        if cancelled_deny and discord_url:
+            send_discord(
+                discord_url,
+                content=(
+                    f"LIVE FAV denylist sweep: cancelled {len(cancelled_deny)} "
+                    f"resting bids on denylisted series"
+                ),
+            )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("denylist_sweep_failed", error=str(exc))
+
+    # 2. Stale-bid sweep: cancel maker bids that have been sitting on the
+    # book longer than the configured TTL (default 5 days). Kalshi does NOT
+    # lock cash on resting maker bids, so unfilled bids would otherwise
+    # accumulate against the bot's local budget. Failures are non-fatal.
     try:
         ttl_hours = float(os.environ.get("STALE_BID_TTL_HOURS", "120"))
         if ttl_hours > 0:
@@ -964,10 +975,8 @@ def one_loop_favorite_live(
     except Exception as exc:  # noqa: BLE001
         log.warning("stale_bid_sweep_failed", error=str(exc))
 
-    # Round 15c addition: adverse-selection cancel-on-drift. Only runs
-    # when --cancel-on-drift was passed; default off to preserve existing
-    # live behavior. Pure additive safety: cancels resting bids whose
-    # underlying market has drifted materially since placement.
+    # 3. Adverse-selection cancel-on-drift (opt-in via --cancel-on-drift):
+    # cancel resting bids whose market has drifted materially since placement.
     if adverse_selection_cfg is not None:
         try:
             cancelled_drift = lm.reconcile_adverse_selection(
@@ -986,6 +995,17 @@ def one_loop_favorite_live(
                 )
         except Exception as exc:  # noqa: BLE001
             log.warning("adverse_selection_sweep_failed", error=str(exc))
+
+    # NEW PLACEMENT is gated by the kill / drawdown state (maintenance above
+    # already ran).
+    if (
+        kt.state.tripped
+        or not dd.allowed_to_place_orders()
+    ):
+        _emit_v1_heartbeat(
+            "kill_or_drawdown" if kt.state.tripped else "drawdown_pause"
+        )
+        return
 
     candidates = scan(client, scanner_cfg)
     if not candidates:

@@ -616,6 +616,53 @@ def test_rejects_target_price_out_of_range(tmp_state_path: Path) -> None:
         )
 
 
+def _rest_order(mgr: LiveOrderManager, *, ticker: str, series: str, oid: str):
+    """Put a synthetic LIVE_RESTING order directly into state."""
+    from datetime import UTC, datetime
+
+    from kalshi_bot.strategy.live_order_manager import LiveOrder
+    o = LiveOrder(
+        intent_id=oid, ticker=ticker, series_ticker=series,
+        event_ticker=ticker.rsplit("-", 1)[0], side="yes",
+        target_price_cents=72, contracts=1, expected_net_edge=0.05,
+        market_mid_at_placement=0.72, placed_ts=datetime.now(UTC).isoformat(),
+        status=LiveOrderStatus.LIVE_RESTING, order_id=oid,
+    )
+    mgr.state.resting[oid] = o
+    return o
+
+
+def test_cancel_resting_by_series_cancels_only_denylisted(tmp_state_path: Path) -> None:
+    client = MockKalshiClient()
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    _rest_order(mgr, ticker="KXWCGAME-26-ARG", series="KXWCGAME", oid="r1")
+    _rest_order(mgr, ticker="KXPGATOP20-26-X", series="KXPGATOP20", oid="r2")
+    client.delete_responses.append({})  # one cancel succeeds
+    cancelled = mgr.cancel_resting_by_series(frozenset({"KXWCGAME"}))
+    assert cancelled == ["r1"]
+    assert "r1" not in mgr.state.resting and "r1" in mgr.state.closed
+    assert "r2" in mgr.state.resting  # not denylisted: kept
+    assert mgr.state.closed["r1"].status == LiveOrderStatus.LIVE_CANCELLED
+
+
+def test_cancel_resting_by_series_empty_denylist_noops(tmp_state_path: Path) -> None:
+    client = MockKalshiClient()
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    _rest_order(mgr, ticker="KXWCGAME-26-ARG", series="KXWCGAME", oid="r1")
+    assert mgr.cancel_resting_by_series(frozenset()) == []
+    assert not any(c[0] == "DELETE" for c in client.calls)
+    assert "r1" in mgr.state.resting
+
+
+def test_cancel_resting_by_series_delete_failure_is_safe(tmp_state_path: Path) -> None:
+    client = MockKalshiClient()
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    _rest_order(mgr, ticker="KXWCGAME-26-ARG", series="KXWCGAME", oid="r1")
+    client.delete_raises.append(RuntimeError("net down"))
+    assert mgr.cancel_resting_by_series(frozenset({"KXWCGAME"})) == []
+    assert "r1" in mgr.state.resting  # stays on cancel failure
+
+
 def test_bankroll_accounts_for_realized_pnl(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({

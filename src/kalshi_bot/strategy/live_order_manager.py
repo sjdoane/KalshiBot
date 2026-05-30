@@ -850,6 +850,49 @@ class LiveOrderManager:
             self._save()
         return cancelled
 
+    def cancel_resting_by_series(
+        self, denylisted_series: frozenset[str] | set[str],
+    ) -> list[str]:
+        """Cancel resting (unfilled) orders whose series is denylisted.
+
+        Cleans up bids on series the bot no longer trades (e.g. after a
+        denylist update): an unfilled maker bid carries no position and locks
+        no cash on Kalshi, so cancelling it is always safe. The series prefix
+        is taken from the order's series_ticker, falling back to the substring
+        before the first '-' in the ticker. Returns the cancelled intent_ids.
+        """
+        if not denylisted_series:
+            return []
+        now = datetime.now(UTC)
+        cancelled: list[str] = []
+        for intent_id, order in list(self.state.resting.items()):
+            if not order.order_id:
+                continue
+            prefix = order.series_ticker or order.ticker.partition("-")[0]
+            if prefix not in denylisted_series:
+                continue
+            try:
+                self._client.delete(f"/portfolio/orders/{order.order_id}")
+            except Exception as exc:
+                log.warning(
+                    "live_cancel_denylist_failed",
+                    intent_id=intent_id, order_id=order.order_id,
+                    ticker=order.ticker, error=str(exc),
+                )
+                continue
+            order.status = LiveOrderStatus.LIVE_CANCELLED
+            order.cancelled_ts = now.isoformat()
+            self.state.closed[intent_id] = order
+            del self.state.resting[intent_id]
+            cancelled.append(intent_id)
+            log.info(
+                "live_denylist_resting_cancelled",
+                intent_id=intent_id, ticker=order.ticker, series=prefix,
+            )
+        if cancelled:
+            self._save()
+        return cancelled
+
     def reconcile_adverse_selection(
         self,
         *,
