@@ -160,7 +160,19 @@ while ($true) {
         # underlying market drifts materially since placement. Defaults
         # in paper_trade_favorite.py CLI are conservative (3c drift
         # threshold, 30-min min order age before considering).
-        "--cancel-on-drift"
+        "--cancel-on-drift",
+        # Round 21 (v16) council decision (2026-05-30): restrict v1 to the
+        # 5 Becker train+OOS validated PERSIST prefixes (KXMLBGAME,
+        # KXATPMATCH, KXNFLGAME, KXNCAAFGAME, KXWTAMATCH), add the expanded
+        # OOS-NULL denylist (spreads/totals/wins/EPL/UCL), and skip the
+        # final-hour adverse-selection window. The broad universe diluted
+        # v1's validated edge to ~0 aggregate OOS, and 14 of 15 adverse-
+        # drift fills were in non-validated prefixes. See
+        # research/v16/00-DIAGNOSIS-AND-COUNCIL.md and
+        # research/v10a/20-v1-drift-by-prefix.md.
+        "--allowlist",
+        "--expanded-denylist",
+        "--min-minutes-to-close", "60"
     )
     if (Test-Path $RebaselineFlag) {
         Write-LauncherLog "REBASELINE flag detected; passing --rebaseline to bot."
