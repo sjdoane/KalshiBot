@@ -140,6 +140,11 @@ V14_DRAWDOWN_KILL_FRACTION = float(
 V14_STALE_AGE_HOURS = float(os.environ.get("V14_STALE_AGE_HOURS", "2.0"))
 V14_NEAR_CLOSE_MIN = float(os.environ.get("V14_NEAR_CLOSE_MIN", "30"))
 
+# Stuck-position escape: a filled order whose market never reaches a terminal
+# status (postponed/voided game) past this many hours is reconciled against
+# /portfolio/positions; flat -> void-settle, still-open -> one-time alert.
+V14_STUCK_AGE_HOURS = float(os.environ.get("V14_STUCK_AGE_HOURS", "24.0"))
+
 # Market drift cancel: cancel a v14 resting order if the current Kalshi
 # yes_ask has moved >= this many cents away from our target price (i.e.,
 # our bid is no longer competitive).
@@ -603,6 +608,7 @@ def one_loop(
     except Exception as e:
         summary["errors"].append(f"reconcile_settlements_error: {type(e).__name__}: {e}")
         settled = []
+    # Per-order detail goes to the jsonl log (operator can inspect there).
     for s in settled:
         log_event({
             "event": "v14_order_settled",
@@ -613,32 +619,107 @@ def one_loop(
             "filled_price_cents": s.filled_price_cents,
             "realized_pnl_usd": s.realized_pnl_usd,
         })
-        if not DISCORD_WEBHOOK_URL or format_settlement_alert is None:
-            continue
+    # Discord: ONE message per settle pass, not one per order. On the first
+    # loop after a settlement-logic fix, many stuck orders back-settle at
+    # once; a per-order loop would burst N webhook posts and recompute
+    # winners/losers over the whole closed pool N times (O(n^2)). Compute
+    # the all-time tally once; single settlement keeps the familiar format.
+    if settled and DISCORD_WEBHOOK_URL:
         try:
-            settled_orders = [
+            # Voids (resolution_outcome == -1) are economic non-events, so
+            # they are tallied separately from W/L (consistent with the
+            # consecutive-loss kill, which also treats voids as transparent).
+            # This keeps W + L + V == settled count instead of miscounting a
+            # void as a loss.
+            settled_closed = [
                 o for o in om.state.closed.values()
                 if o.realized_pnl_usd is not None
             ]
-            winners = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) > 0)
-            losers = sum(1 for o in settled_orders if (o.realized_pnl_usd or 0) < 0)
-            discord_notify(format_settlement_alert(
-                bot_name="v14",
-                ticker=s.ticker,
-                outcome=s.resolution_outcome,
-                realized_pnl_usd=float(s.realized_pnl_usd or 0.0),
-                filled_count=int(s.filled_count or 0),
-                entry_price=(
-                    (s.filled_price_cents or 0) / 100.0
-                    if s.filled_price_cents else None
-                ),
-                cumulative_pnl_usd=float(om.state.realized_pnl_total_usd or 0.0),
-                settled_count=len(settled_orders),
-                winners=winners,
-                losers=losers,
-            ))
+
+            def _wlv(orders: list) -> tuple[int, int, int]:
+                w = sum(1 for o in orders if o.resolution_outcome != -1
+                        and (o.realized_pnl_usd or 0) > 0)
+                lo = sum(1 for o in orders if o.resolution_outcome != -1
+                         and (o.realized_pnl_usd or 0) < 0)
+                v = sum(1 for o in orders if o.resolution_outcome == -1)
+                return w, lo, v
+
+            winners, losers, voids = _wlv(settled_closed)
+            if len(settled) == 1 and format_settlement_alert is not None:
+                s = settled[0]
+                discord_notify(format_settlement_alert(
+                    bot_name="v14",
+                    ticker=s.ticker,
+                    outcome=s.resolution_outcome,
+                    realized_pnl_usd=float(s.realized_pnl_usd or 0.0),
+                    filled_count=int(s.filled_count or 0),
+                    entry_price=(
+                        (s.filled_price_cents or 0) / 100.0
+                        if s.filled_price_cents else None
+                    ),
+                    cumulative_pnl_usd=float(om.state.realized_pnl_total_usd or 0.0),
+                    settled_count=len(settled_closed),
+                    winners=winners,
+                    losers=losers,
+                ))
+            else:
+                res_label = {1: "YES", 0: "NO", -1: "VOID"}
+                batch_pnl = sum(float(s.realized_pnl_usd or 0.0) for s in settled)
+                b_w, b_l, b_v = _wlv(settled)
+                lines = [
+                    f"v14 SETTLED {len(settled)} orders (batch back-settle): "
+                    f"{b_w}W / {b_l}L / {b_v}V",
+                    f"batch P&L ${batch_pnl:+.2f}; realized total "
+                    f"${float(om.state.realized_pnl_total_usd or 0.0):+.2f} "
+                    f"({winners}W/{losers}L/{voids}V of {len(settled_closed)} all-time)",
+                ]
+                for s in settled[:10]:
+                    res = res_label.get(s.resolution_outcome, "?")
+                    lines.append(
+                        f"  {s.ticker} {res} {s.filled_count}c @ "
+                        f"${(s.filled_price_cents or 0) / 100:.2f} -> "
+                        f"${float(s.realized_pnl_usd or 0):+.2f}"
+                    )
+                discord_notify("\n".join(lines))
         except Exception as e:
             summary["errors"].append(f"settlement_alert_failed: {type(e).__name__}: {e}")
+
+    # Stuck-position escape (council B3 + B2): a filled order whose market
+    # never finalized (postponed/voided game) gets reconciled against Kalshi
+    # /portfolio/positions. Flat -> void-settle + release capital; still-open
+    # or unknown -> one-time operator alert (never auto-void on a timer).
+    try:
+        void_settled, stuck_flagged = om.reconcile_stuck_positions(
+            stuck_age_hours=V14_STUCK_AGE_HOURS,
+        )
+    except Exception as e:
+        summary["errors"].append(f"reconcile_stuck_error: {type(e).__name__}: {e}")
+        void_settled, stuck_flagged = [], []
+    for o in void_settled:
+        summary["stuck_void_settled"] = summary.get("stuck_void_settled", 0) + 1
+        log_event({
+            "event": "v14_stuck_void_settled", "ticker": o.ticker,
+            "intent_id": o.intent_id, "realized_pnl_usd": o.realized_pnl_usd,
+        })
+        discord_notify(
+            f"v14 STUCK->VOID {o.ticker}: Kalshi shows the position flat but "
+            f"the market never finalized; settled as void "
+            f"(${float(o.realized_pnl_usd or 0):+.2f}, capital released)."
+        )
+    for o in stuck_flagged:
+        summary["stuck_flagged"] = summary.get("stuck_flagged", 0) + 1
+        locked = (o.filled_price_cents or 0) * (o.filled_count or 0) / 100.0
+        log_event({
+            "event": "v14_stuck_flagged", "ticker": o.ticker,
+            "intent_id": o.intent_id, "filled_ts": o.filled_ts,
+        })
+        discord_notify(
+            f"v14 STUCK POSITION {o.ticker}: filled {o.filled_count}c @ "
+            f"${(o.filled_price_cents or 0) / 100:.2f}, no resolution after "
+            f"{V14_STUCK_AGE_HOURS:.0f}h and Kalshi still shows it open. "
+            f"${locked:.2f} capital locked. Bot is NOT auto-voiding; check the "
+            f"game/market and void manually if dead. (One-time alert.)"
+        )
 
     stale_summary = cancel_v14_stale_orders(om, kc, open_markets)
     for k in ("cancelled_near_close", "cancelled_stale_age", "cancelled_drift"):

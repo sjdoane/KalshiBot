@@ -355,6 +355,106 @@ def test_reconcile_settlements_finalized_unrecognized_result_voids(tmp_state_pat
         assert mgr.state.closed[settled[0].intent_id].realized_pnl_usd is not None
 
 
+def _fill_and_age(mgr: LiveOrderManager, *, ticker: str = "KXMLBGAME-26X-T",
+                  price: float = 0.50, contracts: int = 2,
+                  age_hours: float = 48.0):
+    """Place an order, force it into `filled`, and backdate filled_ts so the
+    stuck-position reconcile treats it as old."""
+    from datetime import UTC, datetime, timedelta
+    o = mgr.place_live_order(
+        ticker=ticker, series_ticker="KXMLBGAME", event_ticker="KXMLBGAME-26X",
+        target_price=price, contracts=contracts,
+        expected_net_edge=0.05, market_mid_at_placement=price,
+    )
+    iid = o.intent_id
+    mgr.state.intents.pop(iid, None)
+    mgr.state.resting.pop(iid, None)
+    o.status = LiveOrderStatus.LIVE_FILLED
+    o.filled_count = contracts
+    o.filled_price_cents = int(round(price * 100))
+    o.filled_ts = (datetime.now(UTC) - timedelta(hours=age_hours)).isoformat()
+    mgr.state.filled[iid] = o
+    return o
+
+
+def test_stuck_position_flat_voids(tmp_state_path: Path) -> None:
+    # Stuck filled order; Kalshi shows position flat -> void-settle, release.
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=48.0)
+    client.get_responses.append({
+        "market_positions": [{"ticker": o.ticker, "position_fp": "0.00"}],
+    })
+    void_settled, flagged = mgr.reconcile_stuck_positions(stuck_age_hours=24.0)
+    assert len(void_settled) == 1
+    assert len(flagged) == 0
+    assert o.intent_id in mgr.state.closed
+    assert o.intent_id not in mgr.state.filled
+    assert mgr.state.closed[o.intent_id].resolution_outcome == -1
+
+
+def test_stuck_position_held_flags_once(tmp_state_path: Path) -> None:
+    # Position still held -> flag once, never void, never re-flag.
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=48.0)
+    client.get_responses.append({
+        "market_positions": [{"ticker": o.ticker, "position_fp": "2.00"}],
+    })
+    void_settled, flagged = mgr.reconcile_stuck_positions(stuck_age_hours=24.0)
+    assert void_settled == []
+    assert len(flagged) == 1
+    assert o.intent_id in mgr.state.filled
+    assert mgr.state.filled[o.intent_id].stuck_alert_ts is not None
+    # Second pass must NOT re-flag.
+    client.get_responses.append({
+        "market_positions": [{"ticker": o.ticker, "position_fp": "2.00"}],
+    })
+    _v2, f2 = mgr.reconcile_stuck_positions(stuck_age_hours=24.0)
+    assert f2 == []
+
+
+def test_stuck_position_missing_key_is_not_flat(tmp_state_path: Path) -> None:
+    # CRITICAL: a ticker ABSENT from positions is UNKNOWN, never flat.
+    # Must flag, never void (else we recreate the phantom-exit foot-gun).
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=48.0)
+    client.get_responses.append({"market_positions": []})
+    void_settled, flagged = mgr.reconcile_stuck_positions(stuck_age_hours=24.0)
+    assert void_settled == []
+    assert len(flagged) == 1
+    assert o.intent_id in mgr.state.filled
+
+
+def test_stuck_position_young_order_no_api_call(tmp_state_path: Path) -> None:
+    # A recently-filled order is not stuck; positions must not even be polled.
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    _fill_and_age(mgr, age_hours=1.0)
+    void_settled, flagged = mgr.reconcile_stuck_positions(stuck_age_hours=24.0)
+    assert void_settled == []
+    assert flagged == []
+    assert not any(c[1] == "/portfolio/positions" for c in client.calls)
+
+
+def test_stuck_position_fetch_error_is_safe(tmp_state_path: Path) -> None:
+    # Positions fetch failure must leave state untouched (no guesswork).
+    client = MockKalshiClient()
+    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _fill_and_age(mgr, age_hours=48.0)
+    client.get_raises.append(RuntimeError("rate limit"))
+    void_settled, flagged = mgr.reconcile_stuck_positions(stuck_age_hours=24.0)
+    assert void_settled == []
+    assert flagged == []
+    assert o.intent_id in mgr.state.filled
+
+
 def test_cancel_all_resting_calls_delete(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({

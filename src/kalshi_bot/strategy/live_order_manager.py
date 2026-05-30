@@ -102,6 +102,7 @@ class LiveOrder:
     resolution_ts: str | None = None
     resolution_outcome: int | None = None  # 1 YES, 0 NO, -1 void
     realized_pnl_usd: float | None = None
+    stuck_alert_ts: str | None = None      # set once when flagged stuck
 
 
 @dataclass
@@ -624,6 +625,91 @@ class LiveOrderManager:
         if settled:
             self._save()
         return settled
+
+    def reconcile_stuck_positions(
+        self, *, stuck_age_hours: float = 24.0,
+    ) -> tuple[list[LiveOrder], list[LiveOrder]]:
+        """Release or flag filled orders whose market never reached a
+        terminal status (postponed game, voided-without-finalize, anomaly).
+
+        Call AFTER reconcile_settlements: anything still in `filled` here was
+        NOT finalized this pass. For orders filled longer than
+        `stuck_age_hours`, consult /portfolio/positions (Kalshi truth):
+
+        - Position flat (position_fp == 0, ticker PRESENT in the response):
+          the market closed outside the finalized path. A real yes/no
+          resolution would have finalized and been caught above, so a flat
+          position here is a void/cancel. Settle as void (refund to entry,
+          fees only) via the bot's own fee model, which keeps
+          realized_pnl_total_usd single-writer-consistent with every other
+          settlement.
+        - Position still held, OR ticker ABSENT (UNKNOWN, never read a
+          missing key as flat): leave in `filled` and flag once for an
+          operator alert.
+
+        Returns (settled_void, newly_flagged). NEVER voids on a timer alone;
+        only when Kalshi confirms the position is flat.
+        """
+        now = datetime.now(UTC)
+        cutoff = now - timedelta(hours=stuck_age_hours)
+        candidates: list[tuple[str, LiveOrder]] = []
+        for intent_id, order in self.state.filled.items():
+            ref_ts = order.filled_ts or order.placed_ts
+            try:
+                ref = datetime.fromisoformat(ref_ts)
+            except (ValueError, TypeError):
+                continue
+            if ref <= cutoff:
+                candidates.append((intent_id, order))
+        if not candidates:
+            return [], []
+
+        try:
+            resp = self._client.get("/portfolio/positions")
+        except Exception as exc:
+            log.warning("live_positions_fetch_failed", error=str(exc))
+            return [], []
+        pos_by_ticker: dict[str, dict] = {
+            p.get("ticker"): p
+            for p in (resp.get("market_positions") or [])
+            if p.get("ticker")
+        }
+
+        settled_void: list[LiveOrder] = []
+        newly_flagged: list[LiveOrder] = []
+        for intent_id, order in candidates:
+            pos = pos_by_ticker.get(order.ticker)
+            is_flat = False
+            if pos is not None:
+                try:
+                    is_flat = int(round(float(pos.get("position_fp") or 0))) == 0
+                except (TypeError, ValueError):
+                    is_flat = False
+            if is_flat:
+                order.resolution_outcome = -1  # void: refund-to-entry
+                order.resolution_ts = now.isoformat()
+                order.realized_pnl_usd = self._compute_realized_pnl(order, -1)
+                order.status = LiveOrderStatus.LIVE_VOIDED
+                self.state.realized_pnl_total_usd += order.realized_pnl_usd
+                self.state.closed[intent_id] = order
+                del self.state.filled[intent_id]
+                settled_void.append(order)
+                log.info(
+                    "live_stuck_position_void_settled",
+                    intent_id=intent_id, ticker=order.ticker,
+                    pnl_usd=order.realized_pnl_usd,
+                )
+            elif order.stuck_alert_ts is None:
+                order.stuck_alert_ts = now.isoformat()
+                newly_flagged.append(order)
+                log.warning(
+                    "live_stuck_position_flagged",
+                    intent_id=intent_id, ticker=order.ticker,
+                    filled_ts=order.filled_ts,
+                )
+        if settled_void or newly_flagged:
+            self._save()
+        return settled_void, newly_flagged
 
     def cancel_all_resting(self) -> list[str]:
         """Best-effort cancel for every order in `state.resting`.
