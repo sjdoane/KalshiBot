@@ -37,12 +37,19 @@ normal positions. v1 needs close_time-based detection, not fill-age.
   (short-horizon, capital-fluidity); v1 is alert-only (Risk + Operator).
   Rejected: refactoring the shipped v14 method to close_time (blast radius on 5
   tests) and auto-voiding v1 long-horizon positions (phantom-exit risk).
-- **D3 (ambiguous orphan): report-only, never adopt.** v1 has 1 untracked
-  executed order `KXUFCOCCUR-26CMCGMHOL` (coid `342f2cb1`, a PRE-tagging raw
-  uuid unattributable to v1 vs a manual operator position). Adopting a possibly
-  manual position could trip a kill on operator capital. Surfaced to the
-  operator; NOT auto-adopted. (v1 orphan adoption stays gated on coid prefix
-  "11"; raw-uuid orders are never adopted.)
+- **D3 (ambiguous orphan): report-only, never AUTO-adopt; adopt only on
+  operator confirmation.** v1 had 1 untracked executed order
+  `KXUFCOCCUR-26CMCGMHOL-26JUL13` (coid `342f2cb1`, a PRE-tagging raw uuid
+  unattributable to v1 vs a manual operator position by inspection). Auto-
+  adopting a possibly-manual position could trip a kill on operator capital,
+  so it was surfaced, not auto-adopted. **Operator confirmed 2026-05-30 it is
+  a lost v1 order** (active deep-favorite YES 1c @ $0.75, resolves
+  2026-07-13). Adoption tool: `scripts/adopt_v1_orphan.py` (operator NAMES the
+  order by coid prefix; never auto-detects; dedups vs v1 AND v14; adopts into
+  v1 `filled` with NO P&L; seeds processed_fill_ids; dry-run default,
+  --i-mean-it to write with the bot stopped). It is active/long-horizon, so it
+  settles in July, not on restart; `flag_stuck_past_close` will not flag it
+  (future close).
 - **D4 (settlement Discord):** same bugs as v14 existed in v1 (one webhook per
   settled order = burst on first back-settle; voids miscounted as losers).
   FIX: one batched message per pass, W/L/V separated. CRITICAL: the per-order
@@ -81,7 +88,9 @@ garbage-close_time test.
 - No v1 kill should arm: -$0.74 on a ~$32 bankroll is ~2.3% drawdown (kill at
   20%); Trigger 1 needs 20 non-void fills (only 5 settled). The void-skip
   ensures the rare void doesn't false-trip the YES-rate trigger.
-- 1 untracked UFC order (`KXUFCOCCUR-26CMCGMHOL`) needs an operator call: is it
-  a lost v1 order or your manual position? v1 leaves it alone until you say.
-- Restart: `.\scripts\restart_bot.ps1` (or Stop/Start-ScheduledTask KalshiLiveBot).
-  No orphan-adoption step for v1 (unlike v14).
+- The lost UFC order is now confirmed v1's; adopt it during the restart.
+- Restart sequence (adopt requires the bot STOPPED, like v14): (1)
+  `Stop-ScheduledTask KalshiLiveBot`; (2) verify stopped; (3)
+  `PYTHONPATH=src .venv-kronos/Scripts/python.exe -m scripts.adopt_v1_orphan --i-mean-it`;
+  (4) `Start-ScheduledTask KalshiLiveBot`. (Plain `.\scripts\restart_bot.ps1`
+  works too if you skip the adoption.)
