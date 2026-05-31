@@ -21,6 +21,7 @@ executable exit leg (closing yes_bid) is a separate re-snapshot.
 from __future__ import annotations
 
 import statistics
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
@@ -243,6 +244,103 @@ def parse_orderbook(payload: dict) -> dict:
         "is_parity_derived": is_parity_derived,
         "book_empty": False,
     }
+
+
+# --- Phase 2: re-snapshot scheduling + trade-tape summarization -----------
+# Intra-window re-snapshot offsets from the fire time (T0), in minutes, plus a
+# closing snapshot taken CLOSE_SNAPSHOT_LEAD_MIN before the market's close_time
+# (before finalization, since settled-market orderbooks return empty). These
+# capture the convergence path the Gate A CLV calculation needs.
+INTRA_SNAPSHOT_OFFSETS_MIN: dict[str, float] = {"t5": 5.0, "t30": 30.0}
+CLOSE_SNAPSHOT_LEAD_MIN = 2.0
+SNAPSHOT_LABELS: tuple[str, ...] = ("t5", "t30", "close")
+
+
+def snapshot_target_time(
+    label: str, fire_ts: datetime, close_dt: datetime | None
+) -> datetime | None:
+    """Target wall-clock time for a re-snapshot label.
+
+    "t5"/"t30" are fire_ts plus the offset; "close" is close_dt minus the lead.
+    Returns None for an unknown label or a "close" with no close_dt (so the
+    runner records it as unschedulable rather than guessing).
+    """
+    if label == "close":
+        if close_dt is None:
+            return None
+        return close_dt - timedelta(minutes=CLOSE_SNAPSHOT_LEAD_MIN)
+    offset = INTRA_SNAPSHOT_OFFSETS_MIN.get(label)
+    if offset is None:
+        return None
+    return fire_ts + timedelta(minutes=offset)
+
+
+def parse_trade_yes_cents(trade: dict) -> float | None:
+    """Yes price of one Kalshi trade in cents (0 to 100). Handles both the
+    integer-cents `yes_price` field and the dollar-string `yes_price_dollars`
+    field (post-March-2026 API), mirroring the live fill parser. Returns None
+    when neither is parseable, so a bad record is skipped, never coerced."""
+    dollars = trade.get("yes_price_dollars")
+    if dollars is not None:
+        try:
+            return float(dollars) * 100.0
+        except (TypeError, ValueError):
+            return None
+    cents = trade.get("yes_price")
+    if cents is not None:
+        try:
+            return float(cents)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def summarize_yes_prices(prices_cents: list[float]) -> dict:
+    """Min / max / mean and count of yes trade prices (cents) in an interval.
+
+    An empty interval returns n_trades=0 with None statistics, so "no trades
+    happened" is explicit and never confused with a real price of zero. This
+    is the raw material for a later, post-registration fill model (e.g. did the
+    market trade at or through a passive bid); recording the distribution keeps
+    the study free to evaluate any limit without a baked-in threshold.
+    """
+    if not prices_cents:
+        return {
+            "n_trades": 0, "min_yes_cents": None,
+            "max_yes_cents": None, "mean_yes_cents": None,
+        }
+    return {
+        "n_trades": len(prices_cents),
+        "min_yes_cents": round(min(prices_cents), 2),
+        "max_yes_cents": round(max(prices_cents), 2),
+        "mean_yes_cents": round(statistics.mean(prices_cents), 2),
+    }
+
+
+# --- Phase 3: passive-fill probe limit (tiny live resting orders) ----------
+def passive_probe_limit_cents(book: dict, *, min_spread: float = 0.02) -> int | None:
+    """Passive (maker) buy-YES limit, in integer cents, for the Phase 3 probe.
+
+    The probe tests whether a passive resting bid at the lagging Kalshi level
+    actually fills (the only honest test of passive-maker harvestability, which
+    record-only snapshots cannot measure). To stay a clean MAKER that never
+    crosses the ask, return the current best yes_bid only when the book is
+    two-sided with a spread >= min_spread. Returns None for an empty, one-sided,
+    or too-tight book, or a bid outside [1, 99] cents, in which case the probe
+    skips that fire rather than risk a marketable (taker) fill.
+    """
+    if book.get("book_empty"):
+        return None
+    yes_bid = book.get("yes_bid")
+    yes_ask = book.get("yes_ask")
+    if yes_bid is None or yes_ask is None:
+        return None
+    if yes_ask - yes_bid < min_spread:
+        return None
+    cents = int(round(yes_bid * 100))
+    if not 1 <= cents <= 99:
+        return None
+    return cents
 
 
 def build_entry_row(

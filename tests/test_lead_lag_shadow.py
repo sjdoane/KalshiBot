@@ -28,6 +28,10 @@ from kalshi_bot.analysis.lead_lag_shadow import (
     in_exec_window,
     iso_week_id,
     parse_orderbook,
+    parse_trade_yes_cents,
+    passive_probe_limit_cents,
+    snapshot_target_time,
+    summarize_yes_prices,
 )
 
 
@@ -236,6 +240,53 @@ def test_build_entry_row_away_side_target_implied() -> None:
     assert abs(row["target_implied"] - 0.58) < 1e-9
     assert row["book_empty"] is True
     assert row["yes_ask"] is None
+
+
+def test_passive_probe_limit_cents() -> None:
+    # Wide spread (4c): place at the yes_bid as a clean maker.
+    wide = {"yes_bid": 0.45, "yes_ask": 0.49, "book_empty": False}
+    assert passive_probe_limit_cents(wide) == 45
+    # Tight spread (1c): too tight to rest passively -> None.
+    tight = {"yes_bid": 0.49, "yes_ask": 0.50, "book_empty": False}
+    assert passive_probe_limit_cents(tight) is None
+    # Empty / one-sided books -> None.
+    assert passive_probe_limit_cents({"book_empty": True}) is None
+    assert passive_probe_limit_cents(
+        {"yes_bid": 0.45, "yes_ask": None, "book_empty": False}) is None
+    # Out-of-range bid -> None.
+    assert passive_probe_limit_cents(
+        {"yes_bid": 0.0, "yes_ask": 0.10, "book_empty": False}) is None
+
+
+def test_snapshot_target_time() -> None:
+    fire = datetime(2026, 5, 30, 22, 0, tzinfo=UTC)
+    close = datetime(2026, 5, 31, 3, 0, tzinfo=UTC)
+    assert snapshot_target_time("t5", fire, close) == datetime(2026, 5, 30, 22, 5, tzinfo=UTC)
+    assert snapshot_target_time("t30", fire, close) == datetime(2026, 5, 30, 22, 30, tzinfo=UTC)
+    assert snapshot_target_time("close", fire, close) == datetime(2026, 5, 31, 2, 58, tzinfo=UTC)
+    assert snapshot_target_time("close", fire, None) is None
+    assert snapshot_target_time("bogus", fire, close) is None
+
+
+def test_parse_trade_yes_cents() -> None:
+    assert parse_trade_yes_cents({"yes_price_dollars": "0.48"}) == 48.0
+    assert parse_trade_yes_cents({"yes_price": 48}) == 48.0
+    # dollar field preferred when both present
+    assert parse_trade_yes_cents({"yes_price_dollars": "0.50", "yes_price": 99}) == 50.0
+    assert parse_trade_yes_cents({}) is None
+    assert parse_trade_yes_cents({"yes_price": "bad"}) is None
+
+
+def test_summarize_yes_prices() -> None:
+    empty = summarize_yes_prices([])
+    assert empty["n_trades"] == 0
+    assert empty["min_yes_cents"] is None
+    assert empty["mean_yes_cents"] is None
+    out = summarize_yes_prices([40.0, 50.0, 60.0])
+    assert out["n_trades"] == 3
+    assert out["min_yes_cents"] == 40.0
+    assert out["max_yes_cents"] == 60.0
+    assert out["mean_yes_cents"] == 50.0
 
 
 def test_build_entry_row_book_status_passthrough() -> None:
