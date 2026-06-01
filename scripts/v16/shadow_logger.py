@@ -72,6 +72,14 @@ from kalshi_bot_v14.ticker_match import find_kalshi_ticker_for_side  # noqa: E40
 KEY = os.environ.get("THE_ODDS_API_KEY")
 
 LOOP_INTERVAL_SECONDS = int(os.environ.get("V16_LOOP_SECONDS", str(5 * 60)))
+# Odds fetches (the-odds-api credits) are throttled INDEPENDENTLY of the loop
+# cadence: the loop runs every LOOP_INTERVAL for precise, free Kalshi
+# re-snapshots, but the 2 odds calls per fetch are made at most once per
+# ODDS_FETCH_INTERVAL. This keeps a season-long run inside the the-odds-api
+# credit budget while preserving re-snapshot timing. Default 15 min matches the
+# v14 daemon's proven-sustainable odds cadence; a fire is a 3h-slow signal so
+# 15-min detection granularity loses nothing. Tune via V16_ODDS_SECONDS.
+ODDS_FETCH_INTERVAL_SECONDS = int(os.environ.get("V16_ODDS_SECONDS", str(15 * 60)))
 ACTIVE_HOUR_UTC_START = 18
 ACTIVE_HOUR_UTC_END = 6
 # A re-snapshot whose target time has passed by more than this many minutes
@@ -115,14 +123,28 @@ def load_state() -> dict:
     and the high-water trade-tape timestamp for non-overlapping interval stats.
     """
     if not STATE_PATH.exists():
-        return {"logged_keys": [], "snap_state": {}}
+        return {"logged_keys": [], "snap_state": {}, "last_odds_fetch_ts": ""}
     try:
         raw = json.loads(STATE_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {"logged_keys": [], "snap_state": {}}
+        return {"logged_keys": [], "snap_state": {}, "last_odds_fetch_ts": ""}
     raw.setdefault("logged_keys", [])
     raw.setdefault("snap_state", {})
+    raw.setdefault("last_odds_fetch_ts", "")
     return raw
+
+
+def _odds_due(state: dict, now: datetime) -> bool:
+    """True when at least ODDS_FETCH_INTERVAL has elapsed since the last odds
+    fetch (or none has happened). Decouples credit spend from the loop cadence."""
+    last = state.get("last_odds_fetch_ts") or ""
+    if not last:
+        return True
+    try:
+        prev = datetime.fromisoformat(last)
+    except (ValueError, TypeError):
+        return True
+    return (now - prev).total_seconds() >= ODDS_FETCH_INTERVAL_SECONDS
 
 
 def save_state(state: dict) -> None:
@@ -418,41 +440,23 @@ def _resnapshot_pass(
     return rows
 
 
-def one_loop(odds_client: httpx.Client, kc: KalshiClient, state: dict) -> dict:
-    summary = {
-        "ts": now_utc().isoformat(), "candidates": 0, "fires": 0, "near_misses": 0,
-        "entries_logged": 0, "snapshots": 0, "credits_remaining": -1, "errors": [],
-    }
-    if STOP_FILE.exists():
-        summary["errors"].append("STOP file present")
-        return summary
-
-    now = now_utc()
-    try:
-        current_games, _rem1, _ = fetch_odds_snapshot(odds_client)
-        hist_games, rem2, snap_ts = fetch_odds_snapshot(
-            odds_client, when=now - timedelta(hours=LOOKBACK_HOURS)
-        )
-        summary["credits_remaining"] = rem2
-    except httpx.HTTPStatusError as e:
-        summary["errors"].append(f"odds_api_error: {e.response.status_code}")
-        return summary
-    except Exception as e:  # noqa: BLE001
-        summary["errors"].append(f"odds_error: {type(e).__name__}: {e}")
-        return summary
-    hist_by_id = {g.get("id"): g for g in hist_games if g.get("id")}
-
-    try:
-        open_markets = fetch_open_mlb_markets(kc)
-    except Exception as e:  # noqa: BLE001
-        summary["errors"].append(f"markets_error: {type(e).__name__}: {e}")
-        return summary
+def _detect_and_log_fires(
+    kc: KalshiClient,
+    current_games: list[dict],
+    hist_by_id: dict,
+    open_markets: list[dict],
+    snap_ts: str,
+    now: datetime,
+    state: dict,
+    summary: dict,
+) -> None:
+    """Fire-detection pass: for each game in the [T-3h, T-1h] window with a
+    3h-ago match and a >= 30bp move, log one entry row (first capture per
+    game/side/night/class is binding). Appends to entries.parquet and updates
+    state['logged_keys']. Record-only."""
     market_by_ticker = {m.get("ticker"): m for m in open_markets}
-
     logged_keys = set(state["logged_keys"])
-    snap_state: dict = state["snap_state"]
     entry_rows: list[dict] = []
-
     for g in current_games:
         gid = g.get("id")
         commence_str = g.get("commence_time")
@@ -517,18 +521,65 @@ def one_loop(odds_client: httpx.Client, kc: KalshiClient, state: dict) -> dict:
             "classification": classification, "delta_sb_home": round(delta, 4),
             "yes_ask": book.get("yes_ask"), "target_implied": row["target_implied"],
         })
-
     append_rows(ENTRIES_PATH, entry_rows)
+    state["logged_keys"] = sorted(logged_keys)
+
+
+def one_loop(odds_client: httpx.Client, kc: KalshiClient, state: dict) -> dict:
+    summary = {
+        "ts": now_utc().isoformat(), "candidates": 0, "fires": 0, "near_misses": 0,
+        "entries_logged": 0, "snapshots": 0, "credits_remaining": -1, "errors": [],
+    }
+    if STOP_FILE.exists():
+        summary["errors"].append("STOP file present")
+        return summary
+
+    now = now_utc()
+    snap_state: dict = state["snap_state"]
+    summary["odds_due"] = _odds_due(state, now)
+
+    # Fire detection (the only odds-credit consumer) runs at most once per
+    # ODDS_FETCH_INTERVAL. Re-snapshots below run EVERY loop regardless, since
+    # they are free Kalshi reads and their timing must stay precise.
+    if summary["odds_due"]:
+        current_games: list[dict] | None
+        try:
+            current_games, rem1, _ = fetch_odds_snapshot(odds_client)
+            hist_games, rem2, snap_ts = fetch_odds_snapshot(
+                odds_client, when=now - timedelta(hours=LOOKBACK_HOURS)
+            )
+            # The CURRENT-odds endpoint returns x-requests-remaining; the
+            # historical endpoint does not (returns -1), so prefer rem1.
+            summary["credits_remaining"] = rem1 if rem1 >= 0 else rem2
+            state["last_odds_fetch_ts"] = now.isoformat()
+        except httpx.HTTPStatusError as e:
+            summary["errors"].append(f"odds_api_error: {e.response.status_code}")
+            current_games = None
+        except Exception as e:  # noqa: BLE001
+            summary["errors"].append(f"odds_error: {type(e).__name__}: {e}")
+            current_games = None
+
+        if current_games is not None:
+            hist_by_id = {g.get("id"): g for g in hist_games if g.get("id")}
+            try:
+                open_markets: list[dict] | None = fetch_open_mlb_markets(kc)
+            except Exception as e:  # noqa: BLE001
+                summary["errors"].append(f"markets_error: {type(e).__name__}: {e}")
+                open_markets = None
+            if open_markets is not None:
+                _detect_and_log_fires(
+                    kc, current_games, hist_by_id, open_markets, snap_ts,
+                    now, state, summary,
+                )
 
     # Phase 2: scheduled re-snapshots (t5 / t30 / close) for logged FIRES, each
     # with the live executable book PLUS the trade tape since the previous
     # snapshot (non-overlapping intervals). The book path feeds Gate A (CLV to
     # the closing executable price); the trade tape feeds any later, post-
-    # registration passive-fill model for Gate B. Record-only.
+    # registration passive-fill model for Gate B. Record-only; runs every loop.
     snap_rows = _resnapshot_pass(kc, now, snap_state, summary)
     append_rows(SNAPSHOTS_PATH, snap_rows)
 
-    state["logged_keys"] = sorted(logged_keys)
     state["snap_state"] = snap_state
     save_state(state)
     return summary
