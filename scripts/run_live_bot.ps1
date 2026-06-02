@@ -173,7 +173,18 @@ while ($true) {
         # research/v10a/20-v1-drift-by-prefix.md.
         "--allowlist",
         "--expanded-denylist",
-        "--min-minutes-to-close", "60"
+        "--min-minutes-to-close", "60",
+        # v18 (2026-06-01): NO-underdog arm + return-on-stake band sizing.
+        # --enable-no-underdog adds the symmetric arm (buy NO maker on moderate
+        # underdogs; the favorite-longshot bias is symmetric, validated
+        # cross-sport in research/v18/06), roughly doubling the eligible universe
+        # and using v1's idle bankroll. --band-sizing weights bids by the
+        # favorite-price band (LOW [0.70,0.86) larger, heavy smaller; research/
+        # v18/02+04). Multipliers tunable via V1_BAND_M_LOW (1.3) / V1_BAND_M_HIGH
+        # (0.8). Both reviewed (0 Critical; High+Medium fixed). Remove either
+        # flag to disable that piece.
+        "--enable-no-underdog",
+        "--band-sizing"
     )
     if (Test-Path $RebaselineFlag) {
         Write-LauncherLog "REBASELINE flag detected; passing --rebaseline to bot."
