@@ -131,12 +131,13 @@ while ($true) {
     # explicitly here for clarity even though 1.0 is the new default.
     $env:BALANCE_PREFLIGHT_MULTIPLIER = "1.0"
 
-    # Dynamic 60/40 capital split: v1 deploys at most 60% of live Kalshi
-    # total bankroll (cash + positions). v14 controls the other 40% via
-    # V14_BANKROLL_FRACTION env in its own supervisor. The fraction is
-    # applied each loop against the LIVE Kalshi balance, so deposits and
-    # withdrawals scale both bots' caps automatically.
-    $env:V1_BANKROLL_FRACTION = "0.60"
+    # v1 deploys 100% of the live Kalshi total bankroll (cash + positions).
+    # v14 was removed 2026-06-01 (negative-EV; see research/v16), so v1 is the
+    # only live trading bot and gets the full balance until another bot is
+    # added (operator decision 2026-06-01). The fraction is applied each loop
+    # against the LIVE Kalshi balance, so deposits and withdrawals scale the
+    # cap automatically. If a second bot is re-introduced, re-split this.
+    $env:V1_BANKROLL_FRACTION = "1.0"
 
     # Rotate stale resting orders every 6 hours (default in code is 120h).
     # Faster rotation keeps capital fluid for new fills.
