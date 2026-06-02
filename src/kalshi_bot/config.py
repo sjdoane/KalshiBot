@@ -48,7 +48,15 @@ class Settings(BaseSettings):
     LIVE_MAX_CLOCK_SKEW_MS: int = 2000
 
     # Kill triggers from LIVE_READINESS_DECISION.md acceptance criteria.
-    KILL_YES_RATE_MIN: float = 0.90
+    # KILL_YES_RATE_MIN recalibrated 2026-06-01 from 0.90 to 0.70 for v1's new
+    # strategy: it now concentrates on MODERATE favorites [0.70,0.86) (true win
+    # ~85%, not the ~95% of the old heavy-favorite mix) plus the symmetric
+    # NO-underdog arm, so the blended favorite-won rate is ~0.85. A 0.90 floor
+    # would trip on the NORMAL win rate; 0.70 gives ~2 SD margin (n=20) while
+    # still catching a real breakdown (favorites winning below the ~0.79 price
+    # they are bought at = the edge is gone). The drawdown + consecutive-loss
+    # kills remain the EV backstops. See research/v18/02 + 06.
+    KILL_YES_RATE_MIN: float = 0.70
     KILL_YES_RATE_WINDOW: int = 20
     KILL_ROLLING_MEAN_WINDOW: int = 10
     KILL_ROLLING_MEAN_DAYS_NEGATIVE: int = 14

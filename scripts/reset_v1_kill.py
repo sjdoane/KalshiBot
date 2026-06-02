@@ -27,7 +27,7 @@ from pathlib import Path
 BASE = Path("C:/Users/SamJD/OneDrive/Desktop/AI Projects/Project Kalshi")
 sys.path.insert(0, str(BASE / "src"))
 
-from kalshi_bot.risk.kill_triggers import KillTriggerMonitor
+from kalshi_bot.risk.kill_triggers import KillTriggerMonitor  # noqa: E402
 
 KILL_STATE = BASE / "data" / "live_trades" / "kill_state.json"
 
@@ -35,6 +35,15 @@ KILL_STATE = BASE / "data" / "live_trades" / "kill_state.json"
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--i-mean-it", action="store_true")
+    parser.add_argument(
+        "--full-history", action="store_true",
+        help="Also wipe the recent P&L / outcome / winner history (the YES-rate "
+             "and rolling-mean trigger windows). Use ONLY when the strategy or "
+             "universe changed (e.g. v1's 2026-06-01 move to the allowlist + "
+             "moderate-favorite band + NO-underdog arm), so the kill triggers "
+             "are not gated by settlements from the OLD broad universe. The "
+             "drawdown kill (realized P&L) is unaffected.",
+    )
     args = parser.parse_args()
 
     if not KILL_STATE.exists():
@@ -53,13 +62,19 @@ def main() -> int:
           f"({rate:.1%})")
 
     if not args.i_mean_it:
-        print("\n[DRY RUN] Re-run with --i-mean-it to clear tripped + reset "
-              "fill counters.")
+        extra = " + WIPE P&L/outcome/winner history" if args.full_history else ""
+        print(f"\n[DRY RUN] Re-run with --i-mean-it to clear tripped + reset "
+              f"fill counters{extra}.")
         return 0
 
-    kt.clear(reset_fill_counters=True)
-    print("\nCLEARED: tripped=False, fill counters reset to 0/0. "
-          "P&L/outcome/winner history preserved.")
+    kt.clear(reset_fill_counters=True, reset_history=args.full_history)
+    if args.full_history:
+        print("\nCLEARED: tripped=False, fill counters 0/0, AND recent "
+              "P&L/outcome/winner history wiped (fresh window for the new "
+              "strategy). Drawdown kill (realized P&L) unaffected.")
+    else:
+        print("\nCLEARED: tripped=False, fill counters reset to 0/0. "
+              "P&L/outcome/winner history preserved.")
     return 0
 
 

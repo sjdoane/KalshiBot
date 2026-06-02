@@ -299,14 +299,24 @@ class KillTriggerMonitor:
     def allowed_to_place_orders(self) -> bool:
         return not self.state.tripped
 
-    def clear(self, *, reset_fill_counters: bool = False) -> None:
+    def clear(
+        self, *, reset_fill_counters: bool = False, reset_history: bool = False
+    ) -> None:
         """Operator-only: clear the tripped state to resume trading.
 
-        Mutates the loaded state in place (preserves P&L / outcome / winner
-        history that feeds the other triggers). With reset_fill_counters=True,
-        also zeroes the cumulative placement counters so the fill-rate metric
-        starts a fresh window (the old totals accumulated during the
-        dormant-settlement era and include still-resting bids).
+        Mutates the loaded state in place. By default preserves the P&L /
+        outcome / winner history that feeds the other triggers. With
+        reset_fill_counters=True, also zeroes the cumulative placement counters
+        so the fill-rate metric starts a fresh window.
+
+        With reset_history=True, ALSO empties the recent P&L / outcome / winner
+        / timestamp history. Use ONLY when the strategy or universe has
+        materially changed (e.g. v1's 2026-06-01 move to the validated allowlist
+        + the moderate-favorite band + the NO-underdog arm), so that the
+        YES-rate and rolling-mean triggers are no longer gated by settlements
+        from the OLD broad universe (which had a structurally different win
+        rate). The drawdown kill (on realized P&L total, held in the order
+        manager) is unaffected and remains the catastrophic backstop.
         """
         self.state.tripped = False
         self.state.trip_reason = None
@@ -316,6 +326,11 @@ class KillTriggerMonitor:
         if reset_fill_counters:
             self.state.placement_attempts_total = 0
             self.state.placement_filled_total = 0
+        if reset_history:
+            self.state.recent_pnl_per_contract = []
+            self.state.recent_outcomes = []
+            self.state.recent_settle_timestamps = []
+            self.state.winner_pnl_per_contract = []
         self._save()
 
     def fill_rate(self) -> float | None:

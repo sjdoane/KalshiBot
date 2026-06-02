@@ -251,3 +251,25 @@ def test_fill_rate_computes_correctly(tmp_state_path: Path) -> None:
 def test_rejects_zero_starting_bankroll(tmp_state_path: Path) -> None:
     with pytest.raises(ValueError, match="must be"):
         KillTriggerMonitor(starting_bankroll_usd=0.0, state_path=tmp_state_path)
+
+
+def test_clear_reset_history_wipes_outcome_window(tmp_state_path: Path) -> None:
+    """clear(reset_history=True) empties the YES-rate / rolling-mean windows so a
+    universe change is not gated by old settlements; clear() alone preserves them.
+    """
+    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path)
+    # 20 settlements at a 60% win rate trips the default 0.90 yes-rate floor.
+    for i in range(20):
+        m.record_settlement(pnl_per_contract=(0.1 if i % 5 else -0.7),
+                            outcome=(1 if i % 5 else 0), settle_ts=_ts(i))
+    assert len(m.state.recent_outcomes) == 20
+    # Plain clear keeps the history (so it would re-trip).
+    m.clear(reset_fill_counters=True)
+    assert m.state.tripped is False
+    assert len(m.state.recent_outcomes) == 20
+    # Full-history clear wipes the windows.
+    m.clear(reset_fill_counters=True, reset_history=True)
+    assert m.state.recent_outcomes == []
+    assert m.state.recent_pnl_per_contract == []
+    assert m.state.winner_pnl_per_contract == []
+    assert m.state.tripped is False
