@@ -156,7 +156,15 @@ while ($true) {
         "--cadence", "900",
         "--max-concurrent", "auto",
         "--min-net-edge", "0.01",
-        "--max-lifetime-days", "180",
+        # Lifetime window [0, 21] days (was [30, 180]). FIX 2026-06-02: the old
+        # 30d floor excluded the in-season GAME-RESULT markets where the
+        # validated edge + the liquidity live (MLB ~6d, tennis ~15.5d lifetime),
+        # and the 180d ceiling admitted dead season FUTURES (NFL/NCAAF ~120d
+        # lifetime, no live trading), which is why v1 placed bids that never
+        # filled. 21d keeps tennis (15.5d) and MLB (6d), excludes futures (120d).
+        # See research/v19/03-fill-rate-diagnosis.md.
+        "--min-lifetime-days", "0",
+        "--max-lifetime-days", "21",
         # Enable cancel-on-drift: rotate v1 resting bids if the
         # underlying market drifts materially since placement. Defaults
         # in paper_trade_favorite.py CLI are conservative (3c drift

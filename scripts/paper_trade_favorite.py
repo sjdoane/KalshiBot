@@ -1306,7 +1306,14 @@ def main() -> int:
              "overwriting any persisted value in state.json. Use after "
              "depositing or withdrawing funds.",
     )
-    parser.add_argument("--min-lifetime-days", type=int, default=30)
+    # Default 0 (was 30, recalibrated 2026-06-02). The validated v18 edge is on
+    # GAME-RESULT markets (KXMLBGAME, ATP/WTA matches), which open only days
+    # before the event so their open-to-close lifetime is ~6 to 16 days. A 30d
+    # floor EXCLUDED every one of them and left v1 resting bids only on
+    # long-lifetime season FUTURES (e.g. Sept NFL games, lifetime ~120d) that
+    # have no live trading until close to the event, which is the root cause of
+    # v1's near-zero fill rate. See research/v19/03-fill-rate-diagnosis.md.
+    parser.add_argument("--min-lifetime-days", type=int, default=0)
     parser.add_argument(
         "--max-lifetime-days", type=int, default=180,
         help="Upper bound on market lifetime (open_time to close_time) in "
