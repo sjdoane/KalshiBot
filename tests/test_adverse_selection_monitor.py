@@ -8,7 +8,6 @@ import pytest
 
 from kalshi_bot.risk.adverse_selection_monitor import (
     AdverseSelectionConfig,
-    CancelRecommendation,
     RestingOrderView,
     evaluate_resting_orders,
 )
@@ -105,16 +104,28 @@ def test_ticker_not_in_mids_skipped() -> None:
     assert recs == []
 
 
-def test_no_side_cancel_on_mid_above_ask() -> None:
-    """NO side: we 'ask' YES at 30c (equivalent to bid NO at 70c). Mid moved
-    UP to 35c; drift +5c which is adverse to a NO maker. Cancel.
+def test_no_side_cancel_on_adverse_drift() -> None:
+    """NO side (v18 underdog arm): we bid NO at 74c (the favorite is the NO side;
+    underdog YES ~26c). current_mid is the YES mid. If the YES mid RISES to 30c
+    (market moving toward the underdog, against our NO bet), the NO mid falls to
+    70c, 4c below our 74c NO bid: adverse drift -4c exceeds the 3c threshold,
+    cancel.
     """
-    orders = [_order(side="no", target=30)]
-    mids = {"KXMLBGAME-1": 35.0}
+    orders = [_order(side="no", target=74)]
+    mids = {"KXMLBGAME-1": 30.0}  # YES mid 30 -> NO mid 70
     recs = evaluate_resting_orders(orders, mids, config=AdverseSelectionConfig(),
                                    now_iso=_now().isoformat())
     assert len(recs) == 1
-    assert recs[0].drift_cents == pytest.approx(5.0)
+    assert recs[0].drift_cents == pytest.approx(-4.0)  # 70 - 74
+
+
+def test_no_side_no_cancel_within_threshold() -> None:
+    # YES mid 28 -> NO mid 72, drift -2c against our 74c NO bid: within the
+    # 3c threshold, no cancel.
+    orders = [_order(side="no", target=74)]
+    recs = evaluate_resting_orders(orders, {"KXMLBGAME-1": 28.0},
+                                   config=AdverseSelectionConfig(), now_iso=_now().isoformat())
+    assert recs == []
 
 
 def test_multiple_orders_only_drifted_ones_cancelled() -> None:

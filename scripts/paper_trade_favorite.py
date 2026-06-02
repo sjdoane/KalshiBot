@@ -58,7 +58,10 @@ from kalshi_bot.risk.drawdown import (
 from kalshi_bot.risk.kill_triggers import KillTriggerConfig, KillTriggerMonitor
 from kalshi_bot.strategy.favorite_maker import (
     FAVORITE_UPPER_CAP,
+    FavoriteSideDecision,
+    band_size_multiplier,
     compute_dynamic_max_concurrent,
+    decide_favorite_side,
     expected_net_edge,
     is_eligible,
 )
@@ -667,8 +670,16 @@ def one_loop_favorite_live(
     min_net_edge: float,
     discord_url: str | None,
     adverse_selection_cfg: AdverseSelectionConfig | None = None,
+    enable_no_underdog: bool = False,
+    band_sizing: bool = False,
 ) -> None:
     """One scan + place + reconcile cycle for LIVE mode.
+
+    enable_no_underdog (v18 finding 06): also maker-buy the NO side on
+    underdog-framed markets (the favorite is the NO side). Default off preserves
+    the classic YES-only behavior. band_sizing (v18 finding 02/04): weight each
+    bid's contract count by the favorite-price band (LOW [0.70,0.86) larger,
+    heavy smaller), via band_size_multiplier; default off.
 
     max_concurrent may be either a positive int (fixed cap) or the
     literal 'auto' to re-derive from (cash_balance + open_positions_
@@ -827,9 +838,19 @@ def one_loop_favorite_live(
         if s.resolution_outcome == -1:
             continue
         pnl_per_contract = (s.realized_pnl_usd or 0.0) / max(s.filled_count, 1)
+        # The YES-rate kill trigger really measures "the favorite WON". For a
+        # YES order the favorite won iff the market resolved YES (outcome 1); for
+        # a NO order (v18 underdog arm) iff it resolved NO (outcome 0). Pass the
+        # side-aware favorite_won so a winning NO order is not miscounted as a
+        # loss (which would falsely drag the rate down). Identical to the old
+        # behavior for YES orders (no regression).
+        favorite_won = 1 if (
+            (s.side == "yes" and s.resolution_outcome == 1)
+            or (s.side == "no" and s.resolution_outcome == 0)
+        ) else 0
         r = kt.record_settlement(
             pnl_per_contract=pnl_per_contract,
-            outcome=s.resolution_outcome if s.resolution_outcome is not None else 0,
+            outcome=favorite_won,
             settle_ts=s.resolution_ts or datetime.now(UTC).isoformat(),
         )
         if r is not None:
@@ -1079,52 +1100,56 @@ def one_loop_favorite_live(
         shadow_evaluate,
     )
     _live_filter_on = is_live_filter_enabled()
-    scored: list[tuple[float, MarketSnapshot, float]] = []
+    band_m_low = float(os.environ.get("V1_BAND_M_LOW", "1.3"))
+    band_m_high = float(os.environ.get("V1_BAND_M_HIGH", "0.8"))
+    scored: list[tuple[float, MarketSnapshot, FavoriteSideDecision]] = []
     for _raw, snap in candidates:
-        target_price = snap.yes_bid
-        # Run the v5 filter (logs if SHADOW_MODE_ENABLED). Defense-in-
-        # depth try/except keeps the v1-safety contract explicit even
-        # though shadow_evaluate catches internally.
-        _decision = None
-        try:  # noqa: SIM105
-            _decision = shadow_evaluate(snap, target_price)
-        except Exception:  # noqa: BLE001
-            pass
-        # Active filter overlay: skip when LIVE_FILTER_ENABLED is set
-        # AND the v5 filter returned a confident fade. Abstain (None
-        # decision or should_trade=True) falls through to v1's normal
-        # eligibility logic - the safe failure mode.
-        if (
-            _live_filter_on
-            and _decision is not None
-            and not _decision.should_trade
-        ):
-            log.info(
-                "v5_filter_skip_live",
-                ticker=snap.ticker,
-                reason=getattr(_decision, "reason", "?"),
-                fired_rules=list(getattr(_decision, "fired_rules", ())),
-                kalshi_price=target_price,
-                poly_mid=getattr(_decision, "poly_mid", None),
-                sportsbook_implied=getattr(_decision, "sportsbook_implied", None),
-            )
-            skip_counts["v5_filter"] = skip_counts.get("v5_filter", 0) + 1
-            continue
-        if not is_eligible(target_price):
+        # Decide which SIDE is the favorite and the executable maker bid for it.
+        # YES-favorite: rest a YES bid at yes_bid. NO-favorite (underdog-framed):
+        # rest a NO bid at no_bid = 1 - yes_ask (v18 finding 06). The NO arm is
+        # only honored when enable_no_underdog is set; otherwise NO-side
+        # decisions are skipped, preserving the classic YES-only v1.
+        fav = decide_favorite_side(snap.yes_bid, snap.yes_ask)
+        if fav is None:
             skip_counts["price_band"] = skip_counts.get("price_band", 0) + 1
             continue
-        net = expected_net_edge(target_price)
-        if net < min_net_edge:
+        if fav.side == "no" and not enable_no_underdog:
+            skip_counts["no_arm_disabled"] = skip_counts.get("no_arm_disabled", 0) + 1
+            continue
+        # The v5 fade filter is a YES-favorite overlay; apply to YES side only.
+        if fav.side == "yes":
+            _decision = None
+            try:  # noqa: SIM105
+                _decision = shadow_evaluate(snap, fav.target_price)
+            except Exception:  # noqa: BLE001
+                pass
+            if (
+                _live_filter_on
+                and _decision is not None
+                and not _decision.should_trade
+            ):
+                log.info(
+                    "v5_filter_skip_live",
+                    ticker=snap.ticker,
+                    reason=getattr(_decision, "reason", "?"),
+                    fired_rules=list(getattr(_decision, "fired_rules", ())),
+                    kalshi_price=fav.target_price,
+                    poly_mid=getattr(_decision, "poly_mid", None),
+                    sportsbook_implied=getattr(_decision, "sportsbook_implied", None),
+                )
+                skip_counts["v5_filter"] = skip_counts.get("v5_filter", 0) + 1
+                continue
+        if fav.expected_net_edge < min_net_edge:
             skip_counts["low_edge"] = skip_counts.get("low_edge", 0) + 1
             continue
-        scored.append((net, snap, target_price))
+        scored.append((fav.expected_net_edge, snap, fav))
 
     scored.sort(key=lambda x: -x[0])
     # Iterate the full sorted list; break once we have placed slots_left
     # new orders. Previously sliced scored[:slots_left] BEFORE the
     # already_known check, which silently dropped slots when the top
     # candidates were already on the book.
-    for net, snap, target_price in scored:
+    for net, snap, fav in scored:
         if n_placed >= slots_left:
             break
         already_known = any(
@@ -1141,18 +1166,27 @@ def one_loop_favorite_live(
         # the live bankroll like v14. Base on v1_cap_total (the 60% slice
         # already derived from the live balance), NOT the headroom-shrunk
         # cash_usd, so we never double-cap; the budget gate below still caps
-        # AGGREGATE resting exposure.
+        # AGGREGATE resting exposure. Priced on the bid's OWN side (yes_bid for
+        # a yes bid, no_bid for a no bid).
         contracts = v1_per_bid_contracts(
-            target_price,
+            fav.target_price,
             v1_cap_total=v1_cap_total,
             per_bid_fraction=v1_per_bid_fraction,
             fallback_usd=per_trade_usd,
         )
+        # v18 return-on-stake band sizing: weight the contract count by the
+        # favorite-price band (LOW [0.70,0.86) larger, heavy smaller). Off by
+        # default. floor 1 so a heavy multiplier never zeros a valid bid.
+        if band_sizing:
+            mult = band_size_multiplier(
+                fav.fav_price, m_low=band_m_low, m_high=band_m_high
+            )
+            contracts = max(1, int(round(contracts * mult)))
         # Budget gate: total resting exposure (this order + everything
         # already on the book) must not exceed live Kalshi cash. If
         # every resting bid filled, we need cash to cover them. Kalshi
         # does not enforce this for maker bids; we do.
-        new_order_cost = target_price * contracts
+        new_order_cost = fav.target_price * contracts
         projected_exposure = current_resting_exposure + new_order_cost
         if projected_exposure > cash_usd:
             log.info(
@@ -1166,20 +1200,24 @@ def one_loop_favorite_live(
             skip_counts["budget"] = skip_counts.get("budget", 0) + 1
             continue
         kt.record_attempt()
+        # Side-appropriate mid for diagnostics: NO mid = 1 - yes mid.
+        yes_mid = (snap.yes_bid + snap.yes_ask) / 2.0
         order = lm.place_live_order(
             ticker=snap.ticker,
             series_ticker=snap.series_ticker,
             event_ticker=snap.event_ticker,
-            target_price=target_price,
+            target_price=fav.target_price,
             contracts=contracts,
             expected_net_edge=net,
-            market_mid_at_placement=(snap.yes_bid + snap.yes_ask) / 2.0,
+            market_mid_at_placement=(yes_mid if fav.side == "yes" else 1.0 - yes_mid),
+            side=fav.side,
         )
         current_resting_exposure = projected_exposure
         n_placed += 1
         log.info("live_favorite_order_placed",
                  intent_id=order.intent_id, status=order.status.value,
-                 ticker=order.ticker, target_price=target_price,
+                 ticker=order.ticker, side=fav.side,
+                 target_price=fav.target_price, fav_price=fav.fav_price,
                  contracts=contracts)
     _emit_v1_heartbeat(
         f"loop_end (n_placed={n_placed}, candidates={len(candidates)})"
@@ -1342,6 +1380,24 @@ def main() -> int:
              "see drift that bounces back). Used only when "
              "--cancel-on-drift is set.",
     )
+    # v18 (2026-06-01) edge enhancements. Default OFF so the classic
+    # YES-favorite v1 behavior is unchanged until the operator opts in.
+    parser.add_argument(
+        "--enable-no-underdog", action="store_true",
+        help="Also maker-buy the NO side on underdog-framed markets (the "
+             "favorite is the NO side). v18 finding 06: the favorite-longshot "
+             "bias is symmetric, so buying NO on moderate underdogs (no_px in "
+             "[0.70,0.86)) earns the same edge v1 gets on favorites, on markets "
+             "v1 currently skips. Roughly doubles the eligible universe. Also "
+             "widens the scanner band to pass underdog markets.",
+    )
+    parser.add_argument(
+        "--band-sizing", action="store_true",
+        help="Weight each bid's contract count by the favorite-price band "
+             "(LOW [0.70,0.86) larger, heavy [0.86,0.95] smaller) per v18 "
+             "findings 02/04. Multipliers env-tunable: V1_BAND_M_LOW (1.3), "
+             "V1_BAND_M_HIGH (0.8). Off by default.",
+    )
     args = parser.parse_args()
 
     if args.log_file is not None:
@@ -1373,12 +1429,23 @@ def main() -> int:
     min_minutes_to_close = (
         args.min_minutes_to_close if args.min_minutes_to_close > 0 else None
     )
+    # Scanner mid bands. Classic v1: only favorite-framed markets (mid in
+    # [0.70,0.95]). With --enable-no-underdog, also pass underdog-framed markets
+    # (mid in [0.05,0.30], where the favorite is the NO side); the strategy then
+    # picks the favorite side per market. The dead zone (0.30,0.70) stays
+    # excluded (no clear favorite).
+    if args.enable_no_underdog:
+        mid_band_lower = (0.05, 0.30)
+        mid_band_upper = (0.70, 0.95)
+    else:
+        mid_band_lower = (0.70, 0.95)
+        mid_band_upper = (0.70, 0.95)
     scanner_cfg = ScannerConfig(
         category="Sports",
         min_lifetime_days=args.min_lifetime_days,
         max_lifetime_days=max_lifetime,
-        mid_band_lower=(0.70, 0.95),
-        mid_band_upper=(0.70, 0.95),
+        mid_band_lower=mid_band_lower,
+        mid_band_upper=mid_band_upper,
         series_denylist=series_denylist,
         series_allowlist=series_allowlist,
         min_minutes_to_close=min_minutes_to_close,
@@ -1594,6 +1661,8 @@ def main() -> int:
                 min_net_edge=args.min_net_edge,
                 discord_url=discord_url,
                 adverse_selection_cfg=adverse_selection_cfg,
+                enable_no_underdog=args.enable_no_underdog,
+                band_sizing=args.band_sizing,
             )
             return 0
 
@@ -1606,6 +1675,8 @@ def main() -> int:
                     min_net_edge=args.min_net_edge,
                     discord_url=discord_url,
                     adverse_selection_cfg=adverse_selection_cfg,
+                    enable_no_underdog=args.enable_no_underdog,
+                    band_sizing=args.band_sizing,
                 )
             except Exception as exc:
                 log_main.error("live_loop_failed", error=str(exc))

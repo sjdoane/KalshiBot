@@ -121,12 +121,15 @@ def evaluate_resting_orders(
                     ),
                 ))
         elif order.side == "no":
-            # We "ask" YES at target_price_cents (equivalently bid NO at
-            # 100 - target). Adverse drift = current mid is ABOVE our
-            # ask. drift = current_mid - target. If drift > threshold,
-            # cancel.
-            drift = current_mid - order.target_price_cents
-            if drift > config.drift_against_ask_cents:
+            # We bid NO at target_price_cents (the no_price; v18 underdog arm).
+            # current_mid is the YES mid, so the NO-side mid = 100 - current_mid.
+            # Adverse drift = the NO mid is BELOW our NO bid (the market moved
+            # against our NO, equivalently the YES mid ROSE). drift = no_mid -
+            # target; if more negative than -threshold, cancel. Symmetric to the
+            # YES branch in NO-side terms.
+            no_mid = 100.0 - current_mid
+            drift = no_mid - order.target_price_cents
+            if drift < -config.drift_against_ask_cents:
                 recs.append(CancelRecommendation(
                     intent_id=order.intent_id,
                     ticker=order.ticker,
@@ -135,9 +138,10 @@ def evaluate_resting_orders(
                     current_mid_cents=current_mid,
                     drift_cents=drift,
                     reason=(
-                        f"YES ask at {order.target_price_cents}c; current mid "
-                        f"{current_mid:.1f}c; drift {drift:+.1f}c exceeds "
-                        f"+{config.drift_against_ask_cents}c threshold"
+                        f"NO bid at {order.target_price_cents}c; NO mid "
+                        f"{no_mid:.1f}c (yes_mid {current_mid:.1f}c); drift "
+                        f"{drift:+.1f}c exceeds -{config.drift_against_ask_cents}c "
+                        f"threshold"
                     ),
                 ))
     return recs

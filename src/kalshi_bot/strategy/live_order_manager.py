@@ -231,8 +231,15 @@ class LiveOrderManager:
         contracts: int,
         expected_net_edge: float,
         market_mid_at_placement: float,
+        side: str = "yes",
     ) -> LiveOrder:
-        """Place a YES maker bid. Returns the LiveOrder record.
+        """Place a maker bid on `side` ("yes" or "no"). Returns the LiveOrder.
+
+        `side` defaults to "yes" (the classic deep-favorite arm). "no" places a
+        NO maker bid at `target_price` in NO terms (the v18 underdog arm: when a
+        market is framed as the underdog's YES, the favorite is the NO side).
+        target_price is always the price OF THE BID'S OWN SIDE (yes_price for a
+        yes bid, no_price for a no bid).
 
         Critical sequencing:
         1. Generate UUID intent_id.
@@ -250,6 +257,8 @@ class LiveOrderManager:
         """
         if contracts < 1:
             raise ValueError(f"contracts must be >= 1, got {contracts}")
+        if side not in ("yes", "no"):
+            raise ValueError(f"side must be 'yes' or 'no', got {side!r}")
         target_price_cents = int(round(target_price * 100))
         if not (1 <= target_price_cents <= 99):
             raise ValueError(
@@ -263,7 +272,7 @@ class LiveOrderManager:
             ticker=ticker,
             series_ticker=series_ticker,
             event_ticker=event_ticker,
-            side="yes",
+            side=side,
             target_price_cents=target_price_cents,
             contracts=contracts,
             expected_net_edge=expected_net_edge,
@@ -284,11 +293,12 @@ class LiveOrderManager:
         # zero = 1970). See scripts/probe_order_tif.py for the probe.
         body = {
             "action": "buy",
-            "side": "yes",
+            "side": side,
             "ticker": ticker,
             "type": "limit",
             "count": contracts,
-            "yes_price": target_price_cents,
+            # Kalshi takes the price in the bid's own side terms.
+            ("yes_price" if side == "yes" else "no_price"): target_price_cents,
             "client_order_id": intent_id,
             "time_in_force": "good_till_canceled",
         }
@@ -522,17 +532,26 @@ class LiveOrderManager:
                 filled_count_this = int(round(float(count_raw))) if count_raw is not None else 0
             except (TypeError, ValueError):
                 filled_count_this = 0
+            # Kalshi reports the fill price in YES terms; convert to the order's
+            # OWN side so a NO order records its no_price (no_price = 100 -
+            # yes_price). filled_price_cents must always be the bought contract's
+            # price for _compute_realized_pnl to be correct.
+            yes_cents: int | None = None
             price_raw = fill.get("yes_price_dollars")
             if price_raw is not None:
                 try:
-                    filled_price_cents = int(round(float(price_raw) * 100))
+                    yes_cents = int(round(float(price_raw) * 100))
                 except (TypeError, ValueError):
-                    filled_price_cents = order.target_price_cents
-            else:
+                    yes_cents = None
+            if yes_cents is None:
                 try:
-                    filled_price_cents = int(fill.get("yes_price", order.target_price_cents))
+                    yes_cents = int(fill.get("yes_price"))
                 except (TypeError, ValueError):
-                    filled_price_cents = order.target_price_cents
+                    yes_cents = None
+            if yes_cents is None:
+                filled_price_cents = order.target_price_cents
+            else:
+                filled_price_cents = (100 - yes_cents) if order.side == "no" else yes_cents
             order.filled_count += filled_count_this
             order.filled_price_cents = filled_price_cents
             order.filled_ts = fill.get("created_time") or now.isoformat()
@@ -1036,14 +1055,18 @@ class LiveOrderManager:
         if order.filled_price_cents is None:
             return 0.0
         price = order.filled_price_cents / 100.0
-        if outcome == 1:
-            payoff = 1.0 - price
-        elif outcome == 0:
-            payoff = -price
-        else:
+        if outcome == -1:
             # Void: return to entry. Net is zero before fees; we still pay
             # the entry maker fee.
             payoff = 0.0
+        else:
+            # The bought contract pays $1 when the market resolves to ITS side,
+            # else $0. outcome 1 == market resolved YES, 0 == NO. A NO order
+            # (the v18 underdog arm) wins when outcome == 0.
+            won = (order.side == "yes" and outcome == 1) or (
+                order.side == "no" and outcome == 0
+            )
+            payoff = (1.0 - price) if won else -price
         fee = 2.0 * kalshi_maker_fee_per_contract(price)
         pnl_per_contract = payoff - fee
         return pnl_per_contract * order.filled_count

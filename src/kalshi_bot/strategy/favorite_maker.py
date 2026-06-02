@@ -49,6 +49,12 @@ FAVORITE_UPPER_CAP = 0.95
 EMPIRICAL_YES_RATE_DEFAULT = 0.95  # was 0.97; conservative per critic
 SLIPPAGE_ALLOWANCE = 0.015
 
+# v18 finding (research/v18/02 + 06): the favorite-maker edge concentrates in
+# the MODERATE-favorite band [0.70, 0.86) (~+8% net) and roughly halves in the
+# heavy band [0.86, 0.95] (~+3-4%); validated cross-sport (MLB/ATP/WTA) on both
+# the YES (favorite) and NO (underdog) sides. This boundary splits those bands.
+FAVORITE_SWEET_UPPER = 0.86
+
 
 @dataclass(frozen=True)
 class FavoriteTradeDecision:
@@ -94,6 +100,72 @@ def decide(yes_price: float) -> FavoriteTradeDecision | None:
         target_price=yes_price,
         expected_net_edge=net,
     )
+
+
+@dataclass(frozen=True)
+class FavoriteSideDecision:
+    """A decision to maker-buy the FAVORITE side of a market, whichever side it
+    is framed on. side is "yes" (favorite is the YES side, the classic v1 case)
+    or "no" (the market is framed as the underdog's YES, so the favorite is the
+    NO side; v18 finding 06). target_price is the executable maker price we rest
+    at on that side; fav_price == target_price (the favorite-side price used for
+    the band/edge)."""
+
+    side: str
+    target_price: float
+    fav_price: float
+    expected_net_edge: float
+
+
+def decide_favorite_side(
+    yes_bid: float,
+    yes_ask: float,
+    *,
+    lower: float = FAVORITE_THRESHOLD,
+    upper: float = FAVORITE_UPPER_CAP,
+    empirical_yes_rate: float = EMPIRICAL_YES_RATE_DEFAULT,
+) -> FavoriteSideDecision | None:
+    """Decide whether to maker-buy the favorite side of a market.
+
+    The favorite-longshot bias is symmetric (v18 finding 06): favorites are
+    underpriced on whichever side they are framed. For one binary market only ONE
+    side can be the favorite (>= lower), since yes_bid <= yes_ask implies the YES
+    bid and the NO bid (1 - yes_ask) cannot both be >= 0.70.
+
+    - YES favorite: rest a YES maker bid at the best yes_bid, if yes_bid is in
+      [lower, upper].
+    - NO favorite (underdog-framed market): rest a NO maker bid at the best
+      no_bid = 1 - yes_ask, if that is in [lower, upper].
+
+    Returns the FavoriteSideDecision for the eligible side (net edge > 0), else
+    None. expected_net_edge uses the same favorite-longshot formula for both
+    sides (the bias is symmetric), keyed on the favorite-side price.
+    """
+    if lower <= yes_bid <= upper:
+        net = expected_net_edge(yes_bid, empirical_yes_rate=empirical_yes_rate)
+        if net > 0:
+            return FavoriteSideDecision("yes", yes_bid, yes_bid, net)
+        return None
+    no_bid = round(1.0 - yes_ask, 4)
+    if lower <= no_bid <= upper:
+        net = expected_net_edge(no_bid, empirical_yes_rate=empirical_yes_rate)
+        if net > 0:
+            return FavoriteSideDecision("no", no_bid, no_bid, net)
+    return None
+
+
+def band_size_multiplier(
+    fav_price: float, *, m_low: float = 1.3, m_high: float = 0.8
+) -> float:
+    """Return-on-stake size multiplier by favorite-price band (v18 finding): the
+    LOW band [0.70, 0.86) carries roughly 2x the edge of the heavy band
+    [0.86, 0.95], so size LOW bids larger and heavy bids smaller. Returns 0.0 for
+    a price outside the eligible favorite band. Defaults are conservative
+    (1.3 / 0.8); the caller may override from env. Since v1 is capital-idle, the
+    larger LOW size does not crowd out the still-positive heavy fills."""
+    if not is_eligible(fav_price):
+        return 0.0
+    return m_low if fav_price < FAVORITE_SWEET_UPPER else m_high
 
 
 def realized_pnl_per_contract(
