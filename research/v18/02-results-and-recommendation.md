@@ -40,24 +40,35 @@ the rank guard is mis-specified for a band, the statistical separation is real.
 
 ## Deployable recommendation (operator approval required; NOT deployed)
 
-Concentrate v1's KXMLBGAME maker bids on **yes_px in [0.70, 0.86)** instead of
-[0.70, 0.95]. v1 is bankroll-constrained, so it should spend its limited capital
-on the ~+8% fills, not dilute into the ~+4% heavy-favorite fills (which are still
-positive-EV but half the edge and carry the larger loss tail). LOW and heavy have
-roughly equal fill volume historically (n ~1736 vs ~1733 train events), and MLB
-runs many simultaneous games nightly, so the LOW band has ample capacity to
-absorb the small bankroll. Expected effect: average edge per fill rises from
-~+5.3% to ~+8.3% (about a 57% per-fill EV improvement), with lower tail risk.
+**This section was corrected after an adversarial review returned MODIFY.** The
+original draft recommended HARD-DROPPING [0.86, 0.95] (lower the cap to 0.86).
+The reviewer correctly flagged that as an overstatement that conflates per-fill
+edge with total profit: the heavy-favorite fills are still positive-EV (+3.8%),
+lower-variance, and higher-win-rate, so deleting them only helps if v1's bankroll
+is the BINDING constraint (i.e. it routinely runs out of capital and turns fills
+away). At ~$50-68 across many simultaneous nightly MLB games, that is not
+established, and a hard cut could LOWER total profit.
 
-**Exact change:** lower the favorite upper cap from 0.95 to 0.86. In the current
-code this is `FAVORITE_UPPER_CAP` (src/kalshi_bot/strategy/favorite_maker.py) and
-the `mid_band_upper` in the scanner config built by
-`scripts/paper_trade_favorite.py`. The cleanest minimal edit is the scanner
-`mid_band_upper=(0.70, 0.86)`. Note this is a GLOBAL cap (it would also apply to
-the other validated prefixes when they come into season); the band effect is a
-general favorite-longshot phenomenon and very likely generalizes, but it is
-VALIDATED here only on MLB. Re-running this analysis on KXATPMATCH / KXWTAMATCH /
-KXNFLGAME / KXNCAAFGAME before each comes into season is the clean follow-up.
+**Corrected recommendation:**
+1. PRIORITIZE, do not delete. Keep the band open to 0.95 but fill the LOW band
+   [0.70, 0.86) first / at larger size, and take heavy-favorite [0.86, 0.95]
+   fills only with leftover bankroll (or smaller size). This captures the ~+8%
+   concentration AND keeps the +3.8% residual EV. Return-on-stake (edge / price)
+   makes the LOW band's advantage even larger (about 2.5x), so a return-on-stake
+   priority is the right ordering.
+2. FIRST measure whether capital is actually binding. Check v1's live state on a
+   typical MLB night: if it leaves bankroll idle (resting + filled notional well
+   below its 60% slice), capital is NOT binding and a hard cap would strictly
+   reduce profit, so do priority/sizing instead. Only if v1 routinely deploys
+   its full slice does a hard [0.70, 0.86) cap become the right call.
+3. The favorite floor/cap is GLOBAL in the current code (`FAVORITE_UPPER_CAP`,
+   scanner `mid_band_upper`), but this is validated only on MLB. Re-run this
+   analysis on KXATPMATCH / KXWTAMATCH / KXNFLGAME / KXNCAAFGAME before each
+   comes into season before any global change.
+
+The implementation is therefore a per-bid PRIORITY/SIZING change (size or order
+v1's MLB bids by return-on-stake, LOW first), not a one-line cap edit. That is a
+larger code change and gets its own design + review when the operator approves.
 
 ## Caveats (carry forward; do not over-trust the absolute level)
 
@@ -72,8 +83,12 @@ KXNFLGAME / KXNCAAFGAME before each comes into season is the clean follow-up.
 ## Verdict
 
 Not a NULL. A real, OOS-robust, economically-grounded refinement: v1's MLB edge
-lives in 0.70-0.86. Recommend lowering v1's favorite cap to 0.86 (pending
-operator approval), and re-validating per-prefix as the others come into season.
+lives in 0.70-0.86 (about 2x the heavy-favorite band, non-overlapping CIs). The
+deployable action (post-review) is to PRIORITIZE the LOW band by return-on-stake,
+NOT to delete the still-positive heavy band, and to first confirm whether v1's
+bankroll is actually the binding constraint. Re-validate per-prefix as the others
+come into season. An adversarial methodology review confirmed the finding SOUND
+and corrected the deployment logic from "drop" to "prioritize".
 
 ---
 
