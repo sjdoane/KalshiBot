@@ -140,8 +140,24 @@ while ($true) {
     $env:V1_BANKROLL_FRACTION = "1.0"
 
     # Rotate stale resting orders every 6 hours (default in code is 120h).
-    # Faster rotation keeps capital fluid for new fills.
+    # KEPT AT 6h per research/v20: v1 is NOT capital-constrained (only ~$2.5 of
+    # ~$40 cash is in resting bids), so faster recycling solves a non-problem,
+    # and --cancel-on-drift already handles adverse staleness. Shortening it
+    # would churn cancels and risk cancelling a liquid bid just before it fills.
     $env:STALE_BID_TTL_HOURS = "6"
+
+    # Per-bid sizing (research/v20). V1_PER_BID_FRACTION sets each bid to
+    # fraction * v1's live bankroll slice (v1_cap_total), floored at 1 contract;
+    # the aggregate budget gate (resting <= cash) and max_concurrent cap total
+    # exposure separately. 0.03 keeps each position at ~quarter-Kelly on the
+    # conservative validated edge (LOW band ~3.9%, heavy ~2.4% of bankroll);
+    # do NOT raise much further (over-betting a +5-8% edge). Set explicitly here
+    # now that the fraction is live at V1_BANKROLL_FRACTION=1.0 (it was a dead
+    # knob before the v20 gate fix). V1_BAND_M_LOW/HIGH weight bids by the
+    # favorite-price band (LOW [0.70,0.86) ~2x the edge of heavy [0.86,0.95]).
+    $env:V1_PER_BID_FRACTION = "0.03"
+    $env:V1_BAND_M_LOW = "1.3"
+    $env:V1_BAND_M_HIGH = "0.8"
 
     # Check for the REBASELINE flag (created by restart_bot.ps1
     # -Rebaseline). If present, pass --rebaseline to the bot so it

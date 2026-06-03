@@ -41,6 +41,82 @@ def test_v1_per_bid_contracts_fallback_when_no_cap() -> None:
     assert f(0.30, v1_cap_total=None, per_bid_fraction=0.03, fallback_usd=0.95) == 3
 
 
+def test_resolve_v1_cap_full_fraction_uses_full_bankroll() -> None:
+    """research/v20 fix: at fraction == 1.0 the cap is the FULL bankroll (so
+    per-bid sizing is live), and cash is NOT restricted (budget gate unchanged)."""
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    cap, eff_cash = mod.resolve_v1_cap_and_cash(
+        cash_usd=40.0, pos_usd=14.0, bankroll_fraction=1.0, v1_filled_exposure=14.0,
+    )
+    assert cap == 54.0  # full cash + positions
+    assert eff_cash == 40.0  # no restriction at 1.0
+
+
+def test_resolve_v1_cap_partial_fraction_restricts_cash() -> None:
+    """At a partial slice the cap is the slice and effective cash is restricted
+    to the slice minus already-held filled exposure (prior v14-era behavior)."""
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    cap, eff_cash = mod.resolve_v1_cap_and_cash(
+        cash_usd=40.0, pos_usd=20.0, bankroll_fraction=0.6, v1_filled_exposure=10.0,
+    )
+    assert cap == 36.0  # 0.6 * (40 + 20)
+    assert eff_cash == 26.0  # min(40, 36 - 10)
+
+
+def test_full_fraction_makes_per_bid_live_regression_guard() -> None:
+    """End-to-end guard for the dead-knob regression: at fraction 1.0 and a ~$54
+    bankroll, the resolved cap drives v1_per_bid_contracts to 2 contracts, NOT
+    the 1-contract LIVE_PER_TRADE_USD fallback the bug produced."""
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    cap, _ = mod.resolve_v1_cap_and_cash(
+        cash_usd=40.0, pos_usd=14.0, bankroll_fraction=1.0, v1_filled_exposure=14.0,
+    )
+    contracts = mod.v1_per_bid_contracts(
+        0.78, v1_cap_total=cap, per_bid_fraction=0.03, fallback_usd=0.95,
+    )
+    assert contracts == 2  # 0.03 * 54 = $1.62 -> 2 @ $0.78
+    # The buggy path (cap is None) would have produced exactly 1.
+    buggy = mod.v1_per_bid_contracts(
+        0.78, v1_cap_total=None, per_bid_fraction=0.03, fallback_usd=0.95,
+    )
+    assert buggy == 1 and contracts > buggy
+
+
+def test_event_identity_dedups_sibling_tickers_c1() -> None:
+    """research/v20 C1: the two sibling outcome tickers of one head-to-head
+    event must share an identity so the NO-underdog arm cannot rest a bid on
+    both (which is the same directional bet)."""
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    ev = mod.event_identity
+    # Explicit event_ticker wins.
+    assert ev("KXATPMATCH-26JUN05MENZVE-ZVE", "KXATPMATCH-26JUN05MENZVE") == "KXATPMATCH-26JUN05MENZVE"
+    # Fallback: strip the final outcome segment when event_ticker is empty.
+    assert ev("KXATPMATCH-26JUN05MENZVE-MEN", "") == "KXATPMATCH-26JUN05MENZVE"
+    # Both siblings collapse to the same identity (the dedup guarantee).
+    assert ev("KXWTAMATCH-26JUN03SABSHN-SAB", "") == ev("KXWTAMATCH-26JUN03SABSHN-SHN", "")
+    # Different events stay distinct.
+    assert ev("KXATPMATCH-26JUN05MENZVE-ZVE", "") != ev("KXATPMATCH-26JUN06AAABBB-AAA", "")
+
+
+def test_band_sizing_pre_floor_lifts_low_band_h2() -> None:
+    """research/v20 H2: folding the band multiplier into the fraction BEFORE the
+    floor-divide makes it actually change the contract count. The old
+    round(base * mult) was inert at small bankroll where base == 1."""
+    mod = importlib.import_module("scripts.paper_trade_favorite")
+    from kalshi_bot.strategy.favorite_maker import band_size_multiplier
+    cap = 54.0
+    low_mult = band_size_multiplier(0.85, m_low=1.3, m_high=0.8)
+    high_mult = band_size_multiplier(0.90, m_low=1.3, m_high=0.8)
+    assert low_mult == 1.3 and high_mult == 0.8
+    # LOW 0.85: base fraction -> 1 contract; band-scaled fraction -> 2.
+    base = mod.v1_per_bid_contracts(0.85, v1_cap_total=cap, per_bid_fraction=0.03, fallback_usd=0.95)
+    boosted = mod.v1_per_bid_contracts(0.85, v1_cap_total=cap, per_bid_fraction=0.03 * low_mult, fallback_usd=0.95)
+    assert base == 1 and boosted == 2
+    # heavy 0.90: x0.8 keeps the smaller size (1 contract), matching its lower edge.
+    heavy = mod.v1_per_bid_contracts(0.90, v1_cap_total=cap, per_bid_fraction=0.03 * high_mult, fallback_usd=0.95)
+    assert heavy == 1
+
+
 def test_expected_net_edge_for_favorite_positive_at_85c() -> None:
     """Post-Round-5: empirical YES rate now defaults to 0.95 (was 0.97).
 

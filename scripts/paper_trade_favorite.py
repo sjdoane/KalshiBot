@@ -482,6 +482,58 @@ def v1_per_bid_contracts(
     return max(1, int(budget // target_price))
 
 
+def resolve_v1_cap_and_cash(
+    *,
+    cash_usd: float,
+    pos_usd: float,
+    bankroll_fraction: float,
+    v1_filled_exposure: float,
+) -> tuple[float, float]:
+    """Return (v1_cap_total, effective_cash_usd) for the live loop.
+
+    v1_cap_total = bankroll_fraction * (cash + open-positions notional). Per-bid
+    sizing (v1_per_bid_contracts) scales off this, so each bid tracks the live
+    balance on deposits/withdrawals (the 2026-05-30 council design). The cap is
+    computed for EVERY fraction, INCLUDING 1.0: v1 is the only bot since v14 was
+    removed (2026-06-01), so its slice is the whole bankroll.
+
+    BUGFIX (research/v20): previously the cap was only computed for a partial
+    slice (bankroll_fraction < 1.0). When v1 went to 1.0 the cap stayed None and
+    per-bid sizing silently fell back to the fixed LIVE_PER_TRADE_USD, pinning
+    every order to 1 contract regardless of V1_PER_BID_FRACTION.
+
+    The effective-cash RESTRICTION (do not let v1 spend more than its slice
+    minus what it already holds) applies only to a PARTIAL slice. At
+    fraction == 1.0 v1 may use all cash, so effective_cash == cash_usd and the
+    budget gate is unchanged from the prior 100%-bankroll path.
+    """
+    total_bankroll = cash_usd + pos_usd
+    v1_cap_total = bankroll_fraction * total_bankroll
+    if bankroll_fraction < 1.0:
+        v1_headroom_for_new = max(0.0, v1_cap_total - v1_filled_exposure)
+        return v1_cap_total, min(cash_usd, v1_headroom_for_new)
+    return v1_cap_total, cash_usd
+
+
+def event_identity(ticker: str, event_ticker: str) -> str:
+    """Stable event-level identity for dedup.
+
+    Prefer the explicit event_ticker; fall back to the ticker minus its final
+    outcome segment. Never returns the empty string for a non-empty ticker, so
+    dedup never collapses every empty-event_ticker order onto one key.
+
+    research/v20 C1: the allowlist prefixes are all head-to-head (2-outcome)
+    markets. The two sibling outcome tickers of one event are the SAME
+    directional bet (YES on the favorite == NO on the underdog), so the
+    NO-underdog arm would otherwise rest a bid on BOTH and double the position
+    on a single event. Deduping at the event level keeps it to one favorite bet
+    per event.
+    """
+    if event_ticker:
+        return event_ticker
+    return ticker.rsplit("-", 1)[0] if "-" in ticker else ticker
+
+
 def write_heartbeat() -> None:
     """Best-effort heartbeat file write for an external watchdog."""
     try:
@@ -1059,26 +1111,32 @@ def one_loop_favorite_live(
     # already-deployed filled exposure. Resting exposure is enforced
     # naturally via the budget gate (current_resting + new_order > cap).
     bankroll_fraction = float(os.environ.get("V1_BANKROLL_FRACTION", "1.0"))
-    # v1_cap_total (initialized at function top) is v1's live bankroll slice,
-    # recomputed here each loop, so per-bid sizing auto-scales on deposits/
-    # withdrawals (mirrors v14). Stays None under no fraction cap.
-    if bankroll_fraction < 1.0:
-        total_bankroll = cash_usd + pos_usd
-        v1_cap_total = bankroll_fraction * total_bankroll
-        v1_filled_exposure = _compute_v1_filled_exposure(lm)
-        v1_headroom_for_new = max(0.0, v1_cap_total - v1_filled_exposure)
-        effective_cash_usd = min(cash_usd, v1_headroom_for_new)
-        log.info(
-            "v1_bankroll_fraction_cap",
-            fraction=bankroll_fraction,
-            total_bankroll=round(total_bankroll, 2),
-            v1_cap_total=round(v1_cap_total, 2),
-            v1_filled_exposure=round(v1_filled_exposure, 2),
-            v1_headroom_for_new=round(v1_headroom_for_new, 2),
-            actual_kalshi_cash=round(cash_usd, 2),
-            effective_cash=round(effective_cash_usd, 2),
-        )
-        cash_usd = effective_cash_usd
+    # v1's live bankroll slice, recomputed each loop so per-bid sizing
+    # auto-scales on deposits/withdrawals (2026-05-30 council). Computed for
+    # EVERY fraction including 1.0 (v1 is the only bot since v14 was removed).
+    # research/v20: a 1.0 fraction previously left v1_cap_total None, so per-bid
+    # sizing fell back to the fixed LIVE_PER_TRADE_USD and pinned every order to
+    # 1 contract regardless of V1_PER_BID_FRACTION. The effective-cash
+    # restriction only applies for a partial slice; at 1.0 the budget gate uses
+    # full cash, so its behavior is unchanged.
+    total_bankroll = cash_usd + pos_usd
+    v1_filled_exposure = _compute_v1_filled_exposure(lm)
+    v1_cap_total, effective_cash_usd = resolve_v1_cap_and_cash(
+        cash_usd=cash_usd,
+        pos_usd=pos_usd,
+        bankroll_fraction=bankroll_fraction,
+        v1_filled_exposure=v1_filled_exposure,
+    )
+    log.info(
+        "v1_bankroll_fraction_cap",
+        fraction=bankroll_fraction,
+        total_bankroll=round(total_bankroll, 2),
+        v1_cap_total=round(v1_cap_total, 2),
+        v1_filled_exposure=round(v1_filled_exposure, 2),
+        actual_kalshi_cash=round(cash_usd, 2),
+        effective_cash=round(effective_cash_usd, 2),
+    )
+    cash_usd = effective_cash_usd
 
     log.info(
         "budget_snapshot",
@@ -1161,36 +1219,43 @@ def one_loop_favorite_live(
     for net, snap, fav in scored:
         if n_placed >= slots_left:
             break
+        # Dedup at the EVENT level, not just the exact ticker: for head-to-head
+        # markets (all allowlist prefixes) the two sibling outcome tickers are
+        # the same directional bet, so the NO-underdog arm would otherwise hold
+        # both and double the position on one event (research/v20 C1). One
+        # favorite bet per event.
+        snap_event = event_identity(snap.ticker, snap.event_ticker)
         already_known = any(
-            o.ticker == snap.ticker for o in lm.state.resting.values()
-        ) or any(
-            o.ticker == snap.ticker for o in lm.state.filled.values()
-        ) or any(
-            o.ticker == snap.ticker for o in lm.state.intents.values()
+            event_identity(o.ticker, o.event_ticker) == snap_event
+            for bucket in (lm.state.resting, lm.state.filled, lm.state.intents)
+            for o in bucket.values()
         )
         if already_known:
             skip_counts["dedup"] = skip_counts.get("dedup", 0) + 1
             continue
-        # Dynamic per-bid budget (2026-05-30 council): scale each bid with
-        # the live bankroll like v14. Base on v1_cap_total (the 60% slice
-        # already derived from the live balance), NOT the headroom-shrunk
-        # cash_usd, so we never double-cap; the budget gate below still caps
-        # AGGREGATE resting exposure. Priced on the bid's OWN side (yes_bid for
-        # a yes bid, no_bid for a no bid).
+        # Dynamic per-bid budget (2026-05-30 council): scale each bid with the
+        # live bankroll like v14. Base on v1_cap_total (v1's full bankroll slice
+        # at fraction 1.0, derived from the live balance), NOT the headroom-
+        # shrunk cash_usd, so we never double-cap; the budget gate below still
+        # caps AGGREGATE resting exposure. Priced on the bid's OWN side (yes_bid
+        # for a yes bid, no_bid for a no bid).
+        #
+        # v18 return-on-stake band sizing: weight the bid by the favorite-price
+        # band (LOW [0.70,0.86) larger, heavy smaller). research/v20 H2: fold
+        # the multiplier into the budget BEFORE the floor-divide, so it actually
+        # changes the contract count; applying it after the floor (round(n*mult))
+        # was inert at small bankroll where n is 1. floor 1 keeps a valid bid.
+        effective_fraction = v1_per_bid_fraction
+        if band_sizing:
+            effective_fraction *= band_size_multiplier(
+                fav.fav_price, m_low=band_m_low, m_high=band_m_high
+            )
         contracts = v1_per_bid_contracts(
             fav.target_price,
             v1_cap_total=v1_cap_total,
-            per_bid_fraction=v1_per_bid_fraction,
+            per_bid_fraction=effective_fraction,
             fallback_usd=per_trade_usd,
         )
-        # v18 return-on-stake band sizing: weight the contract count by the
-        # favorite-price band (LOW [0.70,0.86) larger, heavy smaller). Off by
-        # default. floor 1 so a heavy multiplier never zeros a valid bid.
-        if band_sizing:
-            mult = band_size_multiplier(
-                fav.fav_price, m_low=band_m_low, m_high=band_m_high
-            )
-            contracts = max(1, int(round(contracts * mult)))
         # Budget gate: total resting exposure (this order + everything
         # already on the book) must not exceed live Kalshi cash. If
         # every resting bid filled, we need cash to cover them. Kalshi
