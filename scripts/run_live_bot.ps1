@@ -149,13 +149,17 @@ while ($true) {
     # Per-bid sizing (research/v20). V1_PER_BID_FRACTION sets each bid to
     # fraction * v1's live bankroll slice (v1_cap_total), floored at 1 contract;
     # the aggregate budget gate (resting <= cash) and max_concurrent cap total
-    # exposure separately. 0.03 keeps each position at ~quarter-Kelly on the
-    # conservative validated edge (LOW band ~3.9%, heavy ~2.4% of bankroll);
-    # do NOT raise much further (over-betting a +5-8% edge). Set explicitly here
-    # now that the fraction is live at V1_BANKROLL_FRACTION=1.0 (it was a dead
-    # knob before the v20 gate fix). V1_BAND_M_LOW/HIGH weight bids by the
-    # favorite-price band (LOW [0.70,0.86) ~2x the edge of heavy [0.86,0.95]).
-    $env:V1_PER_BID_FRACTION = "0.03"
+    # exposure separately. 0.05 puts a LOW-band [0.70,0.86) position at ~6% of
+    # bankroll (~4 contracts at ~$52) and heavy [0.86,0.95] at ~3.4% (~2 contracts),
+    # which is ~one-fifth Kelly on the conservative validated edge. Operator-
+    # approved 2026-06-03, raised from 0.03 (~1/8 Kelly) to deploy more idle
+    # capital on the validated edge. Quarter-Kelly ~= 0.06 is the ceiling at this
+    # bankroll (a 3-loss LOW streak ~$11.7 would near the 20% drawdown kill); do
+    # NOT exceed it while the new-config live edge is still unproven (F11). The
+    # fraction is only live after the v20 gate fix (was a dead knob at
+    # V1_BANKROLL_FRACTION=1.0). V1_BAND_M_LOW/HIGH weight bids by the favorite-
+    # price band (LOW [0.70,0.86) ~2x the edge of heavy [0.86,0.95]).
+    $env:V1_PER_BID_FRACTION = "0.05"
     $env:V1_BAND_M_LOW = "1.3"
     $env:V1_BAND_M_HIGH = "0.8"
 
