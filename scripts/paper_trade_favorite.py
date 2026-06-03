@@ -64,6 +64,7 @@ from kalshi_bot.strategy.favorite_maker import (
     decide_favorite_side,
     expected_net_edge,
     is_eligible,
+    step_in_front,
 )
 from kalshi_bot.strategy.live_order_manager import LiveOrderManager
 from kalshi_bot.strategy.market_scanner import (
@@ -672,6 +673,7 @@ def one_loop_favorite_live(
     adverse_selection_cfg: AdverseSelectionConfig | None = None,
     enable_no_underdog: bool = False,
     band_sizing: bool = False,
+    step_in_front_enabled: bool = False,
 ) -> None:
     """One scan + place + reconcile cycle for LIVE mode.
 
@@ -1100,6 +1102,7 @@ def one_loop_favorite_live(
         shadow_evaluate,
     )
     _live_filter_on = is_live_filter_enabled()
+    step_tick = float(os.environ.get("V1_STEP_TICK_CENTS", "1")) / 100.0
     band_m_low = float(os.environ.get("V1_BAND_M_LOW", "1.3"))
     band_m_high = float(os.environ.get("V1_BAND_M_HIGH", "0.8"))
     scored: list[tuple[float, MarketSnapshot, FavoriteSideDecision]] = []
@@ -1139,6 +1142,12 @@ def one_loop_favorite_live(
                 )
                 skip_counts["v5_filter"] = skip_counts.get("v5_filter", 0) + 1
                 continue
+        # Step one tick IN FRONT of the best bid so v1 is the best bid and
+        # sellers fill it first (fill-rate boost). Stays a maker (capped below
+        # the ask) and re-checks the edge; falls back to the best bid if there
+        # is no room or the stepped edge drops below min_net_edge.
+        if step_in_front_enabled:
+            fav = step_in_front(fav, tick=step_tick, min_net_edge=min_net_edge)
         if fav.expected_net_edge < min_net_edge:
             skip_counts["low_edge"] = skip_counts.get("low_edge", 0) + 1
             continue
@@ -1405,6 +1414,14 @@ def main() -> int:
              "findings 02/04. Multipliers env-tunable: V1_BAND_M_LOW (1.3), "
              "V1_BAND_M_HIGH (0.8). Off by default.",
     )
+    parser.add_argument(
+        "--step-in-front", action="store_true",
+        help="Rest each maker bid one tick IN FRONT of the best bid (become the "
+             "best bid so sellers fill v1 first), capped below the ask so it "
+             "stays a maker and re-checked for edge. Trades ~1c of the +5-8% "
+             "edge for a large fill-rate gain. Tick env-tunable: "
+             "V1_STEP_TICK_CENTS (1). Off by default. See research/v19/03.",
+    )
     args = parser.parse_args()
 
     if args.log_file is not None:
@@ -1670,6 +1687,7 @@ def main() -> int:
                 adverse_selection_cfg=adverse_selection_cfg,
                 enable_no_underdog=args.enable_no_underdog,
                 band_sizing=args.band_sizing,
+                step_in_front_enabled=args.step_in_front,
             )
             return 0
 
@@ -1684,6 +1702,7 @@ def main() -> int:
                     adverse_selection_cfg=adverse_selection_cfg,
                     enable_no_underdog=args.enable_no_underdog,
                     band_sizing=args.band_sizing,
+                    step_in_front_enabled=args.step_in_front,
                 )
             except Exception as exc:
                 log_main.error("live_loop_failed", error=str(exc))

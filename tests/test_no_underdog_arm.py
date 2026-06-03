@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 from kalshi_bot.strategy.favorite_maker import (
     band_size_multiplier,
     decide_favorite_side,
+    expected_net_edge,
+    step_in_front,
 )
 from kalshi_bot.strategy.live_order_manager import (
     LiveOrder,
@@ -104,6 +106,53 @@ def test_decide_boundaries() -> None:
 
 
 # --- band_size_multiplier --------------------------------------------------
+def test_decide_populates_fav_ask() -> None:
+    dy = decide_favorite_side(0.78, 0.82)
+    assert dy.fav_ask == 0.82  # yes_ask
+    dn = decide_favorite_side(0.18, 0.22)  # underdog: no_bid=0.78, no_ask=0.82
+    assert dn.side == "no"
+    assert dn.fav_ask == pytest.approx(0.82)  # 1 - yes_bid(0.18)
+
+
+def test_step_in_front_steps_up_one_tick_wide_spread() -> None:
+    d = decide_favorite_side(0.78, 0.82)  # 4c spread, room to step
+    s = step_in_front(d, tick=0.01, min_net_edge=0.0)
+    assert s.target_price == pytest.approx(0.79)
+    assert s.fav_price == pytest.approx(0.79)
+    assert s.side == "yes"
+    assert s.expected_net_edge == pytest.approx(expected_net_edge(0.79))
+
+
+def test_step_in_front_no_side() -> None:
+    d = decide_favorite_side(0.18, 0.22)  # no_bid 0.78, no_ask 0.82
+    s = step_in_front(d, tick=0.01, min_net_edge=0.0)
+    assert s.side == "no"
+    assert s.target_price == pytest.approx(0.79)
+
+
+def test_step_in_front_no_room_tight_spread() -> None:
+    # 1c spread: stepping would hit the ask (cross -> taker), so keep best bid.
+    d = decide_favorite_side(0.78, 0.79)
+    s = step_in_front(d, tick=0.01, min_net_edge=0.0)
+    assert s.target_price == pytest.approx(0.78)  # unchanged
+
+
+def test_step_in_front_falls_back_when_edge_drops_below_min() -> None:
+    d = decide_favorite_side(0.78, 0.82)
+    # stepped net at 0.79 is ~0.125; require 0.13 so the step is rejected and the
+    # original (0.78, net ~0.135) is kept.
+    s = step_in_front(d, tick=0.01, min_net_edge=0.13)
+    assert s.target_price == pytest.approx(0.78)
+
+
+def test_step_in_front_respects_upper_cap() -> None:
+    d = decide_favorite_side(0.95, 0.99)  # net at 0.95 may be <=0; build manually
+    if d is None:
+        pytest.skip("0.95 not eligible at default rate")
+    s = step_in_front(d, tick=0.01, min_net_edge=0.0)
+    assert s.target_price <= 0.95  # never steps above the upper cap
+
+
 def test_band_multiplier_low_high_outside() -> None:
     assert band_size_multiplier(0.75) == 1.3  # LOW band default m_low
     assert band_size_multiplier(0.90) == 0.8  # heavy band default m_high

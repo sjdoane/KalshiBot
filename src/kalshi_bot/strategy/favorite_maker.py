@@ -115,6 +115,8 @@ class FavoriteSideDecision:
     target_price: float
     fav_price: float
     expected_net_edge: float
+    fav_ask: float = 1.0  # the favorite-side ASK (yes_ask for YES, 1-yes_bid for
+    # NO); the step-in-front maker cap. Defaults to 1.0 (no cap) for back-compat.
 
 
 def decide_favorite_side(
@@ -144,14 +146,52 @@ def decide_favorite_side(
     if lower <= yes_bid <= upper:
         net = expected_net_edge(yes_bid, empirical_yes_rate=empirical_yes_rate)
         if net > 0:
-            return FavoriteSideDecision("yes", yes_bid, yes_bid, net)
+            return FavoriteSideDecision("yes", yes_bid, yes_bid, net, fav_ask=yes_ask)
         return None
     no_bid = round(1.0 - yes_ask, 4)
+    no_ask = round(1.0 - yes_bid, 4)
     if lower <= no_bid <= upper:
         net = expected_net_edge(no_bid, empirical_yes_rate=empirical_yes_rate)
         if net > 0:
-            return FavoriteSideDecision("no", no_bid, no_bid, net)
+            return FavoriteSideDecision("no", no_bid, no_bid, net, fav_ask=no_ask)
     return None
+
+
+def step_in_front(
+    decision: FavoriteSideDecision,
+    *,
+    tick: float = 0.01,
+    min_net_edge: float = 0.0,
+    upper: float = FAVORITE_UPPER_CAP,
+    empirical_yes_rate: float = EMPIRICAL_YES_RATE_DEFAULT,
+) -> FavoriteSideDecision:
+    """Return a decision that rests one `tick` IN FRONT of the best bid, to be
+    the best bid so sellers fill v1 first (a fill-rate boost). The stepped price
+    is on the favorite's OWN side (yes_price for a YES bid, no_price for a NO
+    bid). It stays a MAKER (capped strictly below the favorite-side ask) and is
+    re-checked for edge: if there is no room (spread <= tick), the stepped price
+    would exceed the upper cap, or the stepped edge falls below min_net_edge,
+    the ORIGINAL decision is returned unchanged (place at the best bid, not a
+    worse price). Trades ~1 tick of the +5-8% edge for a large fill-rate gain.
+
+    Maker safety relies on Kalshi prices being integer cents (yes_bid/yes_ask
+    from the `*_dollars` fields are always multiples of 0.01), so the stepped
+    2dp price compared against the side ask never lands above it via rounding.
+    Note: stepping can move a bid from the LOW band [0.70,0.86) into the heavy
+    band (e.g. 0.85 -> 0.86), so downstream band sizing keys on the stepped
+    (post-step) price; this is intended (the bid IS at the heavy-band price now).
+    """
+    stepped = round(decision.fav_price + tick, 2)
+    # Must stay strictly below the favorite-side ask to remain a maker, and
+    # within the eligible favorite band.
+    if stepped >= decision.fav_ask or stepped > upper:
+        return decision
+    net = expected_net_edge(stepped, empirical_yes_rate=empirical_yes_rate)
+    if net < min_net_edge:
+        return decision
+    return FavoriteSideDecision(
+        decision.side, stepped, stepped, net, fav_ask=decision.fav_ask
+    )
 
 
 def band_size_multiplier(
