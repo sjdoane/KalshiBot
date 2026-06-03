@@ -386,15 +386,20 @@ def test_resolve_starting_bankroll_live_explicit() -> None:
     assert result == 50.0
 
 
-def test_resolve_starting_bankroll_live_auto_uses_state_when_present() -> None:
+def test_resolve_starting_bankroll_live_auto_prefers_live_over_state() -> None:
+    """Startup ALWAYS prefers the live Kalshi read over a persisted value, even
+    without --rebaseline, so deposits/withdrawals made while the bot was down
+    are picked up. Intentional (commit c0c3225): drawdown continuity is
+    sacrificed for operator-correct startup state; Kalshi /portfolio/balance is
+    the single source of truth."""
     log_main = structlog.get_logger("test")
     lm = _make_fake_lm(starting_bankroll_usd=32.0)
-    # State has $32; auto + no rebaseline keeps it.
+    # Persisted $32, but live Kalshi reads $999.99 -> live wins.
     result = _resolve_starting_bankroll_live(
         STARTING_BANKROLL_AUTO, lm, _FakeClient(99999),
         rebaseline=False, log_main=log_main,
     )
-    assert result == 32.0  # state wins, Kalshi read not used
+    assert abs(result - 999.99) < 1e-9  # live Kalshi overrides persisted
 
 
 def test_resolve_starting_bankroll_live_rebaseline_reads_kalshi() -> None:

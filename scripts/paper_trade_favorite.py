@@ -254,13 +254,16 @@ def _resolve_starting_bankroll_live(
     """Resolve --starting-bankroll for live/live-demo mode.
 
     Explicit float -> use it.
-    'auto' + persisted state has a value + not rebaseline -> use state
-        (continuity across restarts; drawdown is measured from the
-        bot's first launch, not last restart).
-    'auto' + (no state OR rebaseline) -> read Kalshi cash + open
-        positions value, persist.
-    'auto' + Kalshi read fails -> last-resort fallback to state value
-        if present, else raise SystemExit with a clear message.
+    'auto' + live Kalshi read succeeds -> use the live total (cash + open
+        positions value). Startup ALWAYS prefers live Kalshi over any
+        persisted value, even without --rebaseline, so deposits/withdrawals
+        made while the bot was down are reflected; Kalshi /portfolio/balance
+        is the single source of truth. The persisted value is logged for diff
+        visibility only. Drawdown continuity is intentionally sacrificed for
+        operator-correct startup state (commit c0c3225). --rebaseline now only
+        affects the no-persisted-value branch and the log messaging.
+    'auto' + Kalshi read fails -> last-resort fallback to the persisted state
+        value if present, else raise SystemExit with a clear message.
     """
     if setting != STARTING_BANKROLL_AUTO:
         return float(setting)
@@ -1483,7 +1486,7 @@ def main() -> int:
         "--step-in-front", action="store_true",
         help="Rest each maker bid one tick IN FRONT of the best bid (become the "
              "best bid so sellers fill v1 first), capped below the ask so it "
-             "stays a maker and re-checked for edge. Trades ~1c of the +5-8% "
+             "stays a maker and re-checked for edge. Trades ~1c of the +5-8%% "
              "edge for a large fill-rate gain. Tick env-tunable: "
              "V1_STEP_TICK_CENTS (1). Off by default. See research/v19/03.",
     )
