@@ -112,6 +112,7 @@ def format_settlement_alert(
     settled_count: int,
     winners: int,
     losers: int,
+    side: str = "yes",
 ) -> str:
     """Build a per-settlement Discord alert with running totals.
 
@@ -120,18 +121,24 @@ def format_settlement_alert(
     LiveState.realized_pnl_total_usd (running total) and a fresh count
     of closed orders with non-None realized_pnl_usd.
 
-    `outcome` is 1 (YES win), 0 (NO loss), -1 (void), or None for unknown.
+    `outcome` is the MARKET resolution: 1 (YES), 0 (NO), -1 (void), or None.
+    `side` is the side WE bought ("yes" or "no", default "yes" for back-compat).
+    Win/loss is SIDE-AWARE: we won iff our side matches the resolution (a YES
+    bet resolving YES, or a NO bet resolving NO). Without this the NO-underdog
+    arm's labels invert (a winning NO bet was shown as "NO (loss)").
     `entry_price` is the maker fill price in dollars; None if not tracked.
     """
-    if outcome == 1 or str(outcome).lower() == "yes":
-        outcome_str = "YES (win)"
-        emoji = "WIN"
-    elif outcome == 0 or str(outcome).lower() == "no":
-        outcome_str = "NO (loss)"
-        emoji = "LOSS"
-    elif outcome == -1 or str(outcome).lower() == "void":
+    if outcome == -1 or str(outcome).lower() == "void":
         outcome_str = "VOID"
         emoji = "VOID"
+    elif outcome == 1 or str(outcome).lower() == "yes":
+        won = side == "yes"
+        outcome_str = f"YES ({'win' if won else 'loss'})"
+        emoji = "WIN" if won else "LOSS"
+    elif outcome == 0 or str(outcome).lower() == "no":
+        won = side == "no"
+        outcome_str = f"NO ({'win' if won else 'loss'})"
+        emoji = "WIN" if won else "LOSS"
     else:
         outcome_str = "UNKNOWN"
         emoji = "??"

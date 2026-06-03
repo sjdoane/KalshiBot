@@ -772,11 +772,16 @@ def one_loop_favorite_live(
             return
         try:
             extra = []
+            # Running realized total restricted to bets placed at/after the
+            # optional tally cutoff (research/v20); None = all-time.
+            hb_pnl, _hb_w, _hb_l, _hb_v, _hb_n = lm.realized_summary_since(
+                lm.state.tally_since_ts
+            )
             extra.append(
                 f"resting={len(lm.state.resting)} "
                 f"filled={len(lm.state.filled)} "
                 f"closed={len(lm.state.closed)} "
-                f"realized_pnl_usd={lm.state.realized_pnl_total_usd:+.2f}"
+                f"realized_pnl_usd={hb_pnl:+.2f}"
             )
             # Fill-rate health metric (demoted from a kill; shown so it is
             # never hidden again) + dynamic per-bid sizing tracking the
@@ -917,21 +922,28 @@ def one_loop_favorite_live(
     #    separately so winners + losers + voids == count.
     if settled and discord_url:
         try:
-            settled_closed = [
-                o for o in lm.state.closed.values()
-                if o.realized_pnl_usd is not None
-            ]
-
             def _wlv(orders: list) -> tuple[int, int, int]:
-                # Bucket by OUTCOME, not P&L sign: a YES bet that resolved in
-                # our favor is a win even if fees made the net <= 0, and this
-                # keeps W + L + V == count exact (every settled order is 1/0/-1).
-                w = sum(1 for o in orders if o.resolution_outcome == 1)
-                lo = sum(1 for o in orders if o.resolution_outcome == 0)
+                # SIDE-AWARE win/loss (matches the kill's favorite_won and
+                # LiveOrderManager.realized_summary_since): a bet wins iff the
+                # side we bought won (YES bet -> outcome 1, NO bet -> outcome 0),
+                # so the NO-underdog arm is not inverted. Voids are -1; W + L + V
+                # == count (every settled order resolves 1/0/-1).
+                w = sum(
+                    1 for o in orders
+                    if (o.side == "yes" and o.resolution_outcome == 1)
+                    or (o.side == "no" and o.resolution_outcome == 0)
+                )
                 v = sum(1 for o in orders if o.resolution_outcome == -1)
+                lo = sum(1 for o in orders if o.resolution_outcome in (0, 1)) - w
                 return w, lo, v
 
-            winners, losers, voids = _wlv(settled_closed)
+            # Running tally for the display, restricted to bets PLACED at/after
+            # the optional cutoff (research/v20 tally reset) so a strategy or
+            # universe change can be judged without old bets. None = all-time.
+            tally_pnl, winners, losers, voids, tally_count = (
+                lm.realized_summary_since(lm.state.tally_since_ts)
+            )
+            tally_label = "since reset" if lm.state.tally_since_ts else "all-time"
             if len(settled) == 1:
                 s = settled[0]
                 send_discord(
@@ -946,12 +958,11 @@ def one_loop_favorite_live(
                             (s.filled_price_cents or 0) / 100.0
                             if s.filled_price_cents else None
                         ),
-                        cumulative_pnl_usd=float(
-                            lm.state.realized_pnl_total_usd or 0.0
-                        ),
-                        settled_count=len(settled_closed),
+                        cumulative_pnl_usd=float(tally_pnl),
+                        settled_count=tally_count,
                         winners=winners,
                         losers=losers,
+                        side=s.side,
                     ),
                 )
             else:
@@ -962,8 +973,8 @@ def one_loop_favorite_live(
                     f"v1 SETTLED {len(settled)} orders (batch back-settle): "
                     f"{b_w}W / {b_l}L / {b_v}V",
                     f"batch P&L ${batch_pnl:+.2f}; realized total "
-                    f"${float(lm.state.realized_pnl_total_usd or 0.0):+.2f} "
-                    f"({winners}W/{losers}L/{voids}V of {len(settled_closed)} all-time)",
+                    f"${tally_pnl:+.2f} "
+                    f"({winners}W/{losers}L/{voids}V of {tally_count} {tally_label})",
                 ]
                 for s in settled[:10]:
                     res = res_label.get(s.resolution_outcome, "?")

@@ -88,6 +88,73 @@ def _place(mgr: LiveOrderManager, *, target_price: float = 0.75, contracts: int 
     )
 
 
+def _settled_order(intent_id: str, placed_ts: str, outcome, pnl, side: str = "yes"):
+    from kalshi_bot.strategy.live_order_manager import LiveOrder
+    return LiveOrder(
+        intent_id=intent_id, ticker=f"KX-{intent_id}", series_ticker="",
+        event_ticker=f"KX-{intent_id}", side=side, target_price_cents=80,
+        contracts=1, expected_net_edge=0.1, market_mid_at_placement=0.8,
+        placed_ts=placed_ts, status=LiveOrderStatus.LIVE_SETTLED,
+        resolution_outcome=outcome, realized_pnl_usd=pnl,
+    )
+
+
+def test_realized_summary_since_cutoff_and_side_aware(tmp_state_path: Path) -> None:
+    """research/v20 tally: counts only settled bets PLACED at/after the cutoff,
+    drops pre-cutoff and unsettled (no-pnl) records, parses +00:00 and Z, AND is
+    SIDE-AWARE so the NO-underdog arm's wins/losses are not inverted. The counts
+    below differ from a naive outcome-based bucketing, so this guards that bug."""
+    mgr = LiveOrderManager(client=MockKalshiClient(), state_path=tmp_state_path)
+    mgr.state.closed = {
+        # NO bets resolving NO are WINS (side-aware); outcome-based would call
+        # them losses. Placed today (post-cutoff).
+        "a": _settled_order("a", "2026-06-03T18:00:00+00:00", 0, 0.20, side="no"),
+        "b": _settled_order("b", "2026-06-03T19:00:00+00:00", 0, 0.18, side="no"),
+        # NO bet resolving YES is a LOSS (side-aware); outcome-based -> win.
+        "c": _settled_order("c", "2026-06-03T20:00:00+00:00", 1, -0.85, side="no"),
+        # Old (pre-cutoff) bets, must be excluded by the cutoff.
+        "d": _settled_order("d", "2026-05-25T00:00:00+00:00", 0, -0.80, side="yes"),
+        "e": _settled_order("e", "2026-05-26T00:00:00+00:00", 1, 0.25, side="yes"),
+        # Unsettled (no pnl) must be ignored entirely.
+        "f": _settled_order("f", "2026-06-03T21:00:00+00:00", None, None, side="no"),
+    }
+
+    # All-time, side-aware: wins = a,b (NO->NO), e (YES->YES) = 3; losses =
+    # c (NO->YES), d (YES->NO) = 2. (Outcome-based would wrongly give 2W/3L.)
+    total, w, lo, v, n = mgr.realized_summary_since(None)
+    assert (w, lo, v, n) == (3, 2, 0, 5)
+    assert abs(total - (0.20 + 0.18 - 0.85 - 0.80 + 0.25)) < 1e-9
+
+    # Since the cutoff: only a,b,c (placed today). Side-aware: a,b win, c loses.
+    # (Outcome-based would wrongly give 1W/2L.)
+    total2, w2, lo2, v2, n2 = mgr.realized_summary_since("2026-06-03T17:00:00+00:00")
+    assert (w2, lo2, v2, n2) == (2, 1, 0, 3)
+    assert abs(total2 - (0.20 + 0.18 - 0.85)) < 1e-9
+
+    # 'Z' suffix parses identically to '+00:00'.
+    total3, *_rest = mgr.realized_summary_since("2026-06-03T17:00:00Z")
+    assert abs(total3 - total2) < 1e-9
+
+
+def test_format_settlement_alert_side_aware_labels() -> None:
+    """A NO bet resolving NO is a WIN; a NO bet resolving YES is a LOSS. YES-side
+    (default) behavior is unchanged."""
+    from kalshi_bot.alerts.discord import format_settlement_alert
+    common = dict(
+        bot_name="v1", ticker="KXX-1", realized_pnl_usd=0.10, filled_count=1,
+        entry_price=0.88, cumulative_pnl_usd=0.0, settled_count=1, winners=1, losers=0,
+    )
+    # NO bet, market resolved NO -> our side won.
+    no_win = format_settlement_alert(outcome=0, side="no", **common)
+    assert "NO (win)" in no_win and "WIN" in no_win
+    # NO bet, market resolved YES -> our side lost.
+    no_loss = format_settlement_alert(outcome=1, side="no", **{**common, "realized_pnl_usd": -0.85})
+    assert "YES (loss)" in no_loss and "LOSS" in no_loss
+    # YES bet (default side) is unchanged: resolved YES -> win, NO -> loss.
+    assert "YES (win)" in format_settlement_alert(outcome=1, **common)
+    assert "NO (loss)" in format_settlement_alert(outcome=0, **common)
+
+
 def test_place_records_intent_before_post(tmp_state_path: Path) -> None:
     """Even before the POST is made, the intent must hit disk so a
     crash mid-POST doesn't lose the client_order_id."""

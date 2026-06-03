@@ -116,8 +116,30 @@ class LiveState:
     processed_fill_ids: list[str] = field(default_factory=list)
     starting_bankroll_usd: float = 25.0
     realized_pnl_total_usd: float = 0.0
+    # Display-only cutoff (research/v20): when set, the reported running-total
+    # tally counts only settled bets PLACED at/after this ISO timestamp, so a
+    # strategy/universe change (e.g. the allowlist + sizing changes) can be
+    # evaluated cleanly without old broad-universe bets. Does NOT affect
+    # realized_pnl_total_usd (the all-time accumulator feeding current_live_
+    # bankroll), exposure, settlement, or the kill triggers. None = count all.
+    tally_since_ts: str | None = None
     last_reconciled_ts: str = ""
     last_updated_ts: str = ""
+
+
+def _parse_iso(ts: str | None) -> datetime | None:
+    """Parse an ISO timestamp to a tz-aware UTC datetime; None if unparseable.
+
+    Accepts both the '+00:00' and 'Z' suffixes and treats a naive timestamp as
+    UTC, so comparisons against the (tz-aware) cutoff never raise.
+    """
+    if not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 class LiveOrderManager:
@@ -197,6 +219,7 @@ class LiveOrderManager:
             processed_fill_ids=list(raw.get("processed_fill_ids", [])),
             starting_bankroll_usd=raw.get("starting_bankroll_usd", 25.0),
             realized_pnl_total_usd=raw.get("realized_pnl_total_usd", 0.0),
+            tally_since_ts=raw.get("tally_since_ts"),
             last_reconciled_ts=raw.get("last_reconciled_ts", ""),
             last_updated_ts=raw.get("last_updated_ts", ""),
         )
@@ -213,6 +236,7 @@ class LiveOrderManager:
             "processed_fill_ids": self.state.processed_fill_ids[-500:],
             "starting_bankroll_usd": self.state.starting_bankroll_usd,
             "realized_pnl_total_usd": self.state.realized_pnl_total_usd,
+            "tally_since_ts": self.state.tally_since_ts,
             "last_reconciled_ts": self.state.last_reconciled_ts,
             "last_updated_ts": datetime.now(UTC).isoformat(),
         }
@@ -220,6 +244,48 @@ class LiveOrderManager:
         tmp = self.state_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
         tmp.replace(self.state_path)
+
+    def realized_summary_since(
+        self, since_ts: str | None,
+    ) -> tuple[float, int, int, int, int]:
+        """Summarize settled bets for the running-total display.
+
+        Returns (realized_pnl_usd, winners, losers, voids, count) over settled
+        orders in the closed bucket whose placed_ts is at/after `since_ts`. When
+        `since_ts` is None or unparseable, counts ALL settled orders (the
+        prior behavior). Keyed on placed_ts (when the bet was made), so a bet
+        placed before the cutoff but settling after it is correctly EXCLUDED.
+
+        W/L is SIDE-AWARE (matches the kill trigger's favorite_won): a bet wins
+        when the side it bought won, i.e. a YES bet resolving YES (outcome 1) OR
+        a NO bet resolving NO (outcome 0). Without this, the NO-underdog arm's
+        wins and losses are inverted (a NO bet resolving NO would be miscounted
+        as a loss). Voids are outcome -1.
+
+        Display-only: reads the actual settled records and is independent of
+        realized_pnl_total_usd, exposure, settlement, and the kill triggers.
+        """
+        cutoff = _parse_iso(since_ts) if since_ts else None
+        total = 0.0
+        winners = losers = voids = 0
+        for o in self.state.closed.values():
+            if o.realized_pnl_usd is None:
+                continue  # not settled (e.g. cancelled, no P&L)
+            if cutoff is not None:
+                placed = _parse_iso(o.placed_ts)
+                if placed is None or placed < cutoff:
+                    continue
+            total += o.realized_pnl_usd
+            if o.resolution_outcome == -1:
+                voids += 1
+            elif (
+                (o.side == "yes" and o.resolution_outcome == 1)
+                or (o.side == "no" and o.resolution_outcome == 0)
+            ):
+                winners += 1
+            elif o.resolution_outcome in (0, 1):
+                losers += 1
+        return total, winners, losers, voids, winners + losers + voids
 
     def place_live_order(
         self,
