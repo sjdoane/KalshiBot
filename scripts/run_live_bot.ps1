@@ -192,7 +192,12 @@ while ($true) {
         # (0.8). Both reviewed (0 Critical; High+Medium fixed). Remove either
         # flag to disable that piece.
         "--enable-no-underdog",
-        "--band-sizing"
+        "--band-sizing",
+        # v18/v19 (2026-06-02): step one tick IN FRONT of the best bid so v1 is
+        # the best bid and sellers fill it first (fill-rate boost), capped below
+        # the ask so it stays a maker and re-checked for edge. Trades ~1c of the
+        # +5-8% edge for a large fill-rate gain. Tick env V1_STEP_TICK_CENTS (1).
+        "--step-in-front"
     )
     if (Test-Path $RebaselineFlag) {
         Write-LauncherLog "REBASELINE flag detected; passing --rebaseline to bot."
