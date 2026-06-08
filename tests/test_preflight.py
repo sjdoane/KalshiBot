@@ -183,31 +183,31 @@ def test_check_balance_handles_fetch_failure() -> None:
 
 
 def test_check_balance_default_multiplier_is_1x(monkeypatch) -> None:
-    """Default multiplier is 1.0 (2026-05-24 change): balance >= 1 *
-    FAVORITE_UPPER_CAP * max_concurrent. At max_concurrent=27 and
-    FAVORITE_UPPER_CAP=0.95 the floor is $25.65. Balance $28.46 passes.
+    """Default multiplier is 1.0 (not 2.0). Capacity is capped at
+    PREFLIGHT_MAX_NEW_ORDERS (8), so for max_concurrent >= 8 the floor is
+    1.0 * 0.95 * 8 = $7.60. Balance $10 passes at 1x but would fail at 2x
+    ($15.20), so passing confirms the default is 1x. (research/v20 cap)
     """
     monkeypatch.delenv("BALANCE_PREFLIGHT_MULTIPLIER", raising=False)
     client = MockKalshiClient()
-    client.get_responses.append({"balance": 2846})  # $28.46
+    client.get_responses.append({"balance": 1000})  # $10.00
     s = _make_settings()
     r = check_balance(client, s, max_concurrent=27)
     assert r.passed is True
-    # The required value reported should be $25.65 (1.0 * 0.95 * 27).
-    assert "25.65" in r.detail
+    assert "7.60" in r.detail
 
 
 def test_check_balance_env_override_to_2x(monkeypatch) -> None:
-    """BALANCE_PREFLIGHT_MULTIPLIER=2.0 restores the original 2x check.
-    At max_concurrent=27 the floor becomes $51.30; $28.46 fails.
+    """BALANCE_PREFLIGHT_MULTIPLIER=2.0 doubles the floor. Capped capacity 8 ->
+    2.0 * 0.95 * 8 = $15.20; balance $10 fails.
     """
     monkeypatch.setenv("BALANCE_PREFLIGHT_MULTIPLIER", "2.0")
     client = MockKalshiClient()
-    client.get_responses.append({"balance": 2846})
+    client.get_responses.append({"balance": 1000})  # $10.00
     s = _make_settings()
     r = check_balance(client, s, max_concurrent=27)
     assert r.passed is False
-    assert "51.30" in r.detail
+    assert "15.20" in r.detail
 
 
 def test_check_balance_env_invalid_value_falls_back_to_default(monkeypatch) -> None:
@@ -223,13 +223,27 @@ def test_check_balance_env_invalid_value_falls_back_to_default(monkeypatch) -> N
 
 
 def test_check_balance_multiplier_buffer_below_floor(monkeypatch) -> None:
-    """Even at 1.0x, balance below the strict floor still fails."""
+    """Balance below the capped 1x floor ($7.60) still fails."""
     monkeypatch.setenv("BALANCE_PREFLIGHT_MULTIPLIER", "1.0")
     client = MockKalshiClient()
-    client.get_responses.append({"balance": 2000})  # $20 in cents
+    client.get_responses.append({"balance": 500})  # $5.00 < $7.60
     s = _make_settings()
     r = check_balance(client, s, max_concurrent=27)
-    assert r.passed is False  # $20 < $25.65
+    assert r.passed is False
+
+
+def test_check_balance_caps_capacity_unblocks_restart(monkeypatch) -> None:
+    """research/v20 regression: the operator's live crash-loop. max_concurrent
+    57 (from total bankroll) with 20 open positions = 37 free slots. UNCAPPED
+    that required 1.0 * 0.95 * 37 = $35.15 and blocked restart at $34.09 cash.
+    Capped at 8 it needs only $7.60, so $34.09 passes and the bot can start."""
+    monkeypatch.delenv("BALANCE_PREFLIGHT_MULTIPLIER", raising=False)
+    client = MockKalshiClient()
+    client.get_responses.append({"balance": 3409})  # $34.09 cash
+    s = _make_settings()
+    r = check_balance(client, s, max_concurrent=57, currently_open=20)
+    assert r.passed is True
+    assert "7.60" in r.detail and "8 funded" in r.detail
 
 
 def _seed_paper_state(paper: PaperOrderManager, *, settled: list[dict]) -> None:

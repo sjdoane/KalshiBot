@@ -229,6 +229,15 @@ def check_trading_active(client: KalshiClient) -> CheckResult:
 # scenario tuning without code changes.
 BALANCE_PREFLIGHT_MULTIPLIER_DEFAULT = 1.0
 
+# Preflight funds at most this many NEW worst-case orders, regardless of
+# max_concurrent. max_concurrent scales with TOTAL bankroll, but the bot only
+# places a few orders per loop (eligible-fill availability) and the per-loop
+# budget gate already prevents resting exposure > cash. Without this cap the
+# startup balance requirement scaled with bankroll and blocked the bot's OWN
+# restart once it had deployed cash into (multi-contract) positions: required
+# 1.0 * 0.95 * (57 - 20) = $35.15 vs $34.09 cash. See research/v20.
+PREFLIGHT_MAX_NEW_ORDERS = 8
+
 
 def _balance_preflight_multiplier() -> float:
     """Read the multiplier from env if present, else fall back to default."""
@@ -284,20 +293,24 @@ def check_balance(
     balance_usd = balance_cents / 100.0
     multiplier = _balance_preflight_multiplier()
     new_orders_capacity = max(0, max_concurrent - currently_open)
-    required = multiplier * FAVORITE_UPPER_CAP * new_orders_capacity
+    # Fund only a realistic startup burst, capped, not every free slot (which
+    # scales with total bankroll and blocked the bot's own restart once cash was
+    # deployed into positions). The per-loop budget gate is the real cap.
+    funded_capacity = min(new_orders_capacity, PREFLIGHT_MAX_NEW_ORDERS)
+    required = multiplier * FAVORITE_UPPER_CAP * funded_capacity
     if balance_usd < required:
         return CheckResult(
             "balance", False,
             (
                 f"balance ${balance_usd:.2f} < required ${required:.2f} "
-                f"({multiplier} * {FAVORITE_UPPER_CAP} * "
-                f"({max_concurrent} - {currently_open}))"
+                f"({multiplier} * {FAVORITE_UPPER_CAP} * {funded_capacity}; "
+                f"capped at {PREFLIGHT_MAX_NEW_ORDERS} of {new_orders_capacity} free slots)"
             ),
         )
     return CheckResult(
         "balance", True,
         f"balance ${balance_usd:.2f} >= ${required:.2f} "
-        f"({new_orders_capacity} new slots)",
+        f"({funded_capacity} funded of {new_orders_capacity} free slots)",
     )
 
 
