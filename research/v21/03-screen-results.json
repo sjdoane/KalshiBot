@@ -1,0 +1,190 @@
+{
+  "lock": "research/v21/00-methodology-lock.md v3",
+  "windows": {
+    "train": [
+      "2024-11-01",
+      "2025-09-01"
+    ],
+    "recency": [
+      "2025-09-01",
+      "2025-11-25"
+    ]
+  },
+  "horizon_cap_days": 60,
+  "ci_call": {
+    "n_resamples": 5000,
+    "ci": 0.95,
+    "rng_seed": 42
+  },
+  "cells": [
+    {
+      "cell": "media_040_060",
+      "n_allowlist_prefixes": 50,
+      "train": {
+        "window": "train",
+        "n_trades": 18596,
+        "n_events": 135,
+        "n_prefixes": 24,
+        "n_markets": 584,
+        "net_pp": 2.0617874811787473,
+        "event_ci_pp": [
+          -0.27904296212846313,
+          4.523383615283169
+        ],
+        "n_event_clusters": 135,
+        "prefix_ci_pp_sensitivity": [
+          -0.4842502225143405,
+          4.324462326205057
+        ],
+        "n_prefix_clusters": 24,
+        "contract_weighted_net_pp": 2.215586240124639,
+        "bootstrap_seconds": 0.3
+      },
+      "train_dropped_long_horizon_share": 0.14062572207588153,
+      "S_A1a_pass": false,
+      "recency": {
+        "window": "recency",
+        "n_trades": 41796,
+        "n_events": 84,
+        "n_prefixes": 36,
+        "n_markets": 752,
+        "net_pp": 9.189922480620154,
+        "event_ci_pp": [
+          7.088497353984612,
+          11.447983209662043
+        ],
+        "n_event_clusters": 84,
+        "prefix_ci_pp_sensitivity": [
+          7.355001483799067,
+          11.475312150451607
+        ],
+        "n_prefix_clusters": 36,
+        "contract_weighted_net_pp": 5.4149714243710605,
+        "bootstrap_seconds": 0.8
+      },
+      "recency_dropped_long_horizon_share": 0.0,
+      "S_A1b_pass": true,
+      "S_A1c_pass": false,
+      "S_A1d": {
+        "opportunity_market_days": 2348,
+        "opportunities_per_day": 27.623529411764707,
+        "projected_45d_fills_at_3pct": 37.29176470588235
+      },
+      "S_A1d_pass": true,
+      "cell_survives": false
+    },
+    {
+      "cell": "entertainment_040_060",
+      "n_allowlist_prefixes": 88,
+      "train": {
+        "window": "train",
+        "n_trades": 94896,
+        "n_events": 604,
+        "n_prefixes": 57,
+        "n_markets": 1319,
+        "net_pp": 0.2031065587590622,
+        "event_ci_pp": [
+          -1.451048898411072,
+          1.8065435155605727
+        ],
+        "n_event_clusters": 604,
+        "prefix_ci_pp_sensitivity": [
+          -1.5161180580669567,
+          1.8124240021641327
+        ],
+        "n_prefix_clusters": 57,
+        "contract_weighted_net_pp": -1.6457633683522666,
+        "bootstrap_seconds": 3.2
+      },
+      "train_dropped_long_horizon_share": 0.19910201119110116,
+      "S_A1a_pass": false,
+      "recency": {
+        "window": "recency",
+        "n_trades": 52569,
+        "n_events": 151,
+        "n_prefixes": 27,
+        "n_markets": 728,
+        "net_pp": 5.747798131978923,
+        "event_ci_pp": [
+          2.1918398406014887,
+          9.113343374671743
+        ],
+        "n_event_clusters": 151,
+        "prefix_ci_pp_sensitivity": [
+          2.3626767324765785,
+          9.923010580517118
+        ],
+        "n_prefix_clusters": 27,
+        "contract_weighted_net_pp": 1.1478795158242248,
+        "bootstrap_seconds": 1.3
+      },
+      "recency_dropped_long_horizon_share": 0.121976884019241,
+      "S_A1b_pass": true,
+      "S_A1c_pass": false,
+      "S_A1d": {
+        "opportunity_market_days": 1958,
+        "opportunities_per_day": 23.03529411764706,
+        "projected_45d_fills_at_3pct": 31.097647058823526
+      },
+      "S_A1d_pass": true,
+      "cell_survives": false
+    },
+    {
+      "cell": "other_060_080",
+      "n_allowlist_prefixes": 369,
+      "train": {
+        "window": "train",
+        "n_trades": 61866,
+        "n_events": 167,
+        "n_prefixes": 118,
+        "n_markets": 823,
+        "net_pp": -0.7904503281285367,
+        "event_ci_pp": [
+          -5.630585640387379,
+          3.8226601123776653
+        ],
+        "n_event_clusters": 167,
+        "prefix_ci_pp_sensitivity": [
+          -5.767815120966562,
+          3.913261277406287
+        ],
+        "n_prefix_clusters": 118,
+        "contract_weighted_net_pp": -0.25495440583338036,
+        "bootstrap_seconds": 1.5
+      },
+      "train_dropped_long_horizon_share": 0.42044815827931203,
+      "S_A1a_pass": false,
+      "recency": {
+        "window": "recency",
+        "n_trades": 33633,
+        "n_events": 191,
+        "n_prefixes": 58,
+        "n_markets": 591,
+        "net_pp": 5.026075580531025,
+        "event_ci_pp": [
+          -1.9649933054301774,
+          11.535372007293457
+        ],
+        "n_event_clusters": 191,
+        "prefix_ci_pp_sensitivity": [
+          -2.288901883835846,
+          11.656847042680276
+        ],
+        "n_prefix_clusters": 58,
+        "contract_weighted_net_pp": -2.861254477675732,
+        "bootstrap_seconds": 1.0
+      },
+      "recency_dropped_long_horizon_share": 0.15053165963680448,
+      "S_A1b_pass": true,
+      "S_A1c_pass": false,
+      "S_A1d": {
+        "opportunity_market_days": 1768,
+        "opportunities_per_day": 20.8,
+        "projected_45d_fills_at_3pct": 28.08
+      },
+      "S_A1d_pass": false,
+      "cell_survives": false
+    }
+  ],
+  "survivors": []
+}
