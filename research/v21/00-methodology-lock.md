@@ -1,10 +1,11 @@
-# v21 Methodology Lock (Pre-Data), v2
+# v21 Methodology Lock (Pre-Data), v3
 
 **Author:** Project Kalshi research workflow
-**Date:** 2026-06-09 (v2, post plan-critic revision)
-**Status:** REVISED per plan critic (`research/v21/01-plan-critique.md`),
-pending methodology critic. Locked BEFORE any outcome data is pulled. The
-Becker schema audit below reads column names and structural row counts only
+**Date:** 2026-06-09 (v3, post methodology-critic revision)
+**Status:** LOCKED. Both critics complete (plan critic: `01-plan-critique.md`;
+methodology critic: `02-methodology-critique.md`, verdict LOCK-WITH-EDITS, all
+must-do edits incorporated below). Locked BEFORE any outcome data is pulled.
+The Becker schema audit below reads column names and structural row counts only
 (no trade outcomes); that is legitimate pre-registration work, not peeking.
 
 This document pre-registers the methodology, the data windows, the pass/fail
@@ -19,7 +20,7 @@ SECOND-BOT strategies that this project has not tried:
   structural axis the v17 dutch-book scan did NOT cover (v17 scanned
   mutually-exclusive groups only). Per the plan critic, C proceeds via a
   ZERO-BUILD spot-scan first; the full module is built only if the spot-scan
-  finds non-zero raw violations.
+  finds non-zero confirmed violations.
 
 The mission is a SEPARATE second live bot running alongside v1, with its own
 strategy module, state file, intent-id prefix, scheduled task, bankroll slice,
@@ -43,7 +44,7 @@ The four load-bearing facts this design respects (`research/key-findings.md`):
    but fees do, which is C's primary kill risk).
 2. Per-category bias varies ~40x. Candidate A deliberately targets thin
    NON-sports cells where pro MM presence is lowest, accepting the liquidity
-   ceiling as the trade-off (and gating on it: see the H1 power pre-check).
+   ceiling as the trade-off (and gating on it: see the S-A1d power pre-check).
 3. The 2024 maker sign-flip. ALL Becker analysis uses post-October-2024 data
    only.
 4. Bias shrinks yearly. Becker ends ~2025-11-25, now ~6.5 months stale. The
@@ -53,15 +54,21 @@ The four load-bearing facts this design respects (`research/key-findings.md`):
 Failure modes this design must avoid (documented in CLAUDE.md):
 - **F11 (Dataset Schema Phantom):** see the audit in Section 1. Becker has NO
   orderbook bid/ask at trade time. Confirmed below. No A gate may depend on a
-  Becker entry price; the forward shadow is the only F11-free validation.
+  Becker entry price OR any other field Becker does not carry (the methodology
+  critic caught an F11 recurrence inside the v2 power pre-check; fixed in
+  S-A1d). The forward shadow is the only F11-free validation.
 - **F4 (stale-price phantom):** never use `last_price` or the single terminal
-  markets snapshot as an execution price.
+  markets snapshot as an execution price. For C, never count a violation
+  computed across non-simultaneous leg quotes (stale-pair cousin of F4; see
+  the confirm-read rule in Section 3.3).
 - **F9 (gate-regime mismatch):** gates are derived for THIS regime (mid-band
-  non-sports maker; ladder locks), not copied from a paper measured elsewhere.
+  non-sports maker; ladder locks), not copied from elsewhere. The methodology
+  critic caught an F9 violation inside v2 itself (the 15% fill-rate bar was a
+  Round 15b/c hand-me-down drafted for liquid sports/crypto); fixed in G-A2a.
 
 **Selection honesty (plan critic C1/C2/C3, binding):**
 - The three Round 15b cells were measured with a TRADE-LEVEL
-  normal-approximation CI (`becker_combined_side_loco.py` lines 88-90), which
+  normal-approximation CI (`becker_combined_side_loco.py` lines 88-91), which
   treats ~81k correlated trades as independent. They have NEVER passed an
   event-cluster CI. Phase 1 applies the cluster bootstrap as a NEW, STRICTER
   test, not a re-confirmation.
@@ -92,7 +99,8 @@ _fetched_at`. It DOES carry bid/ask, BUT:
 - **One row per ticker** (7,682,445 rows == 7,682,445 distinct tickers).
 - **All fetched in a single ~8-hour window** (`_fetched_at` min 2025-11-23
   18:51, max 2025-11-24 02:40, 2 distinct fetch-dates).
-- **95% `finalized`** (7,320,904 of 7,682,445); only 328,865 `active`.
+- **95% `finalized`** (7,320,904 of 7,682,445); only 328,865 `active` (which
+  carry no usable `result` and are excluded from all outcome work).
 
 CONCLUSION: the markets bid/ask is a one-time TERMINAL snapshot taken at Becker's
 data-pull date, mostly post-settlement. It is useless as an entry-price proxy at
@@ -122,14 +130,16 @@ are not thick enough to compete the bias to zero. Round 15b flagged
 Per plan critic H3, the "Other" cell as a category label is DROPPED: "Other" is
 the classifier's fallback bucket (whatever fails to match
 `SUBCATEGORY_PATTERNS`), not a tradable definition. It is REPLACED by a frozen
-explicit prefix allowlist: before any outcome data is read, we enumerate the
-series prefixes that the v10a run placed in Other [0.60,0.80), rank them by
-STRUCTURAL fields only (trade count in the band; no outcomes, no excess
-returns), and freeze the top prefixes covering >= 80% of the cell's trade
-volume as `cell3_prefix_allowlist`. The screen and any forward work run on that
-frozen list. The same freeze is done for Media and Entertainment (H4): each
-cell gets an explicit prefix allowlist locked pre-data, and the live shadow
-subscribes to the ALLOWLIST, never to the category mapper.
+explicit prefix allowlist. **Freeze rule (locked, methodology critic H-4):**
+for EACH cell, the allowlist = the top prefixes by in-band trade count covering
+>= 80% of the cell's band trade volume, OR the top 30 prefixes by band trade
+count, WHICHEVER SET IS LARGER. Ranking uses STRUCTURAL fields only (prefix,
+band, trade count, contract count; no outcomes, no excess returns). Procedure
+(methodology critic L-1): a small freeze script loads ONLY those columns,
+writes the three allowlist files, and is committed BEFORE the screen script
+exists; the commit hash is the freeze proof. The screen and all forward work
+run on the frozen allowlists; the live shadow subscribes to the ALLOWLIST,
+never to the category mapper (plan critic H4).
 
 These three cells were DISCOVERED in Round 15b on the whole sample after a
 168-cell sweep. v21 Phase 1 is a stricter SCREEN of exactly these three
@@ -138,111 +148,165 @@ cell.
 
 ### 2.2 "Combined-side maker excess" definition (locked)
 
-Aggregation per `scripts/v10a/becker_combined_side_loco.py` and
-`research/v10a/05-becker-edge-discovery.md`; INFERENCE upgraded per critic C1.
-A maker fill is the non-taker side of a printed trade. For each trade we compute
-the maker's net excess return per $1 notional = (settlement payoff to the maker
-side) - (maker entry price) - (Kalshi maker fee,
-`ceil(0.0175*P*(1-P)*100)/100` per contract). We aggregate COMBINED across
-YES-maker and NO-maker fills, weighting each side by its trade count within the
-cell. This is the side-agnostic level (a maker bot cannot choose its fill
+**Pipeline (methodology critic M-3):** the v10a script
+`becker_combined_side_loco.py` consumes a prefix-level aggregate (no
+event_ticker, no per-trade values) and CANNOT be reused for cluster inference.
+The v21 screen builds per-trade observations DIRECTLY from the trades/markets
+parquets: maker side = the non-taker side from `taker_side`; settlement from
+the markets `result` joined on `ticker` (definitive 0/1; void/unsettled/active
+excluded, never imputed); maker entry price = the printed trade price on the
+maker side; fee = `ceil(0.0175*P*(1-P)*100)/100` per contract (Kalshi maker
+fee; the live fee schedule per series is re-verified at Phase 1.5 per
+methodology critic L-2 and the SAME schedule is applied in Phase 2 and 3).
+The new screen script gets the session-rules code review BEFORE its output is
+read.
+
+Per-trade maker net excess per $1 notional = (settlement payoff to the maker
+side) - (maker entry price) - fee. We aggregate COMBINED across YES-maker and
+NO-maker fills, weighting each trade equally (trade-count weighting) within
+the cell. This is the side-agnostic level (a maker bot cannot choose its fill
 side); per-side cells are a base-rate selection artifact and are NOT used.
 
-Settlement comes from the markets table `result` field joined on `ticker`
-(definitive 0/1; void/unsettled excluded, never imputed).
+**Acknowledged upper-bound caveats (methodology critic M-1, reported in the
+screen write-up):** (1) incumbent-maker fills are filtered by incumbents'
+placement/cancel decisions; a naive best-bid joiner inherits a worse fill mix;
+(2) trade-count weighting approximates a 1-lot bot. A CONTRACT-WEIGHTED excess
+is computed as a mandatory reported diagnostic next to the gate number.
 
-CI: `cluster_bootstrap_mean_ci` (`src/kalshi_bot/analysis/bootstrap.py`),
-cluster unit = `event_ticker`, n_resamples=5000, seed=42, ci=0.95. This is a
-NEW stricter test than Round 15b's trade-level CI (critic C1); surviving it is
-the cheapest possible kill check and runs FIRST.
+**CI (exact call, methodology critic L-5):** `cluster_bootstrap_mean_ci`
+(`src/kalshi_bot/analysis/bootstrap.py`) with cluster unit = `event_ticker`,
+`n_resamples=5000, ci=0.95, rng_seed=42`. This is a NEW stricter test than
+Round 15b's trade-level CI (plan critic C1); it runs FIRST as the cheapest
+kill. **Sensitivity (methodology critic M-2, REPORT-ONLY, decided now):** a
+series-prefix-clustered CI (same call, cluster unit = series prefix) is a
+mandatory reported sensitivity; it does NOT gate, but if it includes zero that
+fact goes verbatim into the go/no-go council packet (cross-event dependence in
+Media/Entertainment: same film across weekly box-office events, award season,
+franchises).
 
 ### 2.3 Windows (locked)
 
 - **Train:** 2024-11-01 to 2025-09-01 (post-flip, 10 months).
-- **Recency consistency slice (NOT OOS, critic C2):** 2025-09-01 to
+- **Recency consistency slice (NOT OOS, plan critic C2):** 2025-09-01 to
   2025-11-25. Overlaps the Round 15b discovery sample; used only for the
   compression guard. The forward shadow is the only OOS.
-- Chronological, no shuffle. Purge: trades are point events resolving at their
-  market's `close_time`; we additionally require the trade's market
-  `close_time` to fall within the same window as the trade (drop trades whose
-  market resolves after the window end) so no cross-window settlement leakage.
+- Chronological, no shuffle.
+- **Population rule (methodology critic H-1, uniform across BOTH windows):**
+  keep a trade only if (a) its market's `close_time` falls inside the same
+  window as the trade (no cross-window settlement leakage), AND (b) the
+  market's horizon `(close_time - created_time) <= 60 days`. The uniform
+  horizon cap makes train and recency like-for-like (otherwise the 2.8-month
+  recency slice mechanically excludes long-horizon markets that train admits,
+  confounding S-A1b with composition) and matches the population Phase 2 can
+  actually observe (Section 2.6). The dropped long-horizon share per cell is
+  REPORTED so the estimand narrowing is explicit.
 
 ### 2.4 Pre-registered Phase 1 screen (per cell; NON-INFERENTIAL)
 
-Phase 1 is a SCREEN with pre-registered numeric cut-offs (critic C3). Passing
-it proves nothing about a live edge; it only earns a cell the right to a
-forward shadow test. A cell SURVIVES if ALL hold:
+Phase 1 is a SCREEN with pre-registered numeric cut-offs (plan critic C3).
+Passing it proves nothing about a live edge; it only earns a cell the right to
+a forward shadow test. A cell SURVIVES if ALL hold:
 
 - **S-A1a (cluster-robust sign):** combined-side net excess > 0 with the
   event-cluster bootstrap 95% CI excluding zero on the TRAIN window. (Run
-  FIRST; per critic C1 this is the cheapest kill: the cells have never faced
-  event-clustered inference.)
+  FIRST; per plan critic C1 this is the cheapest kill: the cells have never
+  faced event-clustered inference.)
 - **S-A1b (compression guard):** recency-slice point estimate >= 50% of the
   train point estimate, and recency-slice point estimate > 0. (Fact 4. The
-  slice is in-sample for discovery, so this is a consistency check only.)
+  slice is in-sample for discovery, so this is a consistency check only; the
+  Section 2.3 horizon cap removes the composition confound.)
 - **S-A1c (diversification / anti-F7):** >= 200 distinct events AND >= 30
-  distinct allowlist prefixes contributing in the recency slice (no
-  single-entity artifact).
-- **S-A1d (power pre-check, critic H1):** projected forward fills must make
-  Phase 2 fundable. From the recency slice, compute posting opportunities/day
-  for the cell (distinct market-days with mid-band quotes and >= 1 trade);
-  project modeled fills over 45 days at a CONSERVATIVE 3% fill rate. If
-  projected fills < 30, the cell is dropped as un-fundable regardless of edge.
+  distinct allowlist prefixes contributing in the recency slice. (The 2.1
+  freeze rule guarantees every allowlist has >= 30 prefixes, so this gate is
+  satisfiable by construction for every cell.)
+- **S-A1d (power pre-check, plan critic H1; definition per methodology critic
+  H-3, observable fields only):** posting opportunities = distinct (market,
+  day) pairs in the recency slice with >= 1 trade PRINTING inside the cell's
+  band. Project modeled fills over 45 days at a 3% fill rate on that
+  opportunity count (scaled to per-day). If projected fills < 30, the cell is
+  dropped as un-fundable regardless of edge. KNOWN BIAS, stated now: this
+  denominator excludes days where a quote sat in-band but nothing traded, so
+  it UNDERCOUNTS live posting opportunities and the realized Phase 2 episode
+  fill rate will mechanically come in BELOW the 3% planning rate computed on
+  this proxy. The 3% planning number and the G-A2a bar are the same number by
+  construction (methodology critic C-1).
 
 KILL: any cell failing S-A1a/b/c/d is dropped. If ALL cells fail, candidate A
 is KILLED at Phase 1, NULL written, no forward work.
 
-### 2.5 Phase 1.5: live allowlist validation (critic H4)
+### 2.5 Phase 1.5: live allowlist validation (plan critic H4)
 
 Before the shadow starts: pull current live `/markets` (read-only), map each
 frozen allowlist prefix to live series; record coverage (how many prefixes
 still exist / have active markets). If < 50% of a surviving cell's allowlist
 volume maps to live active series, the cell is dropped as structurally stale
-(Kalshi re-brands series; the Becker-era mapper does not bind live). The
-surviving allowlists are FROZEN as the shadow's subscription list.
+(Kalshi re-brands series; the Becker-era mapper does not bind live). Also
+verified here (methodology critic L-2): the live maker-fee schedule for each
+allowlist series (Kalshi levies maker fees only on designated series); the
+verified schedule is applied identically in Phase 2 P&L and Phase 3 sizing.
+The surviving allowlists are FROZEN as the shadow's subscription list.
 
 ### 2.6 Phase 2: forward shadow logger (the real, F11-free test)
 
 For each surviving cell, run a RECORD-ONLY forward logger (adapted from
 `src/kalshi_bot/analysis/lead_lag_shadow.py` + `scripts/v16/shadow_logger.py`;
-single-instance lock; writes its own parquet; NEVER places orders) that, on a
-fixed cadence, snapshots the live orderbook of allowlist markets in the cell
-and records a HYPOTHETICAL resting maker bid plus, on each later snapshot,
-whether that bid would have filled and at what settlement outcome.
+single-instance lock; writes its own parquet; NEVER places orders). The
+adaptation is a real build (the harness is MLB/odds-API-specific) and gets the
+session-rules code review before launch.
 
-**Fill model (locked, conservative):** our hypothetical bid rests at the current
-best bid on the maker side. A fill is recorded only when a subsequent trade prints
-that crosses AT OR THROUGH our resting price on our side, AND we conservatively
-assume we are at the BACK of the queue at our price level (we only count the fill
-once cumulative taker volume at our price since we posted exceeds the depth that
-was ahead of us at post time). Net P&L per fill = settlement payoff - our bid -
-maker fee. Every assumption (queue position, partial fills) is logged so the
-realized number can be re-derived.
+**Posting universe (methodology critic H-2):** the shadow posts hypothetical
+bids ONLY on allowlist markets with `close_time <= shadow_end - 5 days` (and
+horizon <= 60 days, matching Section 2.3). Every posted bid can therefore both
+fill AND settle inside the gate window; all four gates share one population.
 
-**Upper-bound honesty (critic H2):** the logger also records the DEAD-BOOK
-denominator: posted hypothetical bids that expire unfilled at market close.
-Fill-conditional P&L ignores those (no loss, but no edge either) and is
-therefore an UPPER BOUND on strategy-level P&L. The gates below apply to it
-as an upper bound: failing them on the upper bound is decisive; passing them
-is still only an upper-bound pass, reported as such to the go/no-go council.
+**Bid lifecycle (locked, methodology critic C-2):**
+- Snapshot cadence: every 5 minutes during the collector's run window.
+- ONE hypothetical bid per market at a time, size 1 contract.
+- A bid-EPISODE opens only when the market's best bid on the maker side lies
+  INSIDE the cell's price band (the screened population; no out-of-band
+  fills). Spread at post time is logged so pathological-spread fills are
+  auditable.
+- The episode bid rests at the then-current best bid; queue position = behind
+  the full displayed depth at that price (back of queue).
+- If the best bid MOVES, the episode is closed unfilled and a new episode
+  opens at the new best bid (if still in-band), with queue position reset;
+  the re-peg event is logged.
+- An episode ends by: FILL, RE-PEG, or MARKET CLOSE (a dead-book row,
+  methodology critic/plan critic H2: logged in the denominator).
+- FILL rule: cumulative taker volume printing at-or-through our price since
+  episode open must be `>= depth_ahead_at_open + 1` (strictly exhausts the
+  queue ahead plus our contract; a print that exactly exhausts the queue
+  ahead does NOT fill us).
+- Net P&L per fill = settlement payoff - our bid - maker fee (live schedule
+  per Phase 1.5).
+- **Fill rate = filled episodes / total episodes.** Episodes, not snapshots,
+  are the denominator; the logging cadence cannot move the gate.
 
-**Pre-registered Phase 2 gates (per surviving cell), measured over 30-60
-calendar days:**
-- **G-A2a (fill rate):** modeled fill rate >= 15% of posted hypothetical bids.
-- **G-A2b (sample):** >= 30 modeled fills. **Hard stop (critic H1):** < 10
-  modeled fills by day 30 kills the cell as un-fundable; do not wait to day 60.
-- **G-A2c (net edge):** mean net-of-fee P&L per fill > 0 with event/day-cluster
-  bootstrap 95% CI excluding zero.
-- **G-A2d (absolute edge floor, critic M1):** forward cluster-CI lower bound
-  > 0 AND forward point estimate >= +1.0pp net of fees. (Replaces the old
-  "+/- 3pp of the screen" band, which was wider than the edges it policed. A
-  large negative screen-vs-forward divergence is the F11/adverse-selection
-  signature that killed v7-B/v14; with this absolute floor it fails
-  automatically.)
+**Upper-bound honesty (plan critic H2):** fill-conditional P&L ignores
+dead-book episodes (no loss, no edge) and is an UPPER BOUND on strategy-level
+P&L. The gates apply to it as such: failing on the upper bound is decisive;
+passing is an upper-bound pass, reported as such to the council.
 
-PASS all four -> Phase 3 candidate. Otherwise stay in shadow or kill per the
-30-60 day verdict. The fill-rate gate is the single most important field (a
-backtest edge at 2% fill rate is not a business).
+**Pre-registered Phase 2 gates (per surviving cell). Verdict evaluated ONCE at
+day 60 (methodology critic M-4.2); the ONLY earlier action is the day-30 hard
+stop. No early passes.**
+- **G-A2a (fill rate, derived for THIS regime per methodology critic C-1):**
+  episode fill rate >= 3%. Derivation: v1's live maker fill rate in LIQUID
+  sports was ~11% pre-fix; thin non-sports books at back-of-queue best-bid
+  join must be expected materially lower; 3% is the same number S-A1d plans
+  on, so a cell that performs exactly to plan passes. The edge burden sits on
+  G-A2c/d, not on fill rate; G-A2a exists to kill books too dead to trade.
+- **G-A2b (sample):** >= 30 settled modeled fills by day 60. **Hard stop
+  (plan critic H1):** < 10 modeled fills by day 30 kills the cell as
+  un-fundable; do not wait to day 60.
+- **G-A2c (net edge):** mean net-of-fee P&L per settled fill > 0 with
+  cluster bootstrap 95% CI excluding zero; cluster unit = MARKET-DAY
+  (methodology critic M-4.1: one event can produce serially correlated fills
+  across days; market-day is the locked unit, `rng_seed=42`).
+- **G-A2d (absolute edge floor, plan critic M1):** forward cluster-CI lower
+  bound > 0 AND forward point estimate >= +1.0pp net of fees.
+
+PASS all four -> Phase 3 candidate. Otherwise kill per the day-60 verdict.
 
 ### 2.7 Phase 3: tiny live
 
@@ -250,8 +314,8 @@ Only after Phase 2 passes AND a 3-4 member council + verifier go/no-go AND
 operator approval: a ~$5 live slice (a separate bot, own strategy module, own
 state file, intent-id prefix distinct from v1's, own scheduled task, own kill
 triggers: 20% drawdown, 5-consecutive-loss, edge-compression, and a
-FILL-STARVATION trigger per critic L3: < 3 live fills in any rolling 14 days
-stands the bot down pending operator review). Re-split the $100-ceiling
+FILL-STARVATION trigger per plan critic L3: < 3 live fills in any rolling 14
+days stands the bot down pending operator review). Re-split the $100-ceiling
 bankroll fraction between v1 and the new bot at that point. Forward shadow
 continues alongside live as the monitor. The operator initiates the live
 restart; this round only stages and recommends.
@@ -269,9 +333,17 @@ new-cell scanning to rescue it. NULL write-up under `research/v21/`.
 
 A cumulative ladder is a set of nested threshold markets on the same underlying
 quantity X: "X >= k_1", "X >= k_2", ... with k_1 < k_2 < ... (e.g. team season-win
-ladders, "BTC >= $X by date D" ladders, range ladders). Probability is monotone:
+ladders, "BTC >= $X by date D" ladders). Probability is monotone:
 P(X >= k_i) >= P(X >= k_{i+1}). So YES prices MUST be non-increasing:
 p_1 >= p_2 >= ... A violation is an adjacent pair with p_i < p_{i+1}.
+
+**NOT ladders (methodology critic C-3, binding):** range-bracket families
+("3,500 to 3,999", "4,000 to 4,499") are mutually exclusive, NOT nested; their
+YES prices are legitimately bell-shaped across strikes, and the lock basket on
+them is NOT risk-free (X landing in bracket i+1 zeroes both legs). Misreading
+a range family as a ladder manufactures phantom "free money", the exact
+failure this project has died on twice. Range markets are hard-excluded by the
+identification rule in 3.3.
 
 **The lock (risk-free, structural; math VERIFIED by the plan critic).** On a
 violation: buy "X>=k_i YES" at ask a_i and buy "X>=k_{i+1} NO" at ask
@@ -283,12 +355,11 @@ When prices violate monotonicity the cost can fall below $1, giving a
 guaranteed >= $0 margin plus bracket upside. This is the ladder analog of the
 v17 dutch-book underround, on a structural axis v17 did not scan.
 
-This is a TAKER arbitrage (both legs marketable). The maker>taker preference
-does not bind on a true lock (no directional exposure), but TAKER FEES (2 legs)
-plus the 2-leg spread plus depth are the binding constraint and the primary
-kill risk. v17 found mutually-exclusive groups arbed to ~1 (residual 1.3c
-gross, below fee+capital cost). Honest prior: LOW (~10-15%); most likely kill
-is "violations exist but do not survive fees/depth," a v17 repeat. The plan
+This is a TAKER arbitrage (both legs marketable). TAKER FEES (2 legs) plus the
+2-leg spread plus depth are the binding constraint and the primary kill risk.
+v17 found mutually-exclusive groups arbed to ~1 (residual 1.3c gross, below
+fee+capital cost). Honest prior: LOW (~10-15%); most likely kill is
+"violations exist but do not survive fees/depth," a v17 repeat. The plan
 critic recommended killing C outright on this prior; the operator directed
 continued execution, so C proceeds via the critic's own minimal-cost path
 (H5): a zero-build spot-scan gates ALL further engineering.
@@ -301,65 +372,88 @@ is ignored), and Becker's markets snapshot is a single terminal post-settlement
 frame (Section 1). So C CANNOT be backtested. The pre-registered forward scan
 IS the gate. No capital is ever at risk during the scan.
 
-### 3.3 Phase C0: zero-build spot-scan (critic H5; gates ALL further C work)
+### 3.3 Phase C0: zero-build spot-scan (plan critic H5; gates ALL further C work)
 
 ONE WEEK, throwaway script, NO new module, NO collector plugin. Reuse
 `dutchbook.parse_market_quote` (`src/kalshi_bot/analysis/dutchbook.py`) plus
-~20 lines of ordering logic: pull live open events (read-only API), identify
-candidate ladders by parsing ordered numeric thresholds out of
-`yes_sub_title`/strike fields within an event (conservative: skip anything
-ambiguous), and for each adjacent pair record p_i vs p_{i+1} at the executable
-quotes (a_i, b_{i+1}), the gross lock margin, the net margin after 2x taker
-fee, and bindable depth. Run the spot-scan ~3x/day for 7 days (manual or loose
-scheduled invocations; no infrastructure).
+minimal ordering logic against the live read-only API.
 
-- **G-C0 (build gate):** >= 3 DISTINCT net-of-fee-positive executable locks
-  (both legs marketable, depth >= 1) observed across the week. If fewer, C is
-  KILLED at C0 with a NULL write-up: "ladder violations do not survive fees/
-  depth at observable frequency," at near-zero engineering cost. If passed,
-  Phase C1 (the real module + persistence scan) is built.
+**Ladder identification (locked, methodology critic C-3.1, structured fields
+ONLY):** within an event, candidate ladder legs must have `strike_type` in the
+whitelist {`greater`, `greater_or_equal`}, ordered by `floor_strike`.
+Hard-excluded: `between` (range brackets), `less`/`less_or_equal` (reversed
+monotonicity; excluded from C0 entirely rather than handled), custom or
+functional strike types, anything missing `floor_strike`, and any subtitle
+containing two numbers when structured fields are absent. Subtitle text is
+NEVER the classifier; at most a logged cross-check.
+
+**Confirm read (locked, methodology critic C-3.2, anti-F4):** a raw violation
+seen in a paginated `/markets` sweep is only a CANDIDATE (leg quotes are
+non-simultaneous). Before counting toward G-C0, re-read BOTH legs back-to-back
+via the orderbook endpoint (which also provides real depth) and require the
+net-of-2x-taker-fee violation to persist on the confirm read with bindable
+depth >= 1 on both legs. **Distinctness:** one count per (ladder, adjacent
+pair) per calendar day.
+
+**Depth fields (methodology critic C-3.3):** before day 1, verify which size
+fields the live payload carries (`parse_market_quote` silently returns size
+0.0 when `*_ask_size_fp` is absent). Pre-registered: the confirm-read
+ORDERBOOK depth is the bindable-depth source of record.
+
+**Schedule (locked, methodology critic M-4.3):** scans at 09:00, 14:00, and
+20:00 PT daily for 7 days (21 scans, scheduled invocations; no opportunistic
+extra scans).
+
+- **G-C0 (build gate):** >= 3 DISTINCT confirmed net-of-fee-positive
+  executable locks across the week. If fewer, C is KILLED at C0 with a NULL
+  write-up at near-zero engineering cost. **Honesty note (methodology critic
+  L-4):** 21 snapshots cannot bound sub-minute lock frequency; the NULL claim
+  is "no ladder locks persistent enough to catch at residential scan cadence
+  survive fees/depth," NOT "ladder violations do not exist." That is the
+  tradable question. If passed, Phase C1 is built.
 
 ### 3.4 Phase C1: module + persistence scan (only if G-C0 passes)
 
 `dutchbook.analyze_group` handles mutually-exclusive groups ONLY, not nested
 ladders. Phase C1 builds a NEW pure module `src/kalshi_bot/analysis/ladder.py`:
 - `group_ladders(markets) -> list[Ladder]`: identify cumulative ladders within
-  an event (markets whose `yes_sub_title`/strike parse to an ordered threshold
-  on a common quantity). Conservative: only group markets we can confidently
-  order; log and skip ambiguous structures.
+  an event using the SAME structured-field whitelist as C0 (strike_type +
+  floor_strike; never subtitle parsing). Log and skip everything excluded.
 - `analyze_ladder(legs) -> list[LadderLock]`: for each adjacent pair, detect
   the monotonicity violation, compute the lock cost (a_i + 1 - b_{i+1}), net of
   2x Kalshi taker fee, and the min bindable depth across the two legs.
 Pure, network-free, unit-tested (golden cases: clean monotone ladder = 0
-locks; constructed violation = 1 lock with correct margin; fee math verified
-against `metrics.py`). Code-reviewed per session rules.
+locks; constructed violation = 1 lock with correct margin; a range-bracket
+family = 0 ladders identified; fee math verified against `metrics.py`).
+Code-reviewed per session rules.
 
 The record-only scanner (reusing the shadow-logger harness + lock) snapshots
 open ladders on a cadence, runs `analyze_ladder`, logs every detected lock with
-cost, net margin, bindable depth, timestamp, and re-snapshots to measure
-persistence and naked-leg behavior.
+cost, net margin, bindable depth, timestamp. **Burst mode (methodology critic
+M-4.4):** on lock detection, re-snapshot BOTH legs every 15-20 seconds for 3
+minutes; the default 5-minute cadence cannot measure a 60-second persistence
+median (every observation would be censored).
 
 **Pre-registered Phase C1 gates (record-only scan, ~2-3 weeks):**
-- **G-C1a (frequency):** >= 20 DISTINCT executable ladder locks observed.
-  Executable = both legs marketable at the recorded ask with bindable depth
-  >= 1 contract, AND net guaranteed margin (after 2x taker fee) > 0.
+- **G-C1a (frequency):** >= 20 DISTINCT executable ladder locks observed
+  (distinctness per 3.3). Executable = both legs marketable at the recorded
+  ask with bindable depth >= 1 contract, AND net guaranteed margin (after 2x
+  taker fee) > 0, on a confirm read.
 - **G-C1b (size + carry):** median net guaranteed margin per executable lock
-  >= $0.01 AND median bindable depth >= 1 contract, AND (critic L2) median
-  annualized return on locked capital >= 10% (net margin / cost, annualized by
-  days-to-latest-leg-close via `dutchbook.annualized_return`; a 1-cent margin
-  locked for 6 months is negative-carry vs the bankroll).
-- **G-C1c (persistence, critic M3):** median lock survives >= 60 seconds
-  measured as JOINT both-legs-bindable depth across consecutive re-snapshots
+  >= $0.01 AND median bindable depth >= 1 contract, AND (plan critic L2)
+  median annualized return on locked capital >= 10% (net margin / cost,
+  annualized by days-to-latest-leg-close via `dutchbook.annualized_return`;
+  None returns from degenerate inputs are excluded from the median and logged
+  per methodology critic L-3).
+- **G-C1c (persistence, plan critic M3):** median lock survives >= 60 seconds
+  measured as JOINT both-legs-bindable depth across burst-mode re-snapshots
   (not single-leg quote survival), so a non-co-located retail order can
   realistically execute both legs.
-- **Diagnostic (critic M4, reported not gated):** naked-leg frequency: how
-  often one leg's bindable depth vanishes while the other persists within a
-  lock's lifetime. Reported to the execution-bot design step, where it gates
-  the simultaneous-or-cancel design qualitatively.
+- **Diagnostic (plan critic M4, reported not gated):** naked-leg frequency:
+  how often one leg's bindable depth vanishes while the other persists within
+  a lock's lifetime. Reported to the execution-bot design step.
 
-KILL: fail any of G-C1a/b/c -> candidate C KILLED, NULL written. A true lock
-needs no direction gate (risk-free by construction); the gate is purely
-frequency + size + carry + executability + persistence.
+KILL: fail any of G-C1a/b/c -> candidate C KILLED, NULL written.
 
 If C1 passes, the two-leg execution bot (leg-risk handling,
 simultaneous-or-cancel logic, intent-id prefix, kill triggers) is designed as a
@@ -389,20 +483,20 @@ forward validations. C0 deliberately does NOT use this harness (zero-build).
 | Gate | Candidate | Phase | Pass condition | Kill |
 |---|---|---|---|---|
 | S-A1a | A | Becker screen | Combined-side net excess > 0, event-cluster 95% CI excl 0, TRAIN (new stricter test; runs first) | else drop cell |
-| S-A1b | A | Becker screen | Recency-slice estimate >= 50% of train AND > 0 (consistency, NOT OOS) | else drop cell |
+| S-A1b | A | Becker screen | Recency-slice estimate >= 50% of train AND > 0 (consistency, NOT OOS; uniform 60d horizon cap) | else drop cell |
 | S-A1c | A | Becker screen | >= 200 events AND >= 30 allowlist prefixes in recency slice | else drop cell |
-| S-A1d | A | Becker screen | Projected 45-day fills >= 30 at 3% fill assumption | else drop cell |
+| S-A1d | A | Becker screen | Projected 45-day fills >= 30 at 3% on in-band trade-print opportunity days | else drop cell |
 | (all cells fail S-A1) | A | Becker screen | -- | KILL A, NULL |
-| Phase 1.5 | A | Live validation | >= 50% of cell allowlist volume maps to live active series | else drop cell |
-| G-A2a | A | Forward shadow | Modeled fill rate >= 15% | else stay/kill |
-| G-A2b | A | Forward shadow | >= 30 modeled fills; HARD STOP < 10 by day 30 | else kill cell |
-| G-A2c | A | Forward shadow | Mean net P&L/fill > 0, cluster CI excl 0 (upper bound per H2) | else stay/kill |
+| Phase 1.5 | A | Live validation | >= 50% of cell allowlist volume maps to live active series; fee schedule verified | else drop cell |
+| G-A2a | A | Forward shadow | Episode fill rate >= 3% (episodes per locked lifecycle; same number as S-A1d plan) | else kill cell |
+| G-A2b | A | Forward shadow | >= 30 settled fills by day 60; HARD STOP < 10 by day 30 | else kill cell |
+| G-A2c | A | Forward shadow | Mean net P&L/settled fill > 0, market-day-cluster CI excl 0 (upper bound) | else kill cell |
 | G-A2d | A | Forward shadow | Forward CI lower > 0 AND point >= +1.0pp | else kill cell |
-| G-A3 | A | Tiny live | All G-A2 pass + council/verifier + operator approval | -- |
-| G-C0 | C | Zero-build spot-scan | >= 3 distinct net-of-fee executable locks in 7 days | KILL C, NULL |
-| G-C1a | C | Record scan | >= 20 executable locks | KILL C, NULL |
+| G-A3 | A | Tiny live | All G-A2 pass at day-60 verdict + council/verifier + operator approval | -- |
+| G-C0 | C | Zero-build spot-scan | >= 3 distinct CONFIRMED net-of-fee executable locks in 21 scheduled scans / 7 days | KILL C, NULL |
+| G-C1a | C | Record scan | >= 20 distinct confirmed executable locks | KILL C, NULL |
 | G-C1b | C | Record scan | Median net margin >= $0.01, depth >= 1, annualized >= 10% | KILL C, NULL |
-| G-C1c | C | Record scan | Median JOINT persistence >= 60s | KILL C, NULL |
+| G-C1c | C | Record scan | Median JOINT persistence >= 60s (burst-mode measured) | KILL C, NULL |
 
 ---
 
@@ -414,15 +508,19 @@ forward validations. C0 deliberately does NOT use this harness (zero-build).
 - NOT claim inferential validity for the Phase 1 screen (the cells survived a
   168-cell sweep; the screen is non-inferential by construction).
 - NOT label the recency slice OOS (it overlaps the discovery sample).
-- NOT use any Becker entry price for candidate A (F11; Section 1).
-- NOT use `last_price` or the terminal markets snapshot as an execution price (F4).
+- NOT use any Becker entry price for candidate A (F11; Section 1), nor define
+  any gate on a field Becker does not carry.
+- NOT use `last_price` or the terminal markets snapshot as an execution price
+  (F4), nor count a C violation without a synchronized confirm read.
+- NOT identify ladders from subtitle text (structured strike fields only).
 - NOT build the ladder module before the zero-build spot-scan passes G-C0.
 - NOT trade candidate C live on the strength of this document (record-only scan
   first; execution bot is a separate gated build).
 - NOT touch v1: no edits to its strategy module, scheduled task, state, or
   bankroll until a validated second edge earns a re-split, and even then only by
   operator-initiated restart.
-- NOT pull outcome data until the methodology critic clears this revision.
+- The outcome-data pull may begin: both critics are complete and their must-do
+  edits are incorporated in this v3.
 
 ---
 
@@ -434,12 +532,13 @@ forward validations. C0 deliberately does NOT use this harness (zero-build).
   fraction.
 - **Spend:** Phase 1 is local compute (`.venv-kronos` DuckDB) + minimal LLM for
   critics. No external paid data.
-- **Reviews (session_rules.md, non-negotiable):** plan critic on the v1 lock
-  (DONE; `01-plan-critique.md`); methodology critic on THIS revision, before
-  the outcome-data pull; code reviewer after the Becker screen script, after
-  the ladder primitive (if G-C0 passes), and after the collector harness;
-  post-impl reviewer + green pytest + green mypy + em-dash sweep before any
-  live-money code. A 3-4 member council + verifier at the go/no-go to live.
+- **Reviews (session_rules.md, non-negotiable):** plan critic (DONE,
+  `01-plan-critique.md`); methodology critic (DONE, `02-methodology-critique.md`,
+  LOCK-WITH-EDITS, edits incorporated); code reviewer on the allowlist freeze
+  script + Becker screen script BEFORE their outputs are read, on the ladder
+  primitive (if G-C0 passes), and on the collector harness; post-impl reviewer
+  + green pytest + green mypy + em-dash sweep before any live-money code. A
+  3-4 member council + verifier at the go/no-go to live.
 
 ## 8. Change log
 
@@ -457,3 +556,22 @@ forward validations. C0 deliberately does NOT use this harness (zero-build).
   diagnostic. L2: annualized carry floor in G-C1b. L3: fill-starvation
   stand-down in Phase 3. Operator override recorded: critic said KILL-C;
   operator directed continued A + C execution, honored via the C0 path.
+- 2026-06-09 v3: Methodology-critic revision (`02-methodology-critique.md`,
+  LOCK-WITH-EDITS). C-1: G-A2a re-derived for this regime at 3%, aligned with
+  S-A1d (the 15% was an F9 hand-me-down). C-2: full bid-lifecycle spec
+  (episode-based denominator, in-band posting, re-peg rule, depth_ahead + 1
+  fill arithmetic). C-3: ladder identification from structured
+  strike_type/floor_strike whitelist; range brackets hard-excluded;
+  synchronized confirm read before counting any lock; orderbook depth as
+  source of record. H-1: uniform 60-day horizon cap in both Becker windows.
+  H-2: shadow posts only on markets settling inside the gate window. H-3:
+  S-A1d redefined on observable in-band trade prints with stated bias. H-4:
+  allowlist freeze = max(80% volume coverage, top 30 prefixes). M-1:
+  contract-weighted diagnostic. M-2: prefix-clustered CI sensitivity,
+  report-only. M-3: new trade-level pipeline stated; code review before
+  reading output. M-4: G-A2c cluster unit = market-day; single day-60
+  verdict; fixed C0 scan schedule + distinctness; C1 burst mode. L-1 freeze
+  script procedure, L-2 fee schedule verification, L-3 annualized None
+  handling, L-4 C0 NULL honesty note, L-5 exact CI call locked
+  (n_resamples=5000, ci=0.95, rng_seed=42). LOCK COMPLETE; data pull
+  authorized.
