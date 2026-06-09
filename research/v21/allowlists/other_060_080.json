@@ -1,0 +1,1866 @@
+{
+  "cell": "other_060_080",
+  "group": "Other",
+  "band": "[0.60,0.80)",
+  "window": [
+    "2024-11-01",
+    "2025-11-25"
+  ],
+  "window_timezone": "UTC",
+  "prefix_definition": "regexp_extract(event_ticker, '^([A-Z0-9]+)', 1)",
+  "population": "all markets regardless of status/result (outcome-blind)",
+  "rule": "max(top-k covering >= 80% of band trade count, top 30 by band trade count); structural fields only; ties broken alphabetically (stable sort)",
+  "k_coverage": 369,
+  "k_floor": 30,
+  "n_prefixes": 369,
+  "n_prefixes_total_in_cell": 1774,
+  "total_band_trades": 295447,
+  "coverage_of_band_trades": 0.8003770557832708,
+  "prefixes": [
+    {
+      "prefix": "KXWHVISIT",
+      "n_trades": 5414,
+      "n_contracts": 314729
+    },
+    {
+      "prefix": "KXELONTWEETS",
+      "n_trades": 5003,
+      "n_contracts": 138158
+    },
+    {
+      "prefix": "KXDANCINGWITHTHESTARS",
+      "n_trades": 4634,
+      "n_contracts": 239266
+    },
+    {
+      "prefix": "KXKNOXGOLD",
+      "n_trades": 3773,
+      "n_contracts": 55309
+    },
+    {
+      "prefix": "KXTIPTAX",
+      "n_trades": 3215,
+      "n_contracts": 167180
+    },
+    {
+      "prefix": "KXMEASLES",
+      "n_trades": 2943,
+      "n_contracts": 127165
+    },
+    {
+      "prefix": "KXNGUARDCITY",
+      "n_trades": 2747,
+      "n_contracts": 181245
+    },
+    {
+      "prefix": "KXLSUCOACH",
+      "n_trades": 2570,
+      "n_contracts": 497893
+    },
+    {
+      "prefix": "ROBOTAXIOUT",
+      "n_trades": 2548,
+      "n_contracts": 271511
+    },
+    {
+      "prefix": "KXDJTHANNITY",
+      "n_trades": 2542,
+      "n_contracts": 132108
+    },
+    {
+      "prefix": "KXALEAGUEGAME",
+      "n_trades": 2355,
+      "n_contracts": 166555
+    },
+    {
+      "prefix": "KXMUSKTAGDJT",
+      "n_trades": 2350,
+      "n_contracts": 64979
+    },
+    {
+      "prefix": "KXLIGAMXGAME",
+      "n_trades": 2281,
+      "n_contracts": 94807
+    },
+    {
+      "prefix": "KXFLACOACH",
+      "n_trades": 2213,
+      "n_contracts": 410617
+    },
+    {
+      "prefix": "KXWL",
+      "n_trades": 2167,
+      "n_contracts": 67170
+    },
+    {
+      "prefix": "KXCANAL",
+      "n_trades": 2041,
+      "n_contracts": 125546
+    },
+    {
+      "prefix": "KXASIACUPCRICKET",
+      "n_trades": 2015,
+      "n_contracts": 143557
+    },
+    {
+      "prefix": "KXMRBEAST100M",
+      "n_trades": 1954,
+      "n_contracts": 140441
+    },
+    {
+      "prefix": "KXALBUMSALESSWIFT",
+      "n_trades": 1756,
+      "n_contracts": 227956
+    },
+    {
+      "prefix": "KXENDORSEMAM",
+      "n_trades": 1746,
+      "n_contracts": 160753
+    },
+    {
+      "prefix": "KXCABLEAVE",
+      "n_trades": 1675,
+      "n_contracts": 93228
+    },
+    {
+      "prefix": "KXLEAVEBONDI",
+      "n_trades": 1612,
+      "n_contracts": 187605
+    },
+    {
+      "prefix": "KXSAUDIPLGAME",
+      "n_trades": 1609,
+      "n_contracts": 76236
+    },
+    {
+      "prefix": "KXNYCFINALMARGIN",
+      "n_trades": 1544,
+      "n_contracts": 129059
+    },
+    {
+      "prefix": "KXDJTCONF",
+      "n_trades": 1499,
+      "n_contracts": 56246
+    },
+    {
+      "prefix": "KXBELGIANPLGAME",
+      "n_trades": 1481,
+      "n_contracts": 120464
+    },
+    {
+      "prefix": "KXMAXWELLTESTIFY",
+      "n_trades": 1471,
+      "n_contracts": 116252
+    },
+    {
+      "prefix": "KXSTARSHIPLAUNCH",
+      "n_trades": 1421,
+      "n_contracts": 25606
+    },
+    {
+      "prefix": "KXCRYPTOSUMMIT",
+      "n_trades": 1417,
+      "n_contracts": 77121
+    },
+    {
+      "prefix": "KXSTATEDEEPKH",
+      "n_trades": 1415,
+      "n_contracts": 195446
+    },
+    {
+      "prefix": "KXGRAMBNA",
+      "n_trades": 1386,
+      "n_contracts": 122993
+    },
+    {
+      "prefix": "ADAMS",
+      "n_trades": 1379,
+      "n_contracts": 74210
+    },
+    {
+      "prefix": "KXFLUORIDE",
+      "n_trades": 1369,
+      "n_contracts": 48861
+    },
+    {
+      "prefix": "KXKLEAGUEGAME",
+      "n_trades": 1363,
+      "n_contracts": 59822
+    },
+    {
+      "prefix": "KXROGANGUEST",
+      "n_trades": 1354,
+      "n_contracts": 70873
+    },
+    {
+      "prefix": "KXMAMDANINYC",
+      "n_trades": 1318,
+      "n_contracts": 106114
+    },
+    {
+      "prefix": "KXGTAPRICE",
+      "n_trades": 1299,
+      "n_contracts": 56844
+    },
+    {
+      "prefix": "KXPERSONTOPICCOLDPLAYATRONOMOR",
+      "n_trades": 1292,
+      "n_contracts": 99186
+    },
+    {
+      "prefix": "KXBORDERBILL",
+      "n_trades": 1212,
+      "n_contracts": 130029
+    },
+    {
+      "prefix": "KXWEALTHY",
+      "n_trades": 1209,
+      "n_contracts": 90827
+    },
+    {
+      "prefix": "KXCODINGMODEL",
+      "n_trades": 1201,
+      "n_contracts": 166260
+    },
+    {
+      "prefix": "KXGOOGLEBREAKUP",
+      "n_trades": 1152,
+      "n_contracts": 64914
+    },
+    {
+      "prefix": "KXAAPLPRICE17OVER16",
+      "n_trades": 1142,
+      "n_contracts": 44933
+    },
+    {
+      "prefix": "KXTRAVELBANS",
+      "n_trades": 1137,
+      "n_contracts": 81018
+    },
+    {
+      "prefix": "KXDEFICIT",
+      "n_trades": 1125,
+      "n_contracts": 72626
+    },
+    {
+      "prefix": "KXNEXTHURDATE",
+      "n_trades": 1100,
+      "n_contracts": 68907
+    },
+    {
+      "prefix": "KXPREEMPT",
+      "n_trades": 1094,
+      "n_contracts": 81045
+    },
+    {
+      "prefix": "KXDJTCPAC",
+      "n_trades": 1092,
+      "n_contracts": 45986
+    },
+    {
+      "prefix": "KXACAEXT",
+      "n_trades": 1088,
+      "n_contracts": 159549
+    },
+    {
+      "prefix": "KXREACTOR",
+      "n_trades": 1077,
+      "n_contracts": 122463
+    },
+    {
+      "prefix": "KXJAN6PARDON",
+      "n_trades": 1064,
+      "n_contracts": 92762
+    },
+    {
+      "prefix": "KXSAGAWARDENSEMBLE",
+      "n_trades": 1048,
+      "n_contracts": 56190
+    },
+    {
+      "prefix": "KXCRYPTORETURNY",
+      "n_trades": 1035,
+      "n_contracts": 122475
+    },
+    {
+      "prefix": "KXMEDIACONSUMPTIONTSWIFT",
+      "n_trades": 1020,
+      "n_contracts": 78820
+    },
+    {
+      "prefix": "KXMCMAHONCOUNT",
+      "n_trades": 1018,
+      "n_contracts": 46097
+    },
+    {
+      "prefix": "KXKNOXAUDIT",
+      "n_trades": 997,
+      "n_contracts": 24797
+    },
+    {
+      "prefix": "KXCPBFUNDING",
+      "n_trades": 974,
+      "n_contracts": 51725
+    },
+    {
+      "prefix": "KXSANCTIONRUS",
+      "n_trades": 961,
+      "n_contracts": 55520
+    },
+    {
+      "prefix": "KXCLEANCR",
+      "n_trades": 960,
+      "n_contracts": 94933
+    },
+    {
+      "prefix": "KXDEMVASWEEP",
+      "n_trades": 959,
+      "n_contracts": 217140
+    },
+    {
+      "prefix": "KXGREENTERRITORY",
+      "n_trades": 959,
+      "n_contracts": 90590
+    },
+    {
+      "prefix": "KXCBVOLUME",
+      "n_trades": 958,
+      "n_contracts": 75698
+    },
+    {
+      "prefix": "KXH5HUMAN",
+      "n_trades": 940,
+      "n_contracts": 13005
+    },
+    {
+      "prefix": "KXGRAMROTY",
+      "n_trades": 934,
+      "n_contracts": 67792
+    },
+    {
+      "prefix": "KXNATIONALE",
+      "n_trades": 907,
+      "n_contracts": 46015
+    },
+    {
+      "prefix": "KXJLEAGUEGAME",
+      "n_trades": 901,
+      "n_contracts": 51441
+    },
+    {
+      "prefix": "KXDJTFRENCHREP",
+      "n_trades": 873,
+      "n_contracts": 54528
+    },
+    {
+      "prefix": "KXGERCOALITION",
+      "n_trades": 866,
+      "n_contracts": 32563
+    },
+    {
+      "prefix": "KXMEDIARELEASEJIMMYKIMMEL",
+      "n_trades": 853,
+      "n_contracts": 73420
+    },
+    {
+      "prefix": "KXNEWCOACHDAL",
+      "n_trades": 853,
+      "n_contracts": 41525
+    },
+    {
+      "prefix": "KXCS2MAP",
+      "n_trades": 850,
+      "n_contracts": 52077
+    },
+    {
+      "prefix": "KXMISSIONIMPOSSIBLE",
+      "n_trades": 844,
+      "n_contracts": 67292
+    },
+    {
+      "prefix": "KXPICKLEBALL",
+      "n_trades": 836,
+      "n_contracts": 51092
+    },
+    {
+      "prefix": "KX1SONGSABRINACARPENTER",
+      "n_trades": 831,
+      "n_contracts": 55832
+    },
+    {
+      "prefix": "KXMAG7DONATES",
+      "n_trades": 831,
+      "n_contracts": 52755
+    },
+    {
+      "prefix": "KXSURVIVOR",
+      "n_trades": 830,
+      "n_contracts": 35504
+    },
+    {
+      "prefix": "KXADAMSDLEAVE",
+      "n_trades": 829,
+      "n_contracts": 30291
+    },
+    {
+      "prefix": "KXSAGAWARDACTR",
+      "n_trades": 822,
+      "n_contracts": 39858
+    },
+    {
+      "prefix": "KXDJTRGA",
+      "n_trades": 809,
+      "n_contracts": 33751
+    },
+    {
+      "prefix": "KXPSUCOACH",
+      "n_trades": 803,
+      "n_contracts": 95773
+    },
+    {
+      "prefix": "KXAFDPERCENT",
+      "n_trades": 795,
+      "n_contracts": 42963
+    },
+    {
+      "prefix": "KXFDA",
+      "n_trades": 795,
+      "n_contracts": 144951
+    },
+    {
+      "prefix": "KXALBUMSALESCARDIB",
+      "n_trades": 794,
+      "n_contracts": 61624
+    },
+    {
+      "prefix": "KXCORPTAXCUT",
+      "n_trades": 782,
+      "n_contracts": 38839
+    },
+    {
+      "prefix": "KXNCAABBIGTEN",
+      "n_trades": 772,
+      "n_contracts": 69115
+    },
+    {
+      "prefix": "KXPMKICKINGCONTEST",
+      "n_trades": 762,
+      "n_contracts": 25917
+    },
+    {
+      "prefix": "KXDWTSELIMINATION",
+      "n_trades": 759,
+      "n_contracts": 20646
+    },
+    {
+      "prefix": "KXUSADEALCOUNT",
+      "n_trades": 756,
+      "n_contracts": 36923
+    },
+    {
+      "prefix": "KXMAMDANIBOROUGHS",
+      "n_trades": 755,
+      "n_contracts": 68020
+    },
+    {
+      "prefix": "KXHURCTOTMAJ",
+      "n_trades": 753,
+      "n_contracts": 99955
+    },
+    {
+      "prefix": "KXSWIFTWEEKSNUM1",
+      "n_trades": 750,
+      "n_contracts": 113310
+    },
+    {
+      "prefix": "KXAPCALLSNYC",
+      "n_trades": 745,
+      "n_contracts": 21120
+    },
+    {
+      "prefix": "KXFACUP",
+      "n_trades": 735,
+      "n_contracts": 98045
+    },
+    {
+      "prefix": "KXMILSPEND",
+      "n_trades": 734,
+      "n_contracts": 11207
+    },
+    {
+      "prefix": "KXACQUANNOUNCETIKTOK",
+      "n_trades": 727,
+      "n_contracts": 66039
+    },
+    {
+      "prefix": "H5N1CASES",
+      "n_trades": 718,
+      "n_contracts": 51597
+    },
+    {
+      "prefix": "KXSKIMPEACH",
+      "n_trades": 717,
+      "n_contracts": 74489
+    },
+    {
+      "prefix": "KXMUSKUNFOLLOWDJT",
+      "n_trades": 710,
+      "n_contracts": 32969
+    },
+    {
+      "prefix": "KXLEAVITTLATE",
+      "n_trades": 706,
+      "n_contracts": 19142
+    },
+    {
+      "prefix": "KXSHERRILLOUTPERFORMRCP",
+      "n_trades": 698,
+      "n_contracts": 131014
+    },
+    {
+      "prefix": "KXDJTINVESTMENT",
+      "n_trades": 687,
+      "n_contracts": 33979
+    },
+    {
+      "prefix": "KXBUSINESSROUNDTABLE",
+      "n_trades": 679,
+      "n_contracts": 30304
+    },
+    {
+      "prefix": "KXTVSHOWSCANCELLED",
+      "n_trades": 679,
+      "n_contracts": 31202
+    },
+    {
+      "prefix": "KXGILLISESPYS",
+      "n_trades": 676,
+      "n_contracts": 33355
+    },
+    {
+      "prefix": "KX1SONG",
+      "n_trades": 670,
+      "n_contracts": 21716
+    },
+    {
+      "prefix": "KXNORWAYCHESS",
+      "n_trades": 665,
+      "n_contracts": 32498
+    },
+    {
+      "prefix": "KXMJSCHEDULE",
+      "n_trades": 655,
+      "n_contracts": 35187
+    },
+    {
+      "prefix": "KXSWINGSWEEP24",
+      "n_trades": 649,
+      "n_contracts": 92820
+    },
+    {
+      "prefix": "NPRDEFUND",
+      "n_trades": 644,
+      "n_contracts": 73948
+    },
+    {
+      "prefix": "KXOCTSWEEP",
+      "n_trades": 643,
+      "n_contracts": 26522
+    },
+    {
+      "prefix": "KXCONGESTIONEND",
+      "n_trades": 642,
+      "n_contracts": 21793
+    },
+    {
+      "prefix": "KXDEEPSEEKR2RELEASE",
+      "n_trades": 638,
+      "n_contracts": 23683
+    },
+    {
+      "prefix": "KXTAYLORSWIFT",
+      "n_trades": 625,
+      "n_contracts": 47180
+    },
+    {
+      "prefix": "KXHURPATHGENERALMAJOR",
+      "n_trades": 624,
+      "n_contracts": 24752
+    },
+    {
+      "prefix": "KXIMPEACH",
+      "n_trades": 624,
+      "n_contracts": 42820
+    },
+    {
+      "prefix": "KXKHBLUEWALL",
+      "n_trades": 616,
+      "n_contracts": 41587
+    },
+    {
+      "prefix": "KXUEL",
+      "n_trades": 616,
+      "n_contracts": 45168
+    },
+    {
+      "prefix": "KXMUSKWEALTH",
+      "n_trades": 613,
+      "n_contracts": 46156
+    },
+    {
+      "prefix": "KXCLAUDE4",
+      "n_trades": 611,
+      "n_contracts": 20563
+    },
+    {
+      "prefix": "KXHULKHOGANATTEND",
+      "n_trades": 609,
+      "n_contracts": 27359
+    },
+    {
+      "prefix": "KXCRYPTOPERFORMY",
+      "n_trades": 604,
+      "n_contracts": 30716
+    },
+    {
+      "prefix": "KXNEXTTEAMMICAH",
+      "n_trades": 603,
+      "n_contracts": 33164
+    },
+    {
+      "prefix": "KXABRAHAMSY",
+      "n_trades": 602,
+      "n_contracts": 44894
+    },
+    {
+      "prefix": "KXATF",
+      "n_trades": 597,
+      "n_contracts": 21429
+    },
+    {
+      "prefix": "KXCRYPTORESERVE",
+      "n_trades": 597,
+      "n_contracts": 38937
+    },
+    {
+      "prefix": "KXERS",
+      "n_trades": 597,
+      "n_contracts": 25117
+    },
+    {
+      "prefix": "KXSTATEFLIPKH",
+      "n_trades": 589,
+      "n_contracts": 54341
+    },
+    {
+      "prefix": "KXCAN2ND",
+      "n_trades": 587,
+      "n_contracts": 46407
+    },
+    {
+      "prefix": "KXNGUARDLEAVELA",
+      "n_trades": 585,
+      "n_contracts": 27964
+    },
+    {
+      "prefix": "KXTORONTOULTRACHAMPIONSHIP",
+      "n_trades": 585,
+      "n_contracts": 18261
+    },
+    {
+      "prefix": "KXKIMMELAPOLOGY",
+      "n_trades": 584,
+      "n_contracts": 35392
+    },
+    {
+      "prefix": "KXRESTORELOCAL",
+      "n_trades": 582,
+      "n_contracts": 32270
+    },
+    {
+      "prefix": "KXUHCPLEA",
+      "n_trades": 582,
+      "n_contracts": 49080
+    },
+    {
+      "prefix": "KXLBJRETIRE",
+      "n_trades": 569,
+      "n_contracts": 62537
+    },
+    {
+      "prefix": "KXNYCTURNOUT",
+      "n_trades": 566,
+      "n_contracts": 30361
+    },
+    {
+      "prefix": "KXTOP3WEALTH",
+      "n_trades": 566,
+      "n_contracts": 38498
+    },
+    {
+      "prefix": "KXTYLENOLSUE",
+      "n_trades": 564,
+      "n_contracts": 12510
+    },
+    {
+      "prefix": "KXVACCINEW",
+      "n_trades": 553,
+      "n_contracts": 17805
+    },
+    {
+      "prefix": "KXELONDJTSAY",
+      "n_trades": 547,
+      "n_contracts": 21333
+    },
+    {
+      "prefix": "KXFL1MOV",
+      "n_trades": 546,
+      "n_contracts": 57137
+    },
+    {
+      "prefix": "KXNCAAMACC",
+      "n_trades": 546,
+      "n_contracts": 41832
+    },
+    {
+      "prefix": "KX2028DRUN",
+      "n_trades": 544,
+      "n_contracts": 49051
+    },
+    {
+      "prefix": "KXHBUDGETRES",
+      "n_trades": 532,
+      "n_contracts": 18079
+    },
+    {
+      "prefix": "KXGRAMBRA",
+      "n_trades": 526,
+      "n_contracts": 27946
+    },
+    {
+      "prefix": "KXHURCTOT",
+      "n_trades": 525,
+      "n_contracts": 22170
+    },
+    {
+      "prefix": "KXVTCOACH",
+      "n_trades": 524,
+      "n_contracts": 90422
+    },
+    {
+      "prefix": "KXSAGAWARDACTO",
+      "n_trades": 517,
+      "n_contracts": 21046
+    },
+    {
+      "prefix": "KXIRANMEET",
+      "n_trades": 511,
+      "n_contracts": 25391
+    },
+    {
+      "prefix": "KXWAYMOCITY",
+      "n_trades": 510,
+      "n_contracts": 8920
+    },
+    {
+      "prefix": "KXCLOSEST2025",
+      "n_trades": 509,
+      "n_contracts": 63421
+    },
+    {
+      "prefix": "KXJREPODCAST",
+      "n_trades": 509,
+      "n_contracts": 29035
+    },
+    {
+      "prefix": "KXADAMSDROPOUTBY",
+      "n_trades": 508,
+      "n_contracts": 36818
+    },
+    {
+      "prefix": "KXH1B",
+      "n_trades": 506,
+      "n_contracts": 29863
+    },
+    {
+      "prefix": "KXNEXTCAT5HURDATE",
+      "n_trades": 504,
+      "n_contracts": 22200
+    },
+    {
+      "prefix": "KXKHWOMEN",
+      "n_trades": 502,
+      "n_contracts": 23738
+    },
+    {
+      "prefix": "KXGREENIND",
+      "n_trades": 499,
+      "n_contracts": 17895
+    },
+    {
+      "prefix": "KXGGDRAMAFILMACTO",
+      "n_trades": 488,
+      "n_contracts": 32936
+    },
+    {
+      "prefix": "KXPOLANDMOV",
+      "n_trades": 487,
+      "n_contracts": 28673
+    },
+    {
+      "prefix": "KXREDISTRICTING",
+      "n_trades": 486,
+      "n_contracts": 92124
+    },
+    {
+      "prefix": "KXSWINGFLIP24",
+      "n_trades": 486,
+      "n_contracts": 62817
+    },
+    {
+      "prefix": "KXGRAMBCA",
+      "n_trades": 485,
+      "n_contracts": 35926
+    },
+    {
+      "prefix": "KXVETOCOUNT",
+      "n_trades": 485,
+      "n_contracts": 36025
+    },
+    {
+      "prefix": "KXDAYLIGHT",
+      "n_trades": 480,
+      "n_contracts": 41748
+    },
+    {
+      "prefix": "KXFL6MOV",
+      "n_trades": 478,
+      "n_contracts": 47787
+    },
+    {
+      "prefix": "KXDEEPSEEKBAN",
+      "n_trades": 474,
+      "n_contracts": 15033
+    },
+    {
+      "prefix": "KXLASTSUMMER",
+      "n_trades": 474,
+      "n_contracts": 34379
+    },
+    {
+      "prefix": "KXSNAPDELAY",
+      "n_trades": 473,
+      "n_contracts": 29526
+    },
+    {
+      "prefix": "KXTOP10TAYLORSWIFT",
+      "n_trades": 473,
+      "n_contracts": 34584
+    },
+    {
+      "prefix": "KXNCAABACC",
+      "n_trades": 465,
+      "n_contracts": 34161
+    },
+    {
+      "prefix": "KXNEXTTEAMGIANNIS",
+      "n_trades": 461,
+      "n_contracts": 45214
+    },
+    {
+      "prefix": "KXTSWIFTDOC",
+      "n_trades": 461,
+      "n_contracts": 15581
+    },
+    {
+      "prefix": "KXSOTHLEAVE",
+      "n_trades": 453,
+      "n_contracts": 19018
+    },
+    {
+      "prefix": "KXH5N1CASES",
+      "n_trades": 452,
+      "n_contracts": 32988
+    },
+    {
+      "prefix": "KXCANCONSEATS",
+      "n_trades": 450,
+      "n_contracts": 25299
+    },
+    {
+      "prefix": "KXCRYPTOREG",
+      "n_trades": 445,
+      "n_contracts": 11407
+    },
+    {
+      "prefix": "KXSURVIVORELIMINATION",
+      "n_trades": 444,
+      "n_contracts": 20285
+    },
+    {
+      "prefix": "KXFT",
+      "n_trades": 439,
+      "n_contracts": 23746
+    },
+    {
+      "prefix": "KXBOND",
+      "n_trades": 438,
+      "n_contracts": 40995
+    },
+    {
+      "prefix": "KXSPANBERGEROUTPERFORMRCP",
+      "n_trades": 436,
+      "n_contracts": 51093
+    },
+    {
+      "prefix": "KXVAAGMOV",
+      "n_trades": 431,
+      "n_contracts": 51729
+    },
+    {
+      "prefix": "KXPERFORMSUPERBOWLB",
+      "n_trades": 430,
+      "n_contracts": 15211
+    },
+    {
+      "prefix": "KXGRAMBCS",
+      "n_trades": 428,
+      "n_contracts": 21306
+    },
+    {
+      "prefix": "KXINCOMETAXCUT",
+      "n_trades": 428,
+      "n_contracts": 20064
+    },
+    {
+      "prefix": "KXAUSTINMAJOR",
+      "n_trades": 427,
+      "n_contracts": 17990
+    },
+    {
+      "prefix": "KXSEXYMAN",
+      "n_trades": 425,
+      "n_contracts": 18349
+    },
+    {
+      "prefix": "KXNEWCOACHNO",
+      "n_trades": 423,
+      "n_contracts": 21530
+    },
+    {
+      "prefix": "KXELONATTEND",
+      "n_trades": 422,
+      "n_contracts": 9733
+    },
+    {
+      "prefix": "KXMLSCUP",
+      "n_trades": 414,
+      "n_contracts": 25226
+    },
+    {
+      "prefix": "KXPOTUSTWEETS",
+      "n_trades": 409,
+      "n_contracts": 10537
+    },
+    {
+      "prefix": "KXMARRIAGESWIFTKELCE",
+      "n_trades": 404,
+      "n_contracts": 20793
+    },
+    {
+      "prefix": "KXHURPATHFLA",
+      "n_trades": 397,
+      "n_contracts": 10702
+    },
+    {
+      "prefix": "KXNEWOUTBREAKPH5N1",
+      "n_trades": 396,
+      "n_contracts": 29021
+    },
+    {
+      "prefix": "KXSHERRILLCOUNTIES",
+      "n_trades": 394,
+      "n_contracts": 25458
+    },
+    {
+      "prefix": "KXWALTZRESIGN",
+      "n_trades": 390,
+      "n_contracts": 44716
+    },
+    {
+      "prefix": "KXGGDRAMAFILMACTR",
+      "n_trades": 385,
+      "n_contracts": 24205
+    },
+    {
+      "prefix": "KX4MINMILEW",
+      "n_trades": 384,
+      "n_contracts": 20341
+    },
+    {
+      "prefix": "KXNJTRANSITSTRIKE",
+      "n_trades": 384,
+      "n_contracts": 21509
+    },
+    {
+      "prefix": "KXDJTPUTINCALL",
+      "n_trades": 380,
+      "n_contracts": 11309
+    },
+    {
+      "prefix": "KXALPHAARENA",
+      "n_trades": 377,
+      "n_contracts": 96603
+    },
+    {
+      "prefix": "KXGGMCOMFILMACTO",
+      "n_trades": 377,
+      "n_contracts": 32888
+    },
+    {
+      "prefix": "KXABRAHAMSA",
+      "n_trades": 376,
+      "n_contracts": 33430
+    },
+    {
+      "prefix": "KXMIDSEASONINVITATIONALB",
+      "n_trades": 376,
+      "n_contracts": 25940
+    },
+    {
+      "prefix": "KXSAGAWARDSUPACTR",
+      "n_trades": 376,
+      "n_contracts": 29554
+    },
+    {
+      "prefix": "KXHURPATHGENERAL",
+      "n_trades": 373,
+      "n_contracts": 16250
+    },
+    {
+      "prefix": "KXMARALAGO",
+      "n_trades": 373,
+      "n_contracts": 22881
+    },
+    {
+      "prefix": "KXGTEMP",
+      "n_trades": 372,
+      "n_contracts": 18859
+    },
+    {
+      "prefix": "KXAWARDSCMAAOTY",
+      "n_trades": 370,
+      "n_contracts": 13070
+    },
+    {
+      "prefix": "KXIPLFINAL",
+      "n_trades": 370,
+      "n_contracts": 23022
+    },
+    {
+      "prefix": "KXTRIFOLD",
+      "n_trades": 369,
+      "n_contracts": 17062
+    },
+    {
+      "prefix": "KXTOPPOPRANK",
+      "n_trades": 366,
+      "n_contracts": 29659
+    },
+    {
+      "prefix": "KXATCZERO",
+      "n_trades": 365,
+      "n_contracts": 10616
+    },
+    {
+      "prefix": "KXNEWCOACHNYJ",
+      "n_trades": 364,
+      "n_contracts": 17547
+    },
+    {
+      "prefix": "KXREALID",
+      "n_trades": 364,
+      "n_contracts": 12396
+    },
+    {
+      "prefix": "KXTROPSTORM",
+      "n_trades": 364,
+      "n_contracts": 29543
+    },
+    {
+      "prefix": "KXSTOPWORK",
+      "n_trades": 363,
+      "n_contracts": 27742
+    },
+    {
+      "prefix": "KXWLKILL",
+      "n_trades": 360,
+      "n_contracts": 12090
+    },
+    {
+      "prefix": "KXDJTFLAK",
+      "n_trades": 359,
+      "n_contracts": 92494
+    },
+    {
+      "prefix": "KXNEWCOACHCHIBEARS",
+      "n_trades": 359,
+      "n_contracts": 16311
+    },
+    {
+      "prefix": "KXAMAAOTY",
+      "n_trades": 357,
+      "n_contracts": 17419
+    },
+    {
+      "prefix": "KXENGAGEMENTSWIFTKELCE",
+      "n_trades": 355,
+      "n_contracts": 62849
+    },
+    {
+      "prefix": "KXMARATHON",
+      "n_trades": 355,
+      "n_contracts": 19574
+    },
+    {
+      "prefix": "KXCALIDJT",
+      "n_trades": 350,
+      "n_contracts": 14822
+    },
+    {
+      "prefix": "KXROMANIAMOV",
+      "n_trades": 350,
+      "n_contracts": 72678
+    },
+    {
+      "prefix": "KXNCAABBIG12",
+      "n_trades": 349,
+      "n_contracts": 30761
+    },
+    {
+      "prefix": "KXREPSWORNIN",
+      "n_trades": 344,
+      "n_contracts": 16994
+    },
+    {
+      "prefix": "NEWALBUM",
+      "n_trades": 342,
+      "n_contracts": 20467
+    },
+    {
+      "prefix": "KXAUSTRALIA",
+      "n_trades": 341,
+      "n_contracts": 43201
+    },
+    {
+      "prefix": "KXNYCBOROUGHWINMAN",
+      "n_trades": 341,
+      "n_contracts": 20249
+    },
+    {
+      "prefix": "KXWEIGHTDRUGSQ",
+      "n_trades": 339,
+      "n_contracts": 11338
+    },
+    {
+      "prefix": "KXESPYTEAM",
+      "n_trades": 337,
+      "n_contracts": 13770
+    },
+    {
+      "prefix": "KXGGMCOMFILM",
+      "n_trades": 336,
+      "n_contracts": 21717
+    },
+    {
+      "prefix": "KXVSFANTASYBRA",
+      "n_trades": 335,
+      "n_contracts": 7768
+    },
+    {
+      "prefix": "KXPROP50COUNTIES",
+      "n_trades": 333,
+      "n_contracts": 22253
+    },
+    {
+      "prefix": "KXACAREPEAL",
+      "n_trades": 332,
+      "n_contracts": 12880
+    },
+    {
+      "prefix": "KXSENSYRIA",
+      "n_trades": 330,
+      "n_contracts": 21638
+    },
+    {
+      "prefix": "KXUSCOMPANYSTAKE",
+      "n_trades": 330,
+      "n_contracts": 6528
+    },
+    {
+      "prefix": "KXEUROVISION",
+      "n_trades": 328,
+      "n_contracts": 26592
+    },
+    {
+      "prefix": "KXARKCOACH",
+      "n_trades": 327,
+      "n_contracts": 58498
+    },
+    {
+      "prefix": "KXHALFTRIL",
+      "n_trades": 327,
+      "n_contracts": 42185
+    },
+    {
+      "prefix": "KXLALIGA",
+      "n_trades": 325,
+      "n_contracts": 24119
+    },
+    {
+      "prefix": "KXDRUGPRICEOZEMPIC",
+      "n_trades": 323,
+      "n_contracts": 13028
+    },
+    {
+      "prefix": "KXMSUNIVERSE",
+      "n_trades": 322,
+      "n_contracts": 24390
+    },
+    {
+      "prefix": "KXCABJAN20",
+      "n_trades": 319,
+      "n_contracts": 53308
+    },
+    {
+      "prefix": "KXCOVVC",
+      "n_trades": 319,
+      "n_contracts": 22167
+    },
+    {
+      "prefix": "KXDOOMSDAY",
+      "n_trades": 316,
+      "n_contracts": 15425
+    },
+    {
+      "prefix": "KXNEWOUTBREAK",
+      "n_trades": 315,
+      "n_contracts": 20651
+    },
+    {
+      "prefix": "KXRANKLISTIGN",
+      "n_trades": 315,
+      "n_contracts": 15067
+    },
+    {
+      "prefix": "KXDJTWOMENS",
+      "n_trades": 314,
+      "n_contracts": 13513
+    },
+    {
+      "prefix": "KXSTATEFLIPDJT",
+      "n_trades": 311,
+      "n_contracts": 34427
+    },
+    {
+      "prefix": "KXKNESSET",
+      "n_trades": 308,
+      "n_contracts": 11981
+    },
+    {
+      "prefix": "KXTIKTOKINJ",
+      "n_trades": 305,
+      "n_contracts": 19852
+    },
+    {
+      "prefix": "KXTOPPOP",
+      "n_trades": 305,
+      "n_contracts": 26677
+    },
+    {
+      "prefix": "KX1SONGCHAPPELLROAN",
+      "n_trades": 304,
+      "n_contracts": 11308
+    },
+    {
+      "prefix": "KXCCLIMIT",
+      "n_trades": 304,
+      "n_contracts": 10065
+    },
+    {
+      "prefix": "KXGRAMBPVA",
+      "n_trades": 304,
+      "n_contracts": 11533
+    },
+    {
+      "prefix": "KXAWARDSCMAEOTY",
+      "n_trades": 303,
+      "n_contracts": 8820
+    },
+    {
+      "prefix": "KXDJTMUSKAPOLOGY",
+      "n_trades": 301,
+      "n_contracts": 15056
+    },
+    {
+      "prefix": "KXVINE",
+      "n_trades": 300,
+      "n_contracts": 18236
+    },
+    {
+      "prefix": "KXCABCHANGE",
+      "n_trades": 298,
+      "n_contracts": 24833
+    },
+    {
+      "prefix": "KXCONNSMYTHE",
+      "n_trades": 297,
+      "n_contracts": 27640
+    },
+    {
+      "prefix": "KXTUSHPUSH",
+      "n_trades": 297,
+      "n_contracts": 10538
+    },
+    {
+      "prefix": "KXNCAABBIGEAST",
+      "n_trades": 295,
+      "n_contracts": 37559
+    },
+    {
+      "prefix": "KXNEWAAPLVR",
+      "n_trades": 295,
+      "n_contracts": 28737
+    },
+    {
+      "prefix": "KXSTOCKXLABUBUENERGY",
+      "n_trades": 294,
+      "n_contracts": 10605
+    },
+    {
+      "prefix": "KXXCEOCHANGE",
+      "n_trades": 294,
+      "n_contracts": 27168
+    },
+    {
+      "prefix": "KXLOLLA",
+      "n_trades": 293,
+      "n_contracts": 10906
+    },
+    {
+      "prefix": "KXLEASTSTREAMEDSONGTLOASG",
+      "n_trades": 292,
+      "n_contracts": 32886
+    },
+    {
+      "prefix": "KXROBOTMARS",
+      "n_trades": 292,
+      "n_contracts": 11829
+    },
+    {
+      "prefix": "KXBLUEWALL",
+      "n_trades": 288,
+      "n_contracts": 39140
+    },
+    {
+      "prefix": "KXCSGOMAP",
+      "n_trades": 288,
+      "n_contracts": 20809
+    },
+    {
+      "prefix": "KXTIKTOKEXTENSION",
+      "n_trades": 286,
+      "n_contracts": 11438
+    },
+    {
+      "prefix": "KXVACCINEWRFK",
+      "n_trades": 286,
+      "n_contracts": 12498
+    },
+    {
+      "prefix": "KXCRYPTODAY1",
+      "n_trades": 283,
+      "n_contracts": 27359
+    },
+    {
+      "prefix": "KXFDVLIGHTER",
+      "n_trades": 282,
+      "n_contracts": 8557
+    },
+    {
+      "prefix": "KXINDEXADD",
+      "n_trades": 282,
+      "n_contracts": 13788
+    },
+    {
+      "prefix": "KXMAMDANIREDSTRICT",
+      "n_trades": 281,
+      "n_contracts": 43264
+    },
+    {
+      "prefix": "KXCANBQSEATS",
+      "n_trades": 280,
+      "n_contracts": 18549
+    },
+    {
+      "prefix": "KXINTERSTELLAR",
+      "n_trades": 279,
+      "n_contracts": 15941
+    },
+    {
+      "prefix": "KXPFAPOY",
+      "n_trades": 279,
+      "n_contracts": 51003
+    },
+    {
+      "prefix": "KXSCHIFFCHARGE",
+      "n_trades": 275,
+      "n_contracts": 15792
+    },
+    {
+      "prefix": "KXSERIEA",
+      "n_trades": 273,
+      "n_contracts": 137861
+    },
+    {
+      "prefix": "KXDJTLATINO",
+      "n_trades": 272,
+      "n_contracts": 13262
+    },
+    {
+      "prefix": "KXLORDMILES",
+      "n_trades": 272,
+      "n_contracts": 16246
+    },
+    {
+      "prefix": "KXCRITICALITY",
+      "n_trades": 271,
+      "n_contracts": 11974
+    },
+    {
+      "prefix": "KXMCCODBLOPS7",
+      "n_trades": 271,
+      "n_contracts": 25071
+    },
+    {
+      "prefix": "KXASYLUMCASES",
+      "n_trades": 269,
+      "n_contracts": 16777
+    },
+    {
+      "prefix": "KXNEWSCOTUSCONF",
+      "n_trades": 269,
+      "n_contracts": 17792
+    },
+    {
+      "prefix": "KXBUDGETCUT",
+      "n_trades": 266,
+      "n_contracts": 12592
+    },
+    {
+      "prefix": "KXGPTCOST",
+      "n_trades": 264,
+      "n_contracts": 14953
+    },
+    {
+      "prefix": "KXABRAHAMQ",
+      "n_trades": 263,
+      "n_contracts": 11073
+    },
+    {
+      "prefix": "KXELONJREGUEST",
+      "n_trades": 263,
+      "n_contracts": 5264
+    },
+    {
+      "prefix": "KXTHELASTOFUSS2",
+      "n_trades": 263,
+      "n_contracts": 17773
+    },
+    {
+      "prefix": "KXCANNDPSEATS",
+      "n_trades": 262,
+      "n_contracts": 26644
+    },
+    {
+      "prefix": "KXDOJPARDONS",
+      "n_trades": 260,
+      "n_contracts": 15314
+    },
+    {
+      "prefix": "KXADP",
+      "n_trades": 259,
+      "n_contracts": 22856
+    },
+    {
+      "prefix": "KXTRANSMILITARY",
+      "n_trades": 258,
+      "n_contracts": 12592
+    },
+    {
+      "prefix": "KXXFLARE",
+      "n_trades": 258,
+      "n_contracts": 6012
+    },
+    {
+      "prefix": "KXDAVISCUP",
+      "n_trades": 253,
+      "n_contracts": 36972
+    },
+    {
+      "prefix": "KXPPFUNDING",
+      "n_trades": 253,
+      "n_contracts": 17196
+    },
+    {
+      "prefix": "KXSWEBENCH",
+      "n_trades": 253,
+      "n_contracts": 13792
+    },
+    {
+      "prefix": "KXAVAXMAXY",
+      "n_trades": 252,
+      "n_contracts": 24768
+    },
+    {
+      "prefix": "KXDEBTGROWTH25",
+      "n_trades": 252,
+      "n_contracts": 17232
+    },
+    {
+      "prefix": "KXFBUSTER",
+      "n_trades": 249,
+      "n_contracts": 22435
+    },
+    {
+      "prefix": "KXBEASTWATER",
+      "n_trades": 247,
+      "n_contracts": 14450
+    },
+    {
+      "prefix": "KXDJTUNFOLLOWMUSK",
+      "n_trades": 246,
+      "n_contracts": 11641
+    },
+    {
+      "prefix": "KXNEWCOACHLV",
+      "n_trades": 244,
+      "n_contracts": 13610
+    },
+    {
+      "prefix": "KXSYNTHETIXTRADINGCOMP",
+      "n_trades": 243,
+      "n_contracts": 17421
+    },
+    {
+      "prefix": "KX1SONGARIANAGRANDE",
+      "n_trades": 242,
+      "n_contracts": 7613
+    },
+    {
+      "prefix": "KX2028RRUN",
+      "n_trades": 242,
+      "n_contracts": 19394
+    },
+    {
+      "prefix": "KXCOMPANYACTIONYOUTUBE",
+      "n_trades": 242,
+      "n_contracts": 16898
+    },
+    {
+      "prefix": "KXRETIREMM",
+      "n_trades": 240,
+      "n_contracts": 10005
+    },
+    {
+      "prefix": "KXTOPMONTHLY",
+      "n_trades": 239,
+      "n_contracts": 10689
+    },
+    {
+      "prefix": "KXMOSTSTREAMEDDONTTAPTHEGLASS",
+      "n_trades": 237,
+      "n_contracts": 6527
+    },
+    {
+      "prefix": "KXHARVARDINTLBAN",
+      "n_trades": 236,
+      "n_contracts": 5003
+    },
+    {
+      "prefix": "KXPOLIO",
+      "n_trades": 236,
+      "n_contracts": 6656
+    },
+    {
+      "prefix": "KXABCDISNEYSUE",
+      "n_trades": 235,
+      "n_contracts": 4197
+    },
+    {
+      "prefix": "KXSKDEMOCRACY",
+      "n_trades": 235,
+      "n_contracts": 12011
+    },
+    {
+      "prefix": "KXBESTPLAY",
+      "n_trades": 234,
+      "n_contracts": 16241
+    },
+    {
+      "prefix": "KXESPYBESTATHLETEMEN",
+      "n_trades": 234,
+      "n_contracts": 12171
+    },
+    {
+      "prefix": "KXHURPATHGULFCOAST",
+      "n_trades": 233,
+      "n_contracts": 8421
+    },
+    {
+      "prefix": "KXNORWAYPM",
+      "n_trades": 231,
+      "n_contracts": 12367
+    },
+    {
+      "prefix": "KXEWCCHESS2025",
+      "n_trades": 229,
+      "n_contracts": 16090
+    },
+    {
+      "prefix": "KXMOONMAN",
+      "n_trades": 228,
+      "n_contracts": 15957
+    },
+    {
+      "prefix": "KXLAKENRILEY",
+      "n_trades": 227,
+      "n_contracts": 13502
+    },
+    {
+      "prefix": "KXCHENEYFUNERAL",
+      "n_trades": 226,
+      "n_contracts": 11199
+    },
+    {
+      "prefix": "KXCHOPSTICKS",
+      "n_trades": 226,
+      "n_contracts": 14841
+    },
+    {
+      "prefix": "KXQATARJET",
+      "n_trades": 225,
+      "n_contracts": 13802
+    },
+    {
+      "prefix": "KXFEATUREMETROBOOMIN",
+      "n_trades": 223,
+      "n_contracts": 5332
+    },
+    {
+      "prefix": "KXROARINGKITTYTWEETS",
+      "n_trades": 223,
+      "n_contracts": 4729
+    },
+    {
+      "prefix": "KXIEMCHEN",
+      "n_trades": 222,
+      "n_contracts": 16379
+    },
+    {
+      "prefix": "KXLEAVEMETA",
+      "n_trades": 222,
+      "n_contracts": 11558
+    },
+    {
+      "prefix": "COSTCOHOTDOG",
+      "n_trades": 221,
+      "n_contracts": 8934
+    },
+    {
+      "prefix": "KXBLASTRIVALS2",
+      "n_trades": 221,
+      "n_contracts": 16673
+    },
+    {
+      "prefix": "KXNYCBOROUGHWINQUEE",
+      "n_trades": 221,
+      "n_contracts": 8356
+    },
+    {
+      "prefix": "KXTOURDEFRANCE",
+      "n_trades": 221,
+      "n_contracts": 10775
+    },
+    {
+      "prefix": "KXDJTJBPARDON",
+      "n_trades": 219,
+      "n_contracts": 12147
+    },
+    {
+      "prefix": "KXACASUBSIDYBILL",
+      "n_trades": 217,
+      "n_contracts": 21595
+    },
+    {
+      "prefix": "KXBESTACTRMUS",
+      "n_trades": 215,
+      "n_contracts": 9679
+    },
+    {
+      "prefix": "KXAGENCIES",
+      "n_trades": 214,
+      "n_contracts": 12721
+    },
+    {
+      "prefix": "KXISRAELRESIGN",
+      "n_trades": 214,
+      "n_contracts": 11804
+    },
+    {
+      "prefix": "KXGGFILMSUPACTR",
+      "n_trades": 213,
+      "n_contracts": 28242
+    },
+    {
+      "prefix": "KXCRYPTOPAY",
+      "n_trades": 212,
+      "n_contracts": 7990
+    },
+    {
+      "prefix": "KXGGSCORE",
+      "n_trades": 211,
+      "n_contracts": 14907
+    },
+    {
+      "prefix": "KXLTCMAXY",
+      "n_trades": 211,
+      "n_contracts": 12463
+    },
+    {
+      "prefix": "KXEXITPOLLLATE",
+      "n_trades": 210,
+      "n_contracts": 12535
+    },
+    {
+      "prefix": "KXINSULINCAP",
+      "n_trades": 209,
+      "n_contracts": 7131
+    },
+    {
+      "prefix": "KXTIKTOKSTORE",
+      "n_trades": 209,
+      "n_contracts": 15932
+    },
+    {
+      "prefix": "KXCOACHOUTOLEMISS",
+      "n_trades": 208,
+      "n_contracts": 22519
+    },
+    {
+      "prefix": "KXROMANIATOP",
+      "n_trades": 207,
+      "n_contracts": 7298
+    },
+    {
+      "prefix": "KXSHAKEDURATIONDJTPUTIN",
+      "n_trades": 205,
+      "n_contracts": 6654
+    },
+    {
+      "prefix": "KXSALT",
+      "n_trades": 204,
+      "n_contracts": 18170
+    },
+    {
+      "prefix": "KXTIKTOKLEAVE",
+      "n_trades": 204,
+      "n_contracts": 15423
+    },
+    {
+      "prefix": "KXCRITICSFOREIGN",
+      "n_trades": 203,
+      "n_contracts": 25481
+    },
+    {
+      "prefix": "KXGRAMBPS",
+      "n_trades": 203,
+      "n_contracts": 8607
+    },
+    {
+      "prefix": "KXGRETAGAZA",
+      "n_trades": 203,
+      "n_contracts": 4855
+    },
+    {
+      "prefix": "KXH5N1",
+      "n_trades": 203,
+      "n_contracts": 10618
+    },
+    {
+      "prefix": "KXHALOPS",
+      "n_trades": 203,
+      "n_contracts": 10999
+    },
+    {
+      "prefix": "KXMOSTSTREAMEDWICKED",
+      "n_trades": 202,
+      "n_contracts": 9344
+    },
+    {
+      "prefix": "KXVCCHAMPIONSPARIS",
+      "n_trades": 202,
+      "n_contracts": 6985
+    },
+    {
+      "prefix": "KXNEURALINKCOUNT",
+      "n_trades": 198,
+      "n_contracts": 5547
+    },
+    {
+      "prefix": "KXAOCENDORSE",
+      "n_trades": 196,
+      "n_contracts": 8936
+    },
+    {
+      "prefix": "KXCHAVEZCOUNT",
+      "n_trades": 195,
+      "n_contracts": 12738
+    },
+    {
+      "prefix": "KXBOASTABLE",
+      "n_trades": 194,
+      "n_contracts": 8944
+    },
+    {
+      "prefix": "KXCAPMLEAVE",
+      "n_trades": 193,
+      "n_contracts": 11348
+    },
+    {
+      "prefix": "KXBIG12REG",
+      "n_trades": 189,
+      "n_contracts": 12768
+    },
+    {
+      "prefix": "KXDJTLGBT",
+      "n_trades": 189,
+      "n_contracts": 8365
+    },
+    {
+      "prefix": "KX14AMENDCASE",
+      "n_trades": 188,
+      "n_contracts": 14176
+    },
+    {
+      "prefix": "KXSANCTIONEURUSS",
+      "n_trades": 188,
+      "n_contracts": 7411
+    },
+    {
+      "prefix": "KXTOP202025",
+      "n_trades": 188,
+      "n_contracts": 8556
+    }
+  ]
+}

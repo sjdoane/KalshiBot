@@ -1,0 +1,271 @@
+{
+  "cell": "media_040_060",
+  "group": "Media",
+  "band": "[0.40,0.60)",
+  "window": [
+    "2024-11-01",
+    "2025-11-25"
+  ],
+  "window_timezone": "UTC",
+  "prefix_definition": "regexp_extract(event_ticker, '^([A-Z0-9]+)', 1)",
+  "population": "all markets regardless of status/result (outcome-blind)",
+  "rule": "max(top-k covering >= 80% of band trade count, top 30 by band trade count); structural fields only; ties broken alphabetically (stable sort)",
+  "k_coverage": 50,
+  "k_floor": 30,
+  "n_prefixes": 50,
+  "n_prefixes_total_in_cell": 153,
+  "total_band_trades": 92303,
+  "coverage_of_band_trades": 0.8017507556634129,
+  "prefixes": [
+    {
+      "prefix": "KXVANCEMENTION",
+      "n_trades": 5399,
+      "n_contracts": 171989
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONNVDA",
+      "n_trades": 5158,
+      "n_contracts": 160274
+    },
+    {
+      "prefix": "KXTSAW",
+      "n_trades": 4955,
+      "n_contracts": 384146
+    },
+    {
+      "prefix": "KXRANKLISTGOOGLESEARCHTOP5",
+      "n_trades": 4406,
+      "n_contracts": 264924
+    },
+    {
+      "prefix": "KXSNLMENTION",
+      "n_trades": 3644,
+      "n_contracts": 81814
+    },
+    {
+      "prefix": "KXAPRPOTUS",
+      "n_trades": 3072,
+      "n_contracts": 95789
+    },
+    {
+      "prefix": "KXSURVIVORMENTION",
+      "n_trades": 3025,
+      "n_contracts": 86168
+    },
+    {
+      "prefix": "KXBERNIEMENTION",
+      "n_trades": 2916,
+      "n_contracts": 121728
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONGOOGL",
+      "n_trades": 2653,
+      "n_contracts": 94685
+    },
+    {
+      "prefix": "KXRANKLISTGOOGLESEARCH",
+      "n_trades": 2254,
+      "n_contracts": 359301
+    },
+    {
+      "prefix": "KXUFSD",
+      "n_trades": 2207,
+      "n_contracts": 283824
+    },
+    {
+      "prefix": "KXKAMALAMENTION",
+      "n_trades": 2168,
+      "n_contracts": 60550
+    },
+    {
+      "prefix": "KXLEBRONMENTION",
+      "n_trades": 1635,
+      "n_contracts": 124738
+    },
+    {
+      "prefix": "KXAPRPOTUSEOY",
+      "n_trades": 1563,
+      "n_contracts": 69831
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONAAPL",
+      "n_trades": 1364,
+      "n_contracts": 58546
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONWMT",
+      "n_trades": 1364,
+      "n_contracts": 44504
+    },
+    {
+      "prefix": "KXBILATERALMENTION",
+      "n_trades": 1362,
+      "n_contracts": 39800
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONTGT",
+      "n_trades": 1344,
+      "n_contracts": 87911
+    },
+    {
+      "prefix": "KXNEWSOMMENTION",
+      "n_trades": 1086,
+      "n_contracts": 30859
+    },
+    {
+      "prefix": "KX60MINMENTION",
+      "n_trades": 1078,
+      "n_contracts": 35280
+    },
+    {
+      "prefix": "KXCANDEBMENTION",
+      "n_trades": 1058,
+      "n_contracts": 31347
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONMETA",
+      "n_trades": 992,
+      "n_contracts": 29852
+    },
+    {
+      "prefix": "KX538APPROVE",
+      "n_trades": 991,
+      "n_contracts": 31461
+    },
+    {
+      "prefix": "KXALTMANMENTION",
+      "n_trades": 977,
+      "n_contracts": 32422
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONHD",
+      "n_trades": 977,
+      "n_contracts": 46960
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONPLTR",
+      "n_trades": 949,
+      "n_contracts": 36176
+    },
+    {
+      "prefix": "KXLATENIGHTMENTION",
+      "n_trades": 944,
+      "n_contracts": 25014
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONAMZN",
+      "n_trades": 881,
+      "n_contracts": 33424
+    },
+    {
+      "prefix": "KXJPOWMENTION",
+      "n_trades": 870,
+      "n_contracts": 29642
+    },
+    {
+      "prefix": "KXDJTJUSTICEMENTION",
+      "n_trades": 850,
+      "n_contracts": 37212
+    },
+    {
+      "prefix": "KXVANCE",
+      "n_trades": 834,
+      "n_contracts": 79158
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONDELL",
+      "n_trades": 745,
+      "n_contracts": 32548
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONNKE",
+      "n_trades": 737,
+      "n_contracts": 22767
+    },
+    {
+      "prefix": "KXAOCMENTION",
+      "n_trades": 648,
+      "n_contracts": 20318
+    },
+    {
+      "prefix": "KXNETANYAHUMENTION",
+      "n_trades": 644,
+      "n_contracts": 23740
+    },
+    {
+      "prefix": "KXNYCMDEBMENTION",
+      "n_trades": 618,
+      "n_contracts": 27313
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONDIS",
+      "n_trades": 603,
+      "n_contracts": 22420
+    },
+    {
+      "prefix": "KXWWDCMENTION",
+      "n_trades": 599,
+      "n_contracts": 22766
+    },
+    {
+      "prefix": "KXCONGRESSMENTION",
+      "n_trades": 596,
+      "n_contracts": 22799
+    },
+    {
+      "prefix": "KXBUSHMENTION",
+      "n_trades": 594,
+      "n_contracts": 15760
+    },
+    {
+      "prefix": "KXMINAJMENTION",
+      "n_trades": 590,
+      "n_contracts": 20613
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONUBER",
+      "n_trades": 578,
+      "n_contracts": 24518
+    },
+    {
+      "prefix": "KXZAKARIAMENTION",
+      "n_trades": 571,
+      "n_contracts": 35726
+    },
+    {
+      "prefix": "KXMMMENTION",
+      "n_trades": 562,
+      "n_contracts": 21273
+    },
+    {
+      "prefix": "KXMAHERMENTION",
+      "n_trades": 552,
+      "n_contracts": 15947
+    },
+    {
+      "prefix": "KXROGANMENTION",
+      "n_trades": 509,
+      "n_contracts": 7788
+    },
+    {
+      "prefix": "KXACOOPERMENTION",
+      "n_trades": 492,
+      "n_contracts": 16855
+    },
+    {
+      "prefix": "KXMELANIAMENTION",
+      "n_trades": 490,
+      "n_contracts": 15086
+    },
+    {
+      "prefix": "KXEARNINGSMENTIONINTC",
+      "n_trades": 450,
+      "n_contracts": 12872
+    },
+    {
+      "prefix": "KXWALLERMENTION",
+      "n_trades": 450,
+      "n_contracts": 11139
+    }
+  ]
+}

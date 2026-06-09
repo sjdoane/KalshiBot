@@ -1,0 +1,461 @@
+{
+  "cell": "entertainment_040_060",
+  "group": "Entertainment",
+  "band": "[0.40,0.60)",
+  "window": [
+    "2024-11-01",
+    "2025-11-25"
+  ],
+  "window_timezone": "UTC",
+  "prefix_definition": "regexp_extract(event_ticker, '^([A-Z0-9]+)', 1)",
+  "population": "all markets regardless of status/result (outcome-blind)",
+  "rule": "max(top-k covering >= 80% of band trade count, top 30 by band trade count); structural fields only; ties broken alphabetically (stable sort)",
+  "k_coverage": 88,
+  "k_floor": 30,
+  "n_prefixes": 88,
+  "n_prefixes_total_in_cell": 422,
+  "total_band_trades": 249287,
+  "coverage_of_band_trades": 0.8018548901466984,
+  "prefixes": [
+    {
+      "prefix": "KXSPOTIFYD",
+      "n_trades": 12709,
+      "n_contracts": 1151170
+    },
+    {
+      "prefix": "KXSNFMENTION",
+      "n_trades": 12084,
+      "n_contracts": 420847
+    },
+    {
+      "prefix": "KXTNFMENTION",
+      "n_trades": 9116,
+      "n_contracts": 283746
+    },
+    {
+      "prefix": "KXSWIFTMENTION",
+      "n_trades": 8160,
+      "n_contracts": 273099
+    },
+    {
+      "prefix": "KXRTMICKEY17",
+      "n_trades": 6916,
+      "n_contracts": 396978
+    },
+    {
+      "prefix": "KXMRBEASTMENTION",
+      "n_trades": 6302,
+      "n_contracts": 283325
+    },
+    {
+      "prefix": "KXSOUTHPARKMENTION",
+      "n_trades": 6030,
+      "n_contracts": 211185
+    },
+    {
+      "prefix": "KXSUPERBOWLHEADLINE",
+      "n_trades": 5788,
+      "n_contracts": 1104115
+    },
+    {
+      "prefix": "KXAPPRANKFREE",
+      "n_trades": 5241,
+      "n_contracts": 234829
+    },
+    {
+      "prefix": "KXOSCARPIC",
+      "n_trades": 4972,
+      "n_contracts": 491689
+    },
+    {
+      "prefix": "KXTOPMODEL",
+      "n_trades": 4709,
+      "n_contracts": 345391
+    },
+    {
+      "prefix": "KXRTCAPTAINAMERICA",
+      "n_trades": 4675,
+      "n_contracts": 356989
+    },
+    {
+      "prefix": "KXKIMMELMENTION",
+      "n_trades": 4577,
+      "n_contracts": 200018
+    },
+    {
+      "prefix": "KXOSCARNOMPIC",
+      "n_trades": 3793,
+      "n_contracts": 558815
+    },
+    {
+      "prefix": "KXGRAMSOTY",
+      "n_trades": 3699,
+      "n_contracts": 274599
+    },
+    {
+      "prefix": "KXNETFLIXRANKSHOW",
+      "n_trades": 3332,
+      "n_contracts": 170507
+    },
+    {
+      "prefix": "KXRTNOVOCAINE",
+      "n_trades": 3180,
+      "n_contracts": 219439
+    },
+    {
+      "prefix": "KXNETFLIXRANKMOVIE",
+      "n_trades": 2926,
+      "n_contracts": 194101
+    },
+    {
+      "prefix": "KXEARTHQUAKEM7",
+      "n_trades": 2668,
+      "n_contracts": 77132
+    },
+    {
+      "prefix": "KXAPPRANKFREE2",
+      "n_trades": 2607,
+      "n_contracts": 97197
+    },
+    {
+      "prefix": "KXOSCARINTLFILM",
+      "n_trades": 2560,
+      "n_contracts": 75247
+    },
+    {
+      "prefix": "KXGRAMAOTY",
+      "n_trades": 2534,
+      "n_contracts": 221624
+    },
+    {
+      "prefix": "KXRTWICKED",
+      "n_trades": 2367,
+      "n_contracts": 247848
+    },
+    {
+      "prefix": "KXOSCARACTR",
+      "n_trades": 2283,
+      "n_contracts": 177634
+    },
+    {
+      "prefix": "KXOSCARNOMACTO",
+      "n_trades": 2171,
+      "n_contracts": 240863
+    },
+    {
+      "prefix": "KXTOPALBUM",
+      "n_trades": 2073,
+      "n_contracts": 78723
+    },
+    {
+      "prefix": "KXOSCARACTO",
+      "n_trades": 2053,
+      "n_contracts": 175108
+    },
+    {
+      "prefix": "KXRTSMURFS",
+      "n_trades": 2046,
+      "n_contracts": 156603
+    },
+    {
+      "prefix": "KXRTSUPERMAN",
+      "n_trades": 1999,
+      "n_contracts": 125486
+    },
+    {
+      "prefix": "KXEMMYDSERIES",
+      "n_trades": 1985,
+      "n_contracts": 586586
+    },
+    {
+      "prefix": "KXRTFANTASTICFOUR",
+      "n_trades": 1934,
+      "n_contracts": 137093
+    },
+    {
+      "prefix": "KXRTHAPPYGILMORE2",
+      "n_trades": 1914,
+      "n_contracts": 93139
+    },
+    {
+      "prefix": "KXSPOTIFY2D",
+      "n_trades": 1784,
+      "n_contracts": 129330
+    },
+    {
+      "prefix": "KXRTMUFASA",
+      "n_trades": 1737,
+      "n_contracts": 274250
+    },
+    {
+      "prefix": "KXRTTHEAMATEUR",
+      "n_trades": 1673,
+      "n_contracts": 132388
+    },
+    {
+      "prefix": "KXOSCARDIR",
+      "n_trades": 1604,
+      "n_contracts": 79068
+    },
+    {
+      "prefix": "KXRTJURASSICWORLDREBIRTH",
+      "n_trades": 1603,
+      "n_contracts": 127467
+    },
+    {
+      "prefix": "KXOSCARDOCU",
+      "n_trades": 1515,
+      "n_contracts": 47687
+    },
+    {
+      "prefix": "KXRTSINNERS",
+      "n_trades": 1435,
+      "n_contracts": 93357
+    },
+    {
+      "prefix": "KXOSCARDS",
+      "n_trades": 1416,
+      "n_contracts": 34521
+    },
+    {
+      "prefix": "KXRTTHEMONKEY",
+      "n_trades": 1415,
+      "n_contracts": 157868
+    },
+    {
+      "prefix": "KXRTWICKEDFORGOOD",
+      "n_trades": 1340,
+      "n_contracts": 85929
+    },
+    {
+      "prefix": "KXRTMOANA2",
+      "n_trades": 1316,
+      "n_contracts": 206343
+    },
+    {
+      "prefix": "KXRTTRONARES",
+      "n_trades": 1312,
+      "n_contracts": 47046
+    },
+    {
+      "prefix": "KXRTACCOUNTANT2",
+      "n_trades": 1275,
+      "n_contracts": 100967
+    },
+    {
+      "prefix": "KXRTDOGMAN",
+      "n_trades": 1271,
+      "n_contracts": 140806
+    },
+    {
+      "prefix": "KXRTFLIGHTRISK",
+      "n_trades": 1240,
+      "n_contracts": 131893
+    },
+    {
+      "prefix": "KXRTTHEDAMNED",
+      "n_trades": 1238,
+      "n_contracts": 182526
+    },
+    {
+      "prefix": "KXRTFREAKIERFRIDAY",
+      "n_trades": 1222,
+      "n_contracts": 70371
+    },
+    {
+      "prefix": "KXRTNAKEDGUN",
+      "n_trades": 1188,
+      "n_contracts": 83020
+    },
+    {
+      "prefix": "KXOSCARNOMACTR",
+      "n_trades": 1179,
+      "n_contracts": 147412
+    },
+    {
+      "prefix": "KXRTDENOFTHIEVES",
+      "n_trades": 1178,
+      "n_contracts": 168568
+    },
+    {
+      "prefix": "KXRTWEAPONS",
+      "n_trades": 1151,
+      "n_contracts": 73751
+    },
+    {
+      "prefix": "KXRTLILOANDSTITCH",
+      "n_trades": 1135,
+      "n_contracts": 96541
+    },
+    {
+      "prefix": "KXBIRTHRIGHT",
+      "n_trades": 1125,
+      "n_contracts": 105432
+    },
+    {
+      "prefix": "KXRTTHUNDERBOLTS",
+      "n_trades": 1085,
+      "n_contracts": 62699
+    },
+    {
+      "prefix": "KXRTDAREDEVILBA",
+      "n_trades": 1076,
+      "n_contracts": 23378
+    },
+    {
+      "prefix": "KXRTTHEWOMANINTHEYARD",
+      "n_trades": 1067,
+      "n_contracts": 104043
+    },
+    {
+      "prefix": "KXCOLBERTMENTION",
+      "n_trades": 1054,
+      "n_contracts": 27325
+    },
+    {
+      "prefix": "KXTOPSONG",
+      "n_trades": 1051,
+      "n_contracts": 56632
+    },
+    {
+      "prefix": "KXRTLASTBREATH",
+      "n_trades": 1043,
+      "n_contracts": 105838
+    },
+    {
+      "prefix": "KXOSCARNOMSUPACTR",
+      "n_trades": 1009,
+      "n_contracts": 175450
+    },
+    {
+      "prefix": "KXGRAMMYNOMSOTY",
+      "n_trades": 990,
+      "n_contracts": 42542
+    },
+    {
+      "prefix": "KXRTJWBALLERINA",
+      "n_trades": 942,
+      "n_contracts": 135614
+    },
+    {
+      "prefix": "KXRTREDONE",
+      "n_trades": 933,
+      "n_contracts": 102772
+    },
+    {
+      "prefix": "KXRTWAROFTHEROHIRRIM",
+      "n_trades": 930,
+      "n_contracts": 150068
+    },
+    {
+      "prefix": "KXRTSONIC3",
+      "n_trades": 904,
+      "n_contracts": 132464
+    },
+    {
+      "prefix": "KXRTWOLFMAN",
+      "n_trades": 891,
+      "n_contracts": 159042
+    },
+    {
+      "prefix": "KXOSCAREDIT",
+      "n_trades": 883,
+      "n_contracts": 25832
+    },
+    {
+      "prefix": "KXRTNOBODY2",
+      "n_trades": 876,
+      "n_contracts": 54987
+    },
+    {
+      "prefix": "KXRTBLACKPHONE2",
+      "n_trades": 857,
+      "n_contracts": 50236
+    },
+    {
+      "prefix": "OSCARNOMPIC",
+      "n_trades": 843,
+      "n_contracts": 86343
+    },
+    {
+      "prefix": "KXRTHIM",
+      "n_trades": 841,
+      "n_contracts": 38161
+    },
+    {
+      "prefix": "KXGAMEAWARDS",
+      "n_trades": 840,
+      "n_contracts": 60457
+    },
+    {
+      "prefix": "KXTOPALBUMBYCARDIB",
+      "n_trades": 827,
+      "n_contracts": 33133
+    },
+    {
+      "prefix": "KXOSCARAS",
+      "n_trades": 823,
+      "n_contracts": 32039
+    },
+    {
+      "prefix": "KXRTTHESMASHINGMACHINE",
+      "n_trades": 811,
+      "n_contracts": 43256
+    },
+    {
+      "prefix": "KXSPOTIFYGLOBALD",
+      "n_trades": 811,
+      "n_contracts": 52158
+    },
+    {
+      "prefix": "KXRTKARATEKIDLEGENDS",
+      "n_trades": 810,
+      "n_contracts": 141485
+    },
+    {
+      "prefix": "KXRTFDBLOODLINES",
+      "n_trades": 790,
+      "n_contracts": 65455
+    },
+    {
+      "prefix": "KXRTCONJURING",
+      "n_trades": 783,
+      "n_contracts": 51825
+    },
+    {
+      "prefix": "KXEARTHQUAKE",
+      "n_trades": 778,
+      "n_contracts": 68220
+    },
+    {
+      "prefix": "KXTIME",
+      "n_trades": 778,
+      "n_contracts": 88403
+    },
+    {
+      "prefix": "KXRTPREDATORBADLANDS",
+      "n_trades": 776,
+      "n_contracts": 42831
+    },
+    {
+      "prefix": "KXTOPALBUMKANYE",
+      "n_trades": 770,
+      "n_contracts": 43845
+    },
+    {
+      "prefix": "KXRTNOSFERATU",
+      "n_trades": 766,
+      "n_contracts": 161783
+    },
+    {
+      "prefix": "KXSPOTIFYSONGSOPALITE",
+      "n_trades": 763,
+      "n_contracts": 69333
+    },
+    {
+      "prefix": "KXOSCARNOMDIR",
+      "n_trades": 736,
+      "n_contracts": 94218
+    }
+  ]
+}
