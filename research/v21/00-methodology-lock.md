@@ -379,13 +379,32 @@ ONE WEEK, throwaway script, NO new module, NO collector plugin. Reuse
 minimal ordering logic against the live read-only API.
 
 **Ladder identification (locked, methodology critic C-3.1, structured fields
-ONLY):** within an event, candidate ladder legs must have `strike_type` in the
-whitelist {`greater`, `greater_or_equal`}, ordered by `floor_strike`.
-Hard-excluded: `between` (range brackets), `less`/`less_or_equal` (reversed
-monotonicity; excluded from C0 entirely rather than handled), custom or
-functional strike types, anything missing `floor_strike`, and any subtitle
-containing two numbers when structured fields are absent. Subtitle text is
-NEVER the classifier; at most a logged cross-check.
+ONLY; v3.1 day-1 amendment):** candidate ladder legs must have `strike_type`
+in the whitelist {`greater`, `greater_or_equal`}, no `cap_strike`, ordered by
+`floor_strike`, and grouped by (event_ticker, ticker family, strike-token
+alpha prefix). The alpha-prefix sub-key is the v3.1 amendment: the day-1
+probe found spread families (e.g. KXWNBASPREAD-...-CHI6 vs -IND9) where the
+UNDERLIER (which team's margin) is encoded in the strike token; treating
+them as one ladder manufactured 14 false "locks" out of 15. 'CHI6' and
+'IND9' split into separate ladders; 'T6.75' and 'T7.00' share 'T' and stay
+together. This is ticker structure, never subtitle text, and tightens
+(never loosens) the detector. Hard-excluded: `between` (range brackets),
+`less`/`less_or_equal` (reversed monotonicity; excluded from C0 entirely
+rather than handled), custom or functional strike types, anything missing
+`floor_strike`. Subtitle text is NEVER the classifier; at most a logged
+cross-check.
+
+**Net margin in integer cents (v3.1 day-1 amendment):** the lock condition
+"net > 0" is evaluated as net_cents = round(net x 100) >= 1. The probe
+"confirmed" a basket on a 2e-18 float residue of an exactly-$0.00 margin;
+real money is cent-quantized and a sub-cent "lock" is not a lock.
+
+**G-C0 counting procedure (v3.1):** counts only run_kind=scheduled records
+carrying the v3.1 schema marker (`n_families_split_multi_underlier`
+present), and each confirmed lock's TWO market titles must pass a manual
+nested-threshold check (same underlying quantity) before it counts. The
+residual identification risk (two underliers sharing an alpha prefix within
+one family) is conservative-auditable, not silently countable.
 
 **Confirm read (locked, methodology critic C-3.2, anti-F4):** a raw violation
 seen in a paginated `/markets` sweep is only a CANDIDATE (leg quotes are
@@ -575,3 +594,15 @@ forward validations. C0 deliberately does NOT use this harness (zero-build).
   handling, L-4 C0 NULL honesty note, L-5 exact CI call locked
   (n_resamples=5000, ci=0.95, rng_seed=42). LOCK COMPLETE; data pull
   authorized.
+- 2026-06-09 v3.1 (day-1 C0 instrument amendments, BEFORE any scheduled
+  gate scan; gate thresholds unchanged; both fixes tighten the detector).
+  The pre-registered day-1 probe (run_kind=probe, excluded from G-C0)
+  caught two false-positive defects: (1) spread families encode the
+  underlier in the strike token, so 14/15 probe "locks" were cross-team
+  non-nested baskets; fixed by the strike-token alpha-prefix sub-key.
+  (2) a 2e-18 float residue passed "net > 0" on an exactly-zero margin;
+  fixed by integer-cent evaluation (net_cents >= 1). G-C0 counting now
+  requires the v3.1 schema marker + a manual title check per confirmed
+  lock. Re-reviewed (SHIP); re-probe run to validate. Candidate A section
+  outcome: NULL at Phase 1 (see 04-candidate-a-null.md); A gates are
+  retired, not amended.
