@@ -606,3 +606,21 @@ forward validations. C0 deliberately does NOT use this harness (zero-build).
   lock. Re-reviewed (SHIP); re-probe run to validate. Candidate A section
   outcome: NULL at Phase 1 (see 04-candidate-a-null.md); A gates are
   retired, not amended.
+- 2026-06-11 v3.2 (coverage amendments after operator wifi outage; gate
+  threshold and per-scan procedure UNCHANGED). Of the first 5 scheduled
+  slots, 3 were lost to a network outage (the script failed fast with no
+  record). Amendments, decided before the gate evaluation: (1) in-slot
+  retry: a scan retries transient network failures every 2 minutes for up
+  to 30 minutes within its slot, keeping the fixed cadence (no off-slot
+  catch-up runs, unchanged from review L-5); a slot that never recovers
+  logs an explicit status=failed record for coverage transparency.
+  (2) failed slots do not consume the 21-scan budget; the collection
+  window EXTENDS until 21 successful scheduled scans accumulate, hard cap
+  2026-06-23 (day 14), at which point the verdict is final on however
+  many scans ran. Rationale: the budget is 21 data collections, not 21
+  calendar slots; extension restores pre-registered power without
+  loosening any threshold. Interim observation note: the single completed
+  scheduled scan (2026-06-10 20:00 PT) logged 1 confirmed lock
+  (KXCPICOREYOY-26SEP T2.7/T2.8, net 2c, depths 6/2, manual title check
+  PASSES: same quantity, nested); recorded here for transparency, counted
+  only by the final evaluator run.

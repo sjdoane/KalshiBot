@@ -144,12 +144,9 @@ def days_to_close(m: dict, now: datetime) -> float | None:
     return max((dt - now).total_seconds() / 86400.0, 0.0)
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--scheduled", action="store_true",
-                    help="tag this run as one of the 21 pre-registered G-C0 scans")
-    args = ap.parse_args()
-    run_kind = "scheduled" if args.scheduled else "probe"
+def run_scan(run_kind: str) -> dict:
+    """One full scan attempt. Raises on network failure; the caller retries
+    within the slot window (lock v3.2: wifi-loss resilience)."""
     now = datetime.now(timezone.utc)
 
     settings = Settings()
@@ -291,18 +288,6 @@ def main() -> None:
     if markets and field_counts.get("yes_ask_dollars", 0) == 0:
         print("[c0] WARNING: yes_ask_dollars absent from ALL open markets; "
               "every pair was skipped. The payload schema changed; the scan is blind.")
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(record) + "\n"
-    for attempt in range(3):  # review L-3: OneDrive can hold transient locks
-        try:
-            with open(LOG_PATH, "a", encoding="utf-8") as f:
-                f.write(line)
-            break
-        except PermissionError:
-            if attempt == 2:
-                raise
-            time.sleep(1.0)
-
     print(f"[c0 {run_kind}] {len(markets):,} open markets | {n_ladders} ladders "
           f"({n_events_split_multi_prefix} multi-family events, "
           f"{n_families_split_multi_underlier} multi-underlier families) | "
@@ -311,6 +296,64 @@ def main() -> None:
     for c in confirmed:
         print(f"  CONFIRMED {c['event']}: {c['ticker_lo']} / {c['ticker_hi']} "
               f"net=${c['confirm']['net']:.4f}")
+    return record
+
+
+def append_record(record: dict) -> None:
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(record) + "\n"
+    for attempt in range(3):  # review L-3: OneDrive can hold transient locks
+        try:
+            with open(LOG_PATH, "a", encoding="utf-8") as f:
+                f.write(line)
+            return
+        except PermissionError:
+            if attempt == 2:
+                raise
+            time.sleep(1.0)
+
+
+# Lock v3.2 wifi resilience: keep retrying transient network failures for up
+# to 30 minutes within the slot (worst case 30 min retry + ~25 min scan fits
+# the task's 60-minute execution limit), then log an explicit FAILURE record
+# so coverage accounting sees the missed slot. Failure records never count
+# toward the 21-scan budget (the evaluator skips status=failed).
+RETRY_WINDOW_SECONDS = 1800
+RETRY_SLEEP_SECONDS = 120
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--scheduled", action="store_true",
+                    help="tag this run as one of the 21 pre-registered G-C0 scans")
+    args = ap.parse_args()
+    run_kind = "scheduled" if args.scheduled else "probe"
+
+    deadline = time.monotonic() + RETRY_WINDOW_SECONDS
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            record = run_scan(run_kind)
+            break
+        except Exception as exc:
+            if time.monotonic() >= deadline:
+                now = datetime.now(timezone.utc)
+                record = {
+                    "ts_utc": now.isoformat(),
+                    "scan_date_pt": now.astimezone(ZoneInfo("America/Los_Angeles")).date().isoformat(),
+                    "run_kind": run_kind,
+                    "status": "failed",
+                    "attempts": attempt,
+                    "error": repr(exc),
+                }
+                print(f"[c0 {run_kind}] FAILED after {attempt} attempts: {exc!r}")
+                break
+            print(f"[c0 {run_kind}] attempt {attempt} failed ({exc!r}); "
+                  f"retrying in {RETRY_SLEEP_SECONDS}s")
+            time.sleep(RETRY_SLEEP_SECONDS)
+
+    append_record(record)
     print(f"[c0] appended to {LOG_PATH}")
 
 

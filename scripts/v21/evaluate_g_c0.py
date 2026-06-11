@@ -6,8 +6,14 @@ post-hoc flexibility. Implements lock v3.1 section 3.3 counting exactly:
 - counts ONLY records with run_kind == "scheduled" AND the v3.1 schema
   marker (n_families_split_multi_underlier present); probe runs and any
   pre-v3.1 record are excluded
+- skips status == "failed" records (lock v3.2: a network-failed slot
+  collected nothing and does not consume the budget; it is logged for
+  coverage transparency only)
 - caps at the FIRST 21 such records by ts_utc (the pre-registered scan
-  budget; later scans, if the task is left running, do not count)
+  budget; later scans, if the task is left running, do not count). Per
+  lock v3.2 the collection window extends until 21 successful scans
+  accumulate, HARD CAP 2026-06-23 (day 14); at the cap the verdict is
+  final on however many scans ran
 - a lock instance = a candidate with confirmed == true
 - distinctness = one count per (event, ticker_lo, ticker_hi) per
   scan_date_pt (Pacific calendar date)
@@ -48,6 +54,8 @@ def load_gate_records() -> list[dict]:
             rec = json.loads(line)
             if rec.get("run_kind") != "scheduled":
                 continue
+            if rec.get("status") == "failed":
+                continue  # v3.2: network-failed slot; logged, not a scan
             if "n_families_split_multi_underlier" not in rec:
                 continue  # pre-v3.1 schema; the identification rule differed
             records.append(rec)
@@ -116,8 +124,8 @@ def main() -> None:
     provisional = " (PROVISIONAL: scan budget incomplete)" if len(records) < SCAN_BUDGET else ""
     if len(records) < SCAN_BUDGET:
         print(f"\n[g-c0] NOTE: only {len(records)}/{SCAN_BUDGET} scans have run; "
-              f"the verdict is final only when the budget completes (or day 7 passes "
-              f"with the remainder missed).")
+              f"the verdict is final when the budget completes or at the v3.2 hard "
+              f"cap 2026-06-23, whichever comes first.")
     if len(distinct) >= GATE_MIN_DISTINCT:
         print(f"\n[g-c0] VERDICT{provisional}: PASS-PENDING-MANUAL "
               f"({len(distinct)} >= {GATE_MIN_DISTINCT}). Each lock above must survive "
