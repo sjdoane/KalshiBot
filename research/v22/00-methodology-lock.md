@@ -282,3 +282,22 @@ probe bot before any live order; council + verifier at the go/no-go.
   timestamps defined. M-6/M-7/M-8, L-1 through L-4 as written. LOCK
   COMPLETE; next artifacts = pre-count, fee table, category map (committed
   before the screen script exists).
+- 2026-06-11 v2.1 (pre-run decisions from the screen-script code review;
+  output NOT yet read). (1) The 2025-only split variable = MARKET open_time
+  (the premium is a property of the listing; keeps cold and aged vintages
+  matched within cells; matches P3's split); run under both fee modes; the
+  probe required-N uses the SMALLER positive effect. (2) P3 fee = flat era
+  ceil fee on every leg, pre-registered as a documented CONSERVATIVE bound
+  (review M-3; over-charges zero-fee eras, understates the edge, makes the
+  kill more likely). (3) P2a trailing window: peers-exclusive two-window
+  form (strictly-before-t per M-2); 60-minute lower bound inclusive; tie
+  rule <= median; group/half minimum sizes 2000/500 reported with skipped
+  groups. (4) Review must-fixes applied: dict-keyed comparator lookups
+  (pandas tuple-key hazard), day-granularity fee-status cache, P3
+  after-close drop + deterministic ORDER BY + both lock-mandated CIs,
+  K-P3 boundary corrected to > 2pp, fee-table validation at load,
+  after-close dropped-share reporting, excluded-cold event/category
+  breakdown. Synthetic acceptance harness (scripts/v22/test_p1_synthetic.py)
+  PASSES: point, identity-resample CI, inclusion/exclusion counts exact.
+  Composition tables + KXMVE descriptive table remain mandatory for the
+  VERDICT DOC stage.
