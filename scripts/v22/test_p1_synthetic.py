@@ -28,7 +28,7 @@ def mk_row(ev, e, cold, tte_band=0, group="g1"):
         "event_ticker": ev, "group": group, "graveyard": False,
         "tte_band": tte_band, "price_band": 0,
         "is_cold": cold, "age_h": 1.0 if cold else 100.0,
-        "tte_d": 50.0, "gross": e, "fee_era": 0.01, "fee_status": "zero",
+        "tte_d": 50.0, "gross": e, "fee_low_d": 0.0, "fee_high_d": 0.0,
     }
 
 

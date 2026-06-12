@@ -59,14 +59,23 @@ def load_map() -> dict:
         return json.load(f)["map"]
 
 
+FORMULAS = {"zero", "flat_0025", "ceil_175", "half_175"}
+
+
 def load_fee_rows() -> list[dict]:
-    """Load + validate (review M-6: a typo'd status must fail loudly, not
-    silently degrade to the ambiguous dual-run)."""
+    """Load + validate (review M-6: a typo'd formula must fail loudly).
+
+    Row format per the archived-fee research (fee_table_research.md): each
+    row carries fee_low/fee_high (the dual-run envelope; equal when the
+    archive is unambiguous). Prefix entries ending in * are startswith
+    globs (NFL division futures whose exact tickers the archive lists as a
+    family)."""
     with open(FEE_PATH, encoding="utf-8") as f:
         rows = json.load(f)["rows"]
     for r in rows:
-        if r["maker_fee"] not in {"ceil_175", "zero", "ambiguous"}:
-            raise ValueError(f"fee_table: bad maker_fee {r['maker_fee']!r}")
+        for k in ("fee_low", "fee_high"):
+            if r[k] not in FORMULAS:
+                raise ValueError(f"fee_table: bad {k} {r[k]!r}")
         if r["prefixes"] != "ALL_OTHER" and not (
             isinstance(r["prefixes"], list) and all(isinstance(p, str) for p in r["prefixes"])
         ):
@@ -76,8 +85,9 @@ def load_fee_rows() -> list[dict]:
     return rows
 
 
-def fee_status_for(prefix: str, ts: pd.Timestamp, fee_rows: list[dict]) -> str:
-    """'ceil_175' | 'zero' | 'ambiguous' for one (prefix, trade time)."""
+def fee_formulas_for(prefix: str, ts: pd.Timestamp, fee_rows: list[dict]) -> tuple[str, str]:
+    """(fee_low, fee_high) formulas for one (prefix, trade day). Specific
+    prefix rows (exact or glob) beat ALL_OTHER; default = widest envelope."""
     fallback = None
     for row in fee_rows:
         start = pd.Timestamp(row["start"], tz="UTC")
@@ -85,15 +95,28 @@ def fee_status_for(prefix: str, ts: pd.Timestamp, fee_rows: list[dict]) -> str:
         if not (start <= ts < end):
             continue
         if row["prefixes"] == "ALL_OTHER":
-            fallback = row["maker_fee"]
-        elif prefix in row["prefixes"]:
-            return row["maker_fee"]
-    return fallback if fallback is not None else "ambiguous"
+            fallback = (row["fee_low"], row["fee_high"])
+        else:
+            for p in row["prefixes"]:
+                if (p.endswith("*") and prefix.startswith(p[:-1])) or prefix == p:
+                    return (row["fee_low"], row["fee_high"])
+    return fallback if fallback is not None else ("zero", "ceil_175")
 
 
 def ceil_fee(p: np.ndarray) -> np.ndarray:
-    """Era maker fee, dollars: ceil(1.75 * P * (1-P)) cents per contract."""
+    """ceil(1.75 * P * (1-P)) cents per contract, in dollars."""
     return np.ceil(1.75 * p * (1.0 - p)) / 100.0
+
+
+def formula_fee(formula: np.ndarray, p: np.ndarray) -> np.ndarray:
+    """Per-contract maker fee in dollars for each (formula, price)."""
+    out = np.zeros(len(p))
+    out[formula == "flat_0025"] = 0.0025
+    m = formula == "ceil_175"
+    out[m] = np.ceil(1.75 * p[m] * (1.0 - p[m])) / 100.0
+    m = formula == "half_175"
+    out[m] = np.ceil(0.875 * p[m] * (1.0 - p[m])) / 100.0
+    return out
 
 
 def band_index(values: np.ndarray, bands: list[tuple]) -> np.ndarray:
@@ -153,35 +176,34 @@ def attach_cells(df: pd.DataFrame, cat_map: dict, fee_rows: list[dict]) -> pd.Da
     df["price_band"] = band_index(df["yes_price"].to_numpy(), PRICE_BANDS)
     df["is_cold"] = df["age_h"] < 6.0
     df["gross"] = df["maker_won"] - df["maker_price"]
-    df["fee_era"] = ceil_fee(df["maker_price"].to_numpy())
-    # Fee status at DAY granularity (review C-1/H-3: fee-document dates can
-    # fall mid-month; day-level cache is exact at document-date resolution).
+    # Fee formulas at DAY granularity (review C-1/H-3: fee-document dates
+    # can fall mid-month; day-level cache is exact at document resolution).
     days = df["created_time"].dt.floor("D")
     cache: dict = {}
-    statuses = []
+    lows, highs = [], []
     for prefix, day in zip(df["prefix"], days):
         k = (prefix, day)
         if k not in cache:
-            cache[k] = fee_status_for(prefix, day, fee_rows)
-        statuses.append(cache[k])
-    df["fee_status"] = statuses
+            cache[k] = fee_formulas_for(prefix, day, fee_rows)
+        lo_f, hi_f = cache[k]
+        lows.append(lo_f)
+        highs.append(hi_f)
+    p = df["maker_price"].to_numpy()
+    df["fee_low_d"] = formula_fee(np.array(lows, dtype=object), p)
+    df["fee_high_d"] = formula_fee(np.array(highs, dtype=object), p)
     return df
 
 
 def p1_estimate(df: pd.DataFrame, fee_mode: str) -> dict:
     """Point estimate + joint two-sample event-cluster bootstrap for one fee
-    mode. fee_mode in {'table_low','table_high'}: ambiguous trades get fee=0
-    in 'table_low' and ceil fee in 'table_high'; 'zero' rows always 0;
-    'ceil_175' rows always ceil. K-P1 must pass under BOTH modes.
+    mode. fee_mode in {'table_low','table_high'} selects the dual-run fee
+    envelope column (equal where the archive is unambiguous). K-P1 must
+    pass under BOTH modes.
     """
     d = df[~df["graveyard"] & (df["group"] != "unknown")
            & (df["tte_band"] >= 0) & (df["price_band"] >= 0)].copy()
-    amb_fee = 0.0 if fee_mode == "table_low" else 1.0
-    fee = np.where(
-        d["fee_status"] == "ceil_175", d["fee_era"],
-        np.where(d["fee_status"] == "zero", 0.0, d["fee_era"] * amb_fee),
-    )
-    d["e"] = d["gross"] - fee
+    fee_col = "fee_low_d" if fee_mode == "table_low" else "fee_high_d"
+    d["e"] = d["gross"] - d[fee_col]
     d["cell"] = list(zip(d["group"], d["tte_band"], d["price_band"]))
 
     cold = d[d["is_cold"]]
@@ -304,9 +326,7 @@ def p1_diagnostics(df: pd.DataFrame) -> dict:
     composition tables (compact)."""
     d = df[~df["graveyard"] & (df["group"] != "unknown")
            & (df["tte_band"] >= 0) & (df["price_band"] >= 0)].copy()
-    fee = np.where(d["fee_status"] == "ceil_175", d["fee_era"],
-                   np.where(d["fee_status"] == "zero", 0.0, 0.0))
-    d["e"] = d["gross"] - fee
+    d["e"] = d["gross"] - d["fee_low_d"]
     out: dict = {}
     # Per-group cold counts (composition).
     out["cold_counts_by_group"] = (
