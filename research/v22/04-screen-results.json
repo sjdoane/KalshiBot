@@ -1,0 +1,342 @@
+{
+  "lock": "research/v22/00-methodology-lock.md v2",
+  "after_close_dropped_share": 4.399280189623412e-05,
+  "p1_table_low": {
+    "fee_mode": "table_low",
+    "point_pp": 4.326305098700043,
+    "ci_pp": [
+      -0.19190487330444295,
+      8.380132901233432
+    ],
+    "n_cold_included": 28781,
+    "n_cold_excluded_unmatched": 584,
+    "n_events_excluded_unmatched": 26,
+    "excluded_by_group": {
+      "Crypto": 226,
+      "Science/Tech": 49,
+      "Weather": 8,
+      "World Events": 301
+    },
+    "n_events_included": 497,
+    "n_resamples_valid": 5000,
+    "bootstrap_seconds": 21.2,
+    "cluster_var_pp2": 972.8429188220867,
+    "mde_pp": 2.7422007041984533,
+    "mde_definition": "1.96*SE (just-significant at ~50pct power)"
+  },
+  "p1_table_high": {
+    "fee_mode": "table_high",
+    "point_pp": 4.3363975117908184,
+    "ci_pp": [
+      -0.18021383877157823,
+      8.385995882722415
+    ],
+    "n_cold_included": 28781,
+    "n_cold_excluded_unmatched": 584,
+    "n_events_excluded_unmatched": 26,
+    "excluded_by_group": {
+      "Crypto": 226,
+      "Science/Tech": 49,
+      "Weather": 8,
+      "World Events": 301
+    },
+    "n_events_included": 497,
+    "n_resamples_valid": 5000,
+    "bootstrap_seconds": 20.1,
+    "cluster_var_pp2": 971.8762026222915,
+    "mde_pp": 2.740837900050587,
+    "mde_definition": "1.96*SE (just-significant at ~50pct power)"
+  },
+  "p1_2025_only_table_low": {
+    "fee_mode": "table_low",
+    "point_pp": -0.9080391339450877,
+    "ci_pp": [
+      -5.0509127628906265,
+      2.4351317191178454
+    ],
+    "n_cold_included": 10121,
+    "n_cold_excluded_unmatched": 621,
+    "n_events_excluded_unmatched": 30,
+    "excluded_by_group": {
+      "Crypto": 219,
+      "Finance": 3,
+      "Science/Tech": 72,
+      "Weather": 28,
+      "World Events": 299
+    },
+    "n_events_included": 365,
+    "n_resamples_valid": 5000,
+    "bootstrap_seconds": 17.0,
+    "cluster_var_pp2": 1069.52828588778,
+    "mde_pp": 3.3551023760247363,
+    "mde_definition": "1.96*SE (just-significant at ~50pct power)"
+  },
+  "p1_2025_only_table_high": {
+    "fee_mode": "table_high",
+    "point_pp": -0.8966922812165639,
+    "ci_pp": [
+      -5.046111622874014,
+      2.4402758230209542
+    ],
+    "n_cold_included": 10121,
+    "n_cold_excluded_unmatched": 621,
+    "n_events_excluded_unmatched": 30,
+    "excluded_by_group": {
+      "Crypto": 219,
+      "Finance": 3,
+      "Science/Tech": 72,
+      "Weather": 28,
+      "World Events": 299
+    },
+    "n_events_included": 365,
+    "n_resamples_valid": 5000,
+    "bootstrap_seconds": 16.9,
+    "cluster_var_pp2": 1068.2742144490744,
+    "mde_pp": 3.353134792639534,
+    "mde_definition": "1.96*SE (just-significant at ~50pct power)"
+  },
+  "probe_required_N": null,
+  "p1_diagnostics": {
+    "cold_counts_by_group": {
+      "Crypto": 427,
+      "Finance": 1049,
+      "Politics": 22538,
+      "Science/Tech": 675,
+      "Sports": 2329,
+      "Weather": 151,
+      "World Events": 2196
+    },
+    "paired_within_event": {
+      "n_events": 509,
+      "mean_pp": -2.6948828409319847,
+      "se_pp": 1.378813976693658
+    }
+  },
+  "K_P1_pass": false,
+  "p2a": {
+    "_conventions": {
+      "metric": "gross maker excess (fee-free; fee largely cancels in the half contrast)",
+      "tie_rule": "<= median half",
+      "min_group_prints": 2000,
+      "min_half_prints": 500
+    },
+    "_skipped_groups": [],
+    "Crypto": {
+      "n": [
+        2446509,
+        2445994
+      ],
+      "mean_pp": [
+        1.1727396056993864,
+        1.130143410000188
+      ],
+      "events": [
+        18488,
+        17730
+      ]
+    },
+    "Entertainment": {
+      "n": [
+        298125,
+        297691
+      ],
+      "mean_pp": [
+        1.4475874213836477,
+        4.620347944680893
+      ],
+      "events": [
+        1173,
+        1148
+      ]
+    },
+    "Esports": {
+      "n": [
+        8688,
+        8682
+      ],
+      "mean_pp": [
+        1.4288674033149171,
+        -5.106887813867774
+      ],
+      "events": [
+        51,
+        48
+      ]
+    },
+    "Finance": {
+      "n": [
+        431749,
+        431344
+      ],
+      "mean_pp": [
+        0.786686245943824,
+        1.3305876516191253
+      ],
+      "events": [
+        3181,
+        3162
+      ]
+    },
+    "Media": {
+      "n": [
+        56997,
+        56972
+      ],
+      "mean_pp": [
+        1.500605295015527,
+        9.644193638980552
+      ],
+      "events": [
+        250,
+        258
+      ]
+    },
+    "Other": {
+      "n": [
+        171011,
+        170846
+      ],
+      "mean_pp": [
+        0.11206881428680025,
+        5.064385469955398
+      ],
+      "events": [
+        787,
+        869
+      ]
+    },
+    "Politics": {
+      "n": [
+        700563,
+        700120
+      ],
+      "mean_pp": [
+        0.7197125740297446,
+        3.155967548420271
+      ],
+      "events": [
+        477,
+        466
+      ]
+    },
+    "Science/Tech": {
+      "n": [
+        37048,
+        36982
+      ],
+      "mean_pp": [
+        1.0436460807600947,
+        3.4553566599967547
+      ],
+      "events": [
+        57,
+        60
+      ]
+    },
+    "Sports": {
+      "n": [
+        14178483,
+        14178310
+      ],
+      "mean_pp": [
+        1.0882446309665146,
+        1.1015987801084894
+      ],
+      "events": [
+        9778,
+        4487
+      ]
+    },
+    "Weather": {
+      "n": [
+        1259571,
+        1257789
+      ],
+      "mean_pp": [
+        0.787318856975907,
+        2.827999767846594
+      ],
+      "events": [
+        2643,
+        2647
+      ]
+    },
+    "World Events": {
+      "n": [
+        53632,
+        53604
+      ],
+      "mean_pp": [
+        -1.8151663186157518,
+        5.907544213118423
+      ],
+      "events": [
+        24,
+        23
+      ]
+    }
+  },
+  "p3": {
+    "n_events": 31416,
+    "yes_count": 1992,
+    "p_bar": 0.05399698852508355,
+    "realized_yes_rate": 0.06340718105423988,
+    "binom_p_onesided_lower": 0.9999999999997135,
+    "no_excess_net_pp": -1.941019252915633,
+    "event_ci_pp": [
+      -2.22121566253801,
+      -1.6755291724026506
+    ],
+    "prefix_ci_pp_sensitivity": [
+      -2.923919735734834,
+      -1.1331593007635576
+    ],
+    "n_prefix_clusters": 699,
+    "decay_split_pp": {
+      "2024Q4": [
+        -3.917444374126424,
+        1720
+      ],
+      "2025": [
+        -1.826544198750676,
+        29696
+      ]
+    },
+    "by_prefix_top": {
+      "KXBTCD": [
+        -0.7313630607278164,
+        5034
+      ],
+      "KXBTC": [
+        -1.8447348696050438,
+        4582
+      ],
+      "KXETHD": [
+        -4.120718404116954,
+        3407
+      ],
+      "KXMLBGAME": [
+        0.42866450338446616,
+        2182
+      ],
+      "KXETH": [
+        -4.049478645647672,
+        2147
+      ],
+      "KXINXU": [
+        -0.7875621206164892,
+        1280
+      ],
+      "KXNASDAQ100U": [
+        -1.9889095514627173,
+        1172
+      ],
+      "KXATPMATCH": [
+        0.4848582959142752,
+        1103
+      ]
+    },
+    "fee_note": "flat era ceil fee on every leg (documented conservative bound; review M-3)"
+  },
+  "K_P3_pass": false
+}
