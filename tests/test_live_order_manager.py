@@ -274,6 +274,34 @@ def test_reconcile_fills_applies_full_fill(tmp_state_path: Path) -> None:
     assert settled.filled_price_cents == 75
 
 
+def test_reconcile_fills_captures_actual_fee_cost(tmp_state_path: Path) -> None:
+    """reconcile_fills records Kalshi's real per-fill fee_cost (dollar string)
+    onto the order, summed across partial fills, so realized P&L uses the
+    actual fee rather than a model. Guards the 2026-06-13 over-fee fix."""
+    client = MockKalshiClient()
+    client.post_responses.append({
+        "order": {"order_id": "k-1", "status": "resting"},
+    })
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    order = _place(mgr, target_price=0.75, contracts=2)
+    # First partial fill carries a $0.0030 fee.
+    client.paginate_responses.append([{
+        "trade_id": "fill-1", "order_id": "k-1", "count_fp": "1.00",
+        "yes_price_dollars": "0.7500", "fee_cost": "0.003000",
+    }])
+    mgr.reconcile_fills()
+    assert mgr.state.resting[order.intent_id].fee_cost_usd == pytest.approx(0.003, abs=1e-9)
+    # Second partial fill carries a $0.0040 fee; total accumulates to $0.0070.
+    client.paginate_responses.append([{
+        "trade_id": "fill-2", "order_id": "k-1", "count_fp": "1.00",
+        "yes_price_dollars": "0.7500", "fee_cost": "0.004000",
+    }])
+    mgr.reconcile_fills()
+    filled = mgr.state.filled[order.intent_id]
+    assert filled.status == LiveOrderStatus.LIVE_FILLED
+    assert filled.fee_cost_usd == pytest.approx(0.007, abs=1e-9)
+
+
 def test_reconcile_fills_idempotent_on_same_fill_id(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
@@ -318,6 +346,9 @@ def test_reconcile_settlements_yes_winner(tmp_state_path: Path) -> None:
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=2)
+    # Realized P&L uses Kalshi's ACTUAL captured fee (order.fee_cost_usd), as
+    # if reconcile_fills had recorded a $0.02 total fee on the fill.
+    order.fee_cost_usd = 0.02
     # Filled inline above. Now market settles YES. Live Kalshi reports the
     # terminal state as status "finalized" with a "settlement_ts" field.
     client.get_responses.append({
@@ -327,10 +358,8 @@ def test_reconcile_settlements_yes_winner(tmp_state_path: Path) -> None:
     settled = mgr.reconcile_settlements()
     assert len(settled) == 1
     assert settled[0].resolution_ts == "2026-05-24T01:00:00Z"
-    # 2 contracts * (1.0 - 0.75 - fee). Fee at 0.75 = 2 * ceil(1.75*0.75*0.25)/100
-    # = 2 * ceil(0.328)/100 = 2 * 1/100 = 0.02. Net per contract = 0.25 - 0.02
-    # = 0.23. Total = 0.46.
-    assert settled[0].realized_pnl_usd == pytest.approx(0.46, abs=1e-6)
+    # 2 contracts * (1.0 - 0.75) = 0.50 gross, minus the actual fee 0.02 = 0.48.
+    assert settled[0].realized_pnl_usd == pytest.approx(0.48, abs=1e-6)
     assert order.intent_id in mgr.state.closed
     assert order.intent_id not in mgr.state.filled
 
@@ -341,15 +370,16 @@ def test_reconcile_settlements_no_loser(tmp_state_path: Path) -> None:
         "order": {"order_id": "k-1", "status": "filled"},
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
-    _place(mgr, target_price=0.80, contracts=1)
+    order = _place(mgr, target_price=0.80, contracts=1)
+    order.fee_cost_usd = 0.01  # actual captured fee
     # "settled" kept here to cover the defensively-accepted status value.
     client.get_responses.append({
         "market": {"status": "settled", "result": "no"},
     })
     settled = mgr.reconcile_settlements()
-    # -0.80 - 0.02 (round-trip fee at 0.80) = -0.82
-    fee = 2.0 * 0.01  # ceil(1.75 * 0.80 * 0.20) = ceil(0.28) = 1c, *2 = 2c
-    assert settled[0].realized_pnl_usd == pytest.approx(-0.80 - fee, abs=1e-6)
+    # YES order, market resolved NO -> loses the entry price, minus actual fee:
+    # -0.80 - 0.01 = -0.81.
+    assert settled[0].realized_pnl_usd == pytest.approx(-0.81, abs=1e-6)
 
 
 def test_reconcile_settlements_void(tmp_state_path: Path) -> None:
@@ -358,14 +388,15 @@ def test_reconcile_settlements_void(tmp_state_path: Path) -> None:
         "order": {"order_id": "k-1", "status": "filled"},
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
-    _place(mgr, target_price=0.75, contracts=1)
+    order = _place(mgr, target_price=0.75, contracts=1)
+    order.fee_cost_usd = 0.005  # actual captured entry fee
     client.get_responses.append({
         "market": {"status": "finalized", "result": "void"},
     })
     settled = mgr.reconcile_settlements()
-    # Outcome -1 (void); payoff=0, fees still apply.
+    # Outcome -1 (void): payoff 0, but the entry fee Kalshi charged still nets.
     assert settled[0].resolution_outcome == -1
-    assert settled[0].realized_pnl_usd is not None
+    assert settled[0].realized_pnl_usd == pytest.approx(-0.005, abs=1e-6)
 
 
 def test_reconcile_settlements_unsettled_market_no_change(tmp_state_path: Path) -> None:
@@ -736,13 +767,14 @@ def test_bankroll_accounts_for_realized_pnl(tmp_state_path: Path) -> None:
         "order": {"order_id": "k-1", "status": "filled"},
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
-    _place(mgr, target_price=0.75, contracts=2)
+    order = _place(mgr, target_price=0.75, contracts=2)
+    order.fee_cost_usd = 0.02  # actual captured fee
     client.get_responses.append({
         "market": {"status": "settled", "result": "yes"},
     })
     mgr.reconcile_settlements()
-    # +0.46 from the YES winner test above.
-    assert mgr.current_live_bankroll() == pytest.approx(25.0 + 0.46, abs=1e-6)
+    # 2 * (1.0 - 0.75) = 0.50 gross, minus actual fee 0.02 = +0.48.
+    assert mgr.current_live_bankroll() == pytest.approx(25.0 + 0.48, abs=1e-6)
 
 
 def test_open_order_count_includes_intents_and_resting(tmp_state_path: Path) -> None:

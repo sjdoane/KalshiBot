@@ -190,40 +190,40 @@ def test_place_rejects_bad_side(state_path: Path) -> None:
 
 
 # --- side-aware realized P&L -----------------------------------------------
-def _order(side: str, price_cents: int, count: int = 1) -> LiveOrder:
+def _order(side: str, price_cents: int, count: int = 1, fee: float = 0.0) -> LiveOrder:
     return LiveOrder(
         intent_id="i", ticker="t", series_ticker="s", event_ticker="e",
         side=side, target_price_cents=price_cents, contracts=count,
         expected_net_edge=0.0, market_mid_at_placement=price_cents / 100.0,
         placed_ts="2026-06-01T00:00:00+00:00", filled_price_cents=price_cents,
-        filled_count=count,
+        filled_count=count, fee_cost_usd=fee,
     )
 
 
 def test_pnl_no_order_wins_on_no_outcome(state_path: Path) -> None:
     mgr = LiveOrderManager(client=MockClient(), state_path=state_path)
-    # NO bought at 0.74. Market resolves NO (outcome 0): NO wins.
-    pnl = mgr._compute_realized_pnl(_order("no", 74), 0)
-    # payoff 1-0.74=0.26; fee 2*ceil(1.75*0.74*0.26)/100 = 0.02; net 0.24
+    # NO bought at 0.74 with a $0.02 actual captured fee. Resolves NO: NO wins.
+    pnl = mgr._compute_realized_pnl(_order("no", 74, fee=0.02), 0)
+    # payoff 1-0.74=0.26; minus actual fee 0.02 = 0.24.
     assert pnl == pytest.approx(0.24, abs=1e-9)
-    # Market resolves YES (outcome 1): NO loses.
-    pnl_loss = mgr._compute_realized_pnl(_order("no", 74), 1)
+    # Market resolves YES (outcome 1): NO loses; -0.74 - 0.02 = -0.76.
+    pnl_loss = mgr._compute_realized_pnl(_order("no", 74, fee=0.02), 1)
     assert pnl_loss == pytest.approx(-0.76, abs=1e-9)
 
 
 def test_pnl_yes_order_regression(state_path: Path) -> None:
     mgr = LiveOrderManager(client=MockClient(), state_path=state_path)
-    # YES bought at 0.80. Resolves YES: win 0.20 - fee 0.02 = 0.18.
-    assert mgr._compute_realized_pnl(_order("yes", 80), 1) == pytest.approx(0.18, abs=1e-9)
-    # Resolves NO: lose 0.80 + fee.
-    assert mgr._compute_realized_pnl(_order("yes", 80), 0) == pytest.approx(-0.82, abs=1e-9)
+    # YES bought at 0.80 with a $0.02 actual fee. Resolves YES: 0.20 - 0.02 = 0.18.
+    assert mgr._compute_realized_pnl(_order("yes", 80, fee=0.02), 1) == pytest.approx(0.18, abs=1e-9)
+    # Resolves NO: lose 0.80, minus fee: -0.80 - 0.02 = -0.82.
+    assert mgr._compute_realized_pnl(_order("yes", 80, fee=0.02), 0) == pytest.approx(-0.82, abs=1e-9)
 
 
 def test_pnl_void_is_fee_only_both_sides(state_path: Path) -> None:
     mgr = LiveOrderManager(client=MockClient(), state_path=state_path)
-    # Void (outcome -1): payoff 0 minus the entry/exit maker fee, either side.
-    assert mgr._compute_realized_pnl(_order("no", 74), -1) == pytest.approx(-0.02, abs=1e-9)
-    assert mgr._compute_realized_pnl(_order("yes", 80), -1) == pytest.approx(-0.02, abs=1e-9)
+    # Void (outcome -1): payoff 0 minus the actual captured entry fee, either side.
+    assert mgr._compute_realized_pnl(_order("no", 74, fee=0.02), -1) == pytest.approx(-0.02, abs=1e-9)
+    assert mgr._compute_realized_pnl(_order("yes", 80, fee=0.02), -1) == pytest.approx(-0.02, abs=1e-9)
 
 
 # --- side-aware fill-price conversion in reconcile_fills --------------------

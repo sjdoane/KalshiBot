@@ -56,7 +56,6 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from kalshi_bot.analysis.metrics import kalshi_maker_fee_per_contract
 from kalshi_bot.risk.adverse_selection_monitor import (
     AdverseSelectionConfig,
     RestingOrderView,
@@ -98,6 +97,7 @@ class LiveOrder:
     filled_ts: str | None = None
     filled_price_cents: int | None = None
     filled_count: int = 0
+    fee_cost_usd: float = 0.0              # actual Kalshi fees on fills (USD)
     cancelled_ts: str | None = None
     resolution_ts: str | None = None
     resolution_outcome: int | None = None  # 1 YES, 0 NO, -1 void
@@ -398,7 +398,13 @@ class LiveOrderManager:
         order.order_id = kalshi_order_id
         order.acked_ts = datetime.now(UTC).isoformat()
         # If Kalshi already marked it filled (FOK/IOC path; not our default),
-        # transition straight to filled.
+        # transition straight to filled. NOTE: this path does NOT capture the
+        # actual fee (fee_cost lives on the /portfolio/fills record, not the
+        # order ack), and reconcile_fills only matches RESTING orders, so such
+        # an order would keep fee_cost_usd=0. This is acceptable because v1 is a
+        # pure good_till_canceled maker that never takes the FOK/IOC path; its
+        # fills always arrive via reconcile_fills (resting -> filled), where the
+        # real fee IS captured. Revisit if an IOC/FOK arm is ever added.
         kalshi_status = (order_data.get("status") or "").lower()
         if kalshi_status in ("filled", "executed"):
             order.status = LiveOrderStatus.LIVE_FILLED
@@ -621,6 +627,16 @@ class LiveOrderManager:
             order.filled_count += filled_count_this
             order.filled_price_cents = filled_price_cents
             order.filled_ts = fill.get("created_time") or now.isoformat()
+            # Capture Kalshi's ACTUAL per-fill fee (a dollar string, e.g.
+            # "0.005200"), summed across partial fills. This is the single
+            # source of truth for realized-P&L fees: the bot no longer models
+            # the maker-fee schedule, which over-deducted ~3-4x (verified
+            # 2026-06-13 vs /portfolio/fills fee_cost: real ATP/WTA/MLB maker
+            # fee ~0.4-0.7c/contract, the old model charged ~2c).
+            try:
+                order.fee_cost_usd += float(fill.get("fee_cost") or 0.0)
+            except (TypeError, ValueError):
+                pass
             if order.filled_count >= order.contracts:
                 order.status = LiveOrderStatus.LIVE_FILLED
                 self.state.filled[order.intent_id] = order
@@ -1122,8 +1138,8 @@ class LiveOrderManager:
             return 0.0
         price = order.filled_price_cents / 100.0
         if outcome == -1:
-            # Void: return to entry. Net is zero before fees; we still pay
-            # the entry maker fee.
+            # Void: return to entry (zero payoff). We still net out the entry
+            # fee Kalshi already charged on the fill (fee_cost_usd).
             payoff = 0.0
         else:
             # The bought contract pays $1 when the market resolves to ITS side,
@@ -1133,9 +1149,13 @@ class LiveOrderManager:
                 order.side == "no" and outcome == 0
             )
             payoff = (1.0 - price) if won else -price
-        fee = 2.0 * kalshi_maker_fee_per_contract(price)
-        pnl_per_contract = payoff - fee
-        return pnl_per_contract * order.filled_count
+        # Subtract Kalshi's ACTUAL fees (captured per-fill in reconcile_fills),
+        # not a modeled schedule. The old model (2x ceil(1.75*P*(1-P)),
+        # series-blind) over-deducted ~3-4x vs reality, understating realized
+        # P&L and biasing the rolling-30 edge kill toward tripping (verified
+        # 2026-06-13 against /portfolio/fills fee_cost). Fees are charged once
+        # at fill time; settlement is not a trade, so there is no exit fee.
+        return payoff * order.filled_count - order.fee_cost_usd
 
     def current_live_bankroll(self) -> float:
         return self.state.starting_bankroll_usd + self.state.realized_pnl_total_usd
