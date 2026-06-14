@@ -60,7 +60,21 @@ class Settings(BaseSettings):
     KILL_YES_RATE_WINDOW: int = 20
     KILL_ROLLING_MEAN_WINDOW: int = 10
     KILL_ROLLING_MEAN_DAYS_NEGATIVE: int = 14
-    KILL_ROLLING_30_MEAN_PP_MIN: float = 0.5  # critic-added 6th trigger
+    # KILL_ROLLING_30_MEAN_PP_MIN recalibrated 2026-06-13 from 0.5 to -3.0.
+    # The 0.5pp floor sat INSIDE the strategy's normal live operating range and
+    # false-tripped on 2026-06-13 at 0.43pp while the equity curve was rising
+    # (24W/6L, rolling-30 since recovered to +0.97pp). The favorite-maker payoff
+    # is asymmetric (wins ~+0.20/contract, losses ~-0.77, breakeven win ~79%),
+    # so the rolling-30 mean is quantized in ~3.2pp steps by loss count: 6
+    # losses/30 ~ +0.6pp, 7 ~ -2.6pp, 8 ~ -5.9pp. A floor just below zero still
+    # trips on a single normal-variance unlucky night (7 losses). -3.0 fires
+    # only on a genuinely degraded window (8+ losses/30, win rate below ~73%,
+    # ~6pp under the ~80% norm) and still ahead of the 20% drawdown kill, so it
+    # keeps its early-warning role. The EV/capital backstops are unchanged and
+    # remain the real protection: 20% drawdown, 5-consecutive-loss, yes-rate
+    # < 0.70, rolling-10-mean-negative-14d. See project_kalshi.md 2026-06-13 and
+    # the KILL_YES_RATE_MIN recalibration above.
+    KILL_ROLLING_30_MEAN_PP_MIN: float = -3.0  # recalibrated 2026-06-13 (was 0.5)
     KILL_DRAWDOWN_PCT: float = 0.20  # tighter than HALT (0.25); rolled into DrawdownMonitor
     KILL_LOSS_VS_WINNERS_RATIO: float = 15.0
     KILL_LOSS_VS_WINNERS_MIN_WINNERS: int = 20  # critic-added arming floor
