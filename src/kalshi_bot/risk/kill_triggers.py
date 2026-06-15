@@ -15,13 +15,19 @@ below half-expected edge):
    KILL_LOSS_DOLLAR_FALLBACK_PCT * starting_bankroll.
 5. Fill rate (filled / attempted) < KILL_FILL_RATE_MIN after
    KILL_FILL_RATE_MIN_ATTEMPTS attempts.
-6. Rolling-30 fills mean P&L (in pp) < KILL_ROLLING_30_MEAN_PP_MIN
-   (default 0.5pp). Detects edge compression before outright
-   negative. (Critic finding 4.)
+6. Rolling-30 fills mean P&L (in pp): edge compression. As of 2026-06-15
+   this is NO LONGER a latching kill but a non-latching, AUTO-RECOVERING
+   soft PAUSE (evaluate_soft_pause): it pauses NEW placement while the
+   trailing-30 mean < KILL_ROLLING_30_MEAN_PP_MIN and auto-resumes once it
+   recovers >= KILL_ROLLING_30_RESUME_PP_MIN (hysteresis), with no manual
+   reset. This fixed the recurring false halts (06-13, 06-15) where a normal
+   unlucky cluster latched the kill and stranded a healthy strategy.
 
-On trip: tripped=True with a reason string. Operator must explicitly
-clear state to resume (delete kill_state.json or set tripped=False
-manually). The trigger persists across restarts.
+Triggers 1, 2, 4 (and the external 20% drawdown) are HARD latching kills:
+on trip, tripped=True with a reason string and the operator must explicitly
+clear state to resume (reset_v1_kill, or delete kill_state.json); they
+persist across restarts. Trigger 6 (edge compression) latches NOTHING and
+self-clears. Trigger 5 (fill rate) is a logged metric by default.
 
 State is persisted to data/live_trades/kill_state.json.
 """
@@ -61,6 +67,7 @@ class KillTriggerState:
     winner_pnl_per_contract: list[float] = field(default_factory=list)
     rolling_mean_first_negative_ts: str | None = None
     tripped: bool = False
+    soft_paused: bool = False              # non-latching edge-compression pause (auto-recovers)
     trip_reason: str | None = None
     trip_ts: str | None = None
     trip_detail: str | None = None
@@ -73,7 +80,12 @@ class KillTriggerConfig:
     yes_rate_window: int = 20
     rolling_mean_window: int = 10
     rolling_mean_days_negative: int = 14
-    rolling_30_mean_pp_min: float = 0.5
+    # Edge-compression is a SOFT, auto-recovering PAUSE (not a latching kill):
+    # rolling_30_mean_pp_min is the pause floor, rolling_30_resume_pp_min the
+    # (higher) auto-resume floor. See evaluate_soft_pause + config.py + the
+    # 2026-06-15 recurring-false-halt fix. Live values come from config.py.
+    rolling_30_mean_pp_min: float = -3.0
+    rolling_30_resume_pp_min: float = 0.0
     loss_vs_winners_ratio: float = 15.0
     loss_vs_winners_min_winners: int = 20
     loss_dollar_fallback_pct: float = 0.10
@@ -132,6 +144,7 @@ class KillTriggerMonitor:
             winner_pnl_per_contract=list(raw.get("winner_pnl_per_contract", [])),
             rolling_mean_first_negative_ts=raw.get("rolling_mean_first_negative_ts"),
             tripped=raw.get("tripped", False),
+            soft_paused=raw.get("soft_paused", False),
             trip_reason=raw.get("trip_reason"),
             trip_ts=raw.get("trip_ts"),
             trip_detail=raw.get("trip_detail"),
@@ -201,17 +214,15 @@ class KillTriggerMonitor:
                 )
                 return KillReason.YES_RATE_DROP
 
-        # Trigger 6 (critic-added): rolling-30 mean below half-expected.
-        if len(s.recent_pnl_per_contract) >= 30:
-            rolling_30 = s.recent_pnl_per_contract[-30:]
-            rolling_30_mean = sum(rolling_30) / len(rolling_30)
-            rolling_30_mean_pp = rolling_30_mean * 100.0
-            if rolling_30_mean_pp < c.rolling_30_mean_pp_min:
-                self.state.trip_detail = (
-                    f"rolling-30 mean {rolling_30_mean_pp:.2f}pp < "
-                    f"{c.rolling_30_mean_pp_min}pp (edge compressed)"
-                )
-                return KillReason.ROLLING_30_EDGE_COMPRESSED
+        # Trigger 6 (rolling-30 edge compression) is NO LONGER a latching kill.
+        # It is a non-latching, AUTO-RECOVERING soft pause, evaluated each loop
+        # by evaluate_soft_pause(): on this asymmetric-payoff strategy the
+        # rolling-30 mean swings ~3pp per extra loss, so a normal unlucky
+        # cluster (8 losses/30) drove it below any fixed floor, LATCHED the kill,
+        # and halted the bot until a manual reset even after the edge recovered
+        # (the recurring 2026-06-13 / 06-15 false halts). The capital backstops
+        # below (catastrophic single loss, 14-day-negative, plus the external
+        # 20% drawdown kill) remain HARD latching kills.
 
         # Trigger 2: rolling-10 mean stays negative for N days.
         if len(s.recent_pnl_per_contract) >= c.rolling_mean_window:
@@ -299,6 +310,49 @@ class KillTriggerMonitor:
     def allowed_to_place_orders(self) -> bool:
         return not self.state.tripped
 
+    def evaluate_soft_pause(self) -> str | None:
+        """Non-latching, AUTO-RECOVERING edge-compression pause (call each loop).
+
+        Distinct from the hard latching kills: pauses NEW placement while the
+        trailing-30 mean is below the pause floor, and auto-resumes once it
+        recovers to the (higher) resume floor. Hysteresis (resume floor above
+        pause floor) prevents flapping. Persists `soft_paused` so the pause
+        survives loop iterations and restarts but clears itself with no manual
+        intervention. Returns a reason string while paused, else None. The hard
+        capital kills are untouched and remain the real backstops.
+        """
+        c = self.config
+        s = self.state
+        if len(s.recent_pnl_per_contract) < 30:
+            if s.soft_paused:
+                s.soft_paused = False
+                self._save()
+            return None
+        mean_pp = (sum(s.recent_pnl_per_contract[-30:]) / 30.0) * 100.0
+        if s.soft_paused:
+            if mean_pp >= c.rolling_30_resume_pp_min:
+                s.soft_paused = False
+                self._save()
+                log.info("soft_pause_cleared", rolling_30_mean_pp=round(mean_pp, 2),
+                         resume_pp=c.rolling_30_resume_pp_min)
+                return None
+            return (
+                f"rolling-30 mean {mean_pp:.2f}pp < resume "
+                f"{c.rolling_30_resume_pp_min}pp (soft pause, auto-resumes when "
+                f"the edge recovers)"
+            )
+        if mean_pp < c.rolling_30_mean_pp_min:
+            s.soft_paused = True
+            self._save()
+            log.warning("soft_pause_engaged", rolling_30_mean_pp=round(mean_pp, 2),
+                        pause_pp=c.rolling_30_mean_pp_min,
+                        resume_pp=c.rolling_30_resume_pp_min)
+            return (
+                f"rolling-30 mean {mean_pp:.2f}pp < {c.rolling_30_mean_pp_min}pp "
+                f"(soft pause, auto-resumes >= {c.rolling_30_resume_pp_min}pp)"
+            )
+        return None
+
     def clear(
         self, *, reset_fill_counters: bool = False, reset_history: bool = False
     ) -> None:
@@ -319,6 +373,7 @@ class KillTriggerMonitor:
         manager) is unaffected and remains the catastrophic backstop.
         """
         self.state.tripped = False
+        self.state.soft_paused = False
         self.state.trip_reason = None
         self.state.trip_ts = None
         self.state.trip_detail = None

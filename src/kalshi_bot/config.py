@@ -74,7 +74,19 @@ class Settings(BaseSettings):
     # remain the real protection: 20% drawdown, 5-consecutive-loss, yes-rate
     # < 0.70, rolling-10-mean-negative-14d. See project_kalshi.md 2026-06-13 and
     # the KILL_YES_RATE_MIN recalibration above.
-    KILL_ROLLING_30_MEAN_PP_MIN: float = -3.0  # recalibrated 2026-06-13 (was 0.5)
+    # 2026-06-15: edge-compression is now a NON-LATCHING, AUTO-RECOVERING soft
+    # PAUSE, not a latching kill. The latch was the recurring-false-halt root
+    # cause: on this asymmetric-payoff strategy the rolling-30 mean swings ~3pp
+    # per extra loss, so a normal unlucky cluster (8 losses/30) dipped below the
+    # floor, LATCHED, and halted the bot until a manual reset even after the edge
+    # recovered (false halts 06-13 at 0.43pp and 06-15 at -6.04pp, both with the
+    # window healthy again hours later). Now the bot PAUSES new placement when
+    # the trailing-30 mean < PP_MIN and AUTO-RESUMES when it recovers >=
+    # RESUME_PP_MIN (hysteresis); maintenance/cancels keep running; no manual
+    # reset. The hard capital kills (20% drawdown, catastrophic single loss,
+    # 14-day-negative) are unchanged and remain the real backstops.
+    KILL_ROLLING_30_MEAN_PP_MIN: float = -3.0   # soft-pause floor (pause below this)
+    KILL_ROLLING_30_RESUME_PP_MIN: float = 0.0  # auto-resume when trailing-30 >= this
     KILL_DRAWDOWN_PCT: float = 0.20  # tighter than HALT (0.25); rolled into DrawdownMonitor
     KILL_LOSS_VS_WINNERS_RATIO: float = 15.0
     KILL_LOSS_VS_WINNERS_MIN_WINNERS: int = 20  # critic-added arming floor

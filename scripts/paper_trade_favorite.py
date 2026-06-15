@@ -1085,15 +1085,43 @@ def one_loop_favorite_live(
         except Exception as exc:  # noqa: BLE001
             log.warning("adverse_selection_sweep_failed", error=str(exc))
 
-    # NEW PLACEMENT is gated by the kill / drawdown state (maintenance above
-    # already ran).
+    # NEW PLACEMENT is gated by the hard kill, the auto-recovering soft pause,
+    # or the drawdown state (maintenance above already ran). The soft pause is
+    # re-evaluated every loop and clears itself when the edge recovers, so a
+    # transient unlucky cluster never leaves the bot halted awaiting a manual
+    # reset (the recurring 2026-06-13 / 06-15 false halts).
+    was_soft_paused = kt.state.soft_paused
+    soft_pause_reason = kt.evaluate_soft_pause()
+    if discord_url and kt.state.soft_paused != was_soft_paused:
+        if kt.state.soft_paused:
+            send_discord(
+                discord_url,
+                content=(
+                    f"LIVE FAV SOFT-PAUSE: {soft_pause_reason}. New placement "
+                    f"paused; maintenance + cancels keep running. AUTO-RESUMES "
+                    f"when the trailing-30 edge recovers. No manual reset needed."
+                ),
+            )
+        else:
+            send_discord(
+                discord_url,
+                content=(
+                    "LIVE FAV soft-pause CLEARED: trailing-30 edge recovered; "
+                    "new placement resumed automatically."
+                ),
+            )
     if (
         kt.state.tripped
+        or soft_pause_reason is not None
         or not dd.allowed_to_place_orders()
     ):
-        _emit_v1_heartbeat(
-            "kill_or_drawdown" if kt.state.tripped else "drawdown_pause"
-        )
+        if kt.state.tripped:
+            hb = "kill_or_drawdown"
+        elif soft_pause_reason is not None:
+            hb = "soft_pause_edge_compression"
+        else:
+            hb = "drawdown_pause"
+        _emit_v1_heartbeat(hb)
         return
 
     candidates = scan(client, scanner_cfg)
@@ -1658,6 +1686,7 @@ def main() -> int:
             rolling_mean_window=settings.KILL_ROLLING_MEAN_WINDOW,
             rolling_mean_days_negative=settings.KILL_ROLLING_MEAN_DAYS_NEGATIVE,
             rolling_30_mean_pp_min=settings.KILL_ROLLING_30_MEAN_PP_MIN,
+            rolling_30_resume_pp_min=settings.KILL_ROLLING_30_RESUME_PP_MIN,
             loss_vs_winners_ratio=settings.KILL_LOSS_VS_WINNERS_RATIO,
             loss_vs_winners_min_winners=settings.KILL_LOSS_VS_WINNERS_MIN_WINNERS,
             loss_dollar_fallback_pct=settings.KILL_LOSS_DOLLAR_FALLBACK_PCT,

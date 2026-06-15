@@ -14,6 +14,7 @@ import pytest
 
 from kalshi_bot.risk.kill_triggers import (
     KillReason,
+    KillTriggerConfig,
     KillTriggerMonitor,
 )
 
@@ -143,24 +144,55 @@ def test_clear_reset_fill_counters(tmp_state_path: Path) -> None:
     assert len(m.state.recent_outcomes) == 1  # P&L/outcome history preserved
 
 
-def test_rolling_30_mean_below_half_pp_trips(tmp_state_path: Path) -> None:
-    """Critic finding 4: detect edge compression at <0.5pp rolling-30 mean.
-
-    Use small positive P&L (0.003 = 0.3pp) for 30 trades.
-    """
-    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path)
-    reason: KillReason | None = None
-    for i in range(30):
-        reason = m.record_settlement(pnl_per_contract=0.003, outcome=1, settle_ts=_ts(i))
-    assert reason == KillReason.ROLLING_30_EDGE_COMPRESSED
-
-
-def test_rolling_30_mean_at_threshold_does_not_trip(tmp_state_path: Path) -> None:
-    """At exactly 0.6pp mean (above 0.5pp threshold), should NOT trip."""
-    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path)
-    for i in range(30):
-        m.record_settlement(pnl_per_contract=0.006, outcome=1, settle_ts=_ts(i))
+def test_edge_compression_is_soft_auto_recovering_pause(tmp_state_path: Path) -> None:
+    """Edge compression is a NON-LATCHING, auto-recovering PAUSE with hysteresis,
+    not a latching kill. Regression for the recurring 2026-06-13 / 06-15 false
+    halts: a compressed trailing-30 must pause then auto-resume, never latch."""
+    cfg = KillTriggerConfig(rolling_30_mean_pp_min=-3.0, rolling_30_resume_pp_min=0.0)
+    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path, config=cfg)
+    # Below the pause floor (mean -4pp): soft pause engages; hard kill does NOT.
+    m.state.recent_pnl_per_contract = [-0.04] * 30
+    assert m.evaluate_soft_pause() is not None
+    assert m.state.soft_paused is True
+    assert m.state.tripped is False
     assert m.allowed_to_place_orders() is True
+    # Hysteresis: recovered into the band [-3, 0) (mean -1pp) -> still paused.
+    m.state.recent_pnl_per_contract = [-0.01] * 30
+    assert m.evaluate_soft_pause() is not None
+    assert m.state.soft_paused is True
+    # Recovered to/above the resume floor (mean +1pp) -> AUTO-resumes, no reset.
+    m.state.recent_pnl_per_contract = [0.01] * 30
+    assert m.evaluate_soft_pause() is None
+    assert m.state.soft_paused is False
+
+
+def test_rolling_30_does_not_latch_a_hard_kill(tmp_state_path: Path) -> None:
+    """A compressed trailing-30 window must NOT produce a latching KillReason
+    from the settlement path (it is the soft pause now, not Trigger 6)."""
+    cfg = KillTriggerConfig(rolling_30_mean_pp_min=-3.0, rolling_30_resume_pp_min=0.0)
+    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path, config=cfg)
+    # Healthy outcomes (yes-rate fine) + a slightly-compressed window; the
+    # removed Trigger 6 must not fire, and the last fill is a small win so the
+    # catastrophic single-loss trigger cannot fire either.
+    m.state.recent_outcomes = [1] * 30
+    m.state.winner_pnl_per_contract = [0.20] * 25
+    m.state.recent_pnl_per_contract = [-0.04] * 29
+    reason = m.record_settlement(pnl_per_contract=0.20, outcome=1, settle_ts=_ts(0))
+    assert reason != KillReason.ROLLING_30_EDGE_COMPRESSED
+    assert not m.state.tripped
+
+
+def test_soft_pause_persists_and_clears_through_state(tmp_state_path: Path) -> None:
+    """soft_paused round-trips through save/load and clear() resets it."""
+    cfg = KillTriggerConfig(rolling_30_mean_pp_min=-3.0, rolling_30_resume_pp_min=0.0)
+    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path, config=cfg)
+    m.state.recent_pnl_per_contract = [-0.04] * 30
+    m.evaluate_soft_pause()
+    assert m.state.soft_paused is True
+    reloaded = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path, config=cfg)
+    assert reloaded.state.soft_paused is True
+    reloaded.clear()
+    assert reloaded.state.soft_paused is False
 
 
 def test_rolling_mean_negative_14d_trips(tmp_state_path: Path) -> None:
