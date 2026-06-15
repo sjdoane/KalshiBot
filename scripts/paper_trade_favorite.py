@@ -1116,9 +1116,13 @@ def one_loop_favorite_live(
         or not dd.allowed_to_place_orders()
     ):
         if kt.state.tripped:
-            hb = "kill_or_drawdown"
+            # Name the actual hard kill so a halt is never an opaque
+            # "kill_or_drawdown" (the remaining HARD kills are catastrophic
+            # single-loss and 14-day-negative; the edge/win-rate checks are now
+            # auto-recovering soft pauses).
+            hb = f"hard_kill:{kt.state.trip_reason}"
         elif soft_pause_reason is not None:
-            hb = "soft_pause_edge_compression"
+            hb = "soft_pause(auto-recovers)"
         else:
             hb = "drawdown_pause"
         _emit_v1_heartbeat(hb)
@@ -1682,6 +1686,7 @@ def main() -> int:
         )
         kt_cfg = KillTriggerConfig(
             yes_rate_min=settings.KILL_YES_RATE_MIN,
+            yes_rate_resume_min=settings.KILL_YES_RATE_RESUME_MIN,
             yes_rate_window=settings.KILL_YES_RATE_WINDOW,
             rolling_mean_window=settings.KILL_ROLLING_MEAN_WINDOW,
             rolling_mean_days_negative=settings.KILL_ROLLING_MEAN_DAYS_NEGATIVE,

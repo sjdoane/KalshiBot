@@ -35,16 +35,43 @@ def test_initial_state_not_tripped(tmp_state_path: Path) -> None:
     assert m.fill_rate() is None
 
 
-def test_yes_rate_trips_at_below_threshold(tmp_state_path: Path) -> None:
-    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path)
-    # 16 wins, 4 losses out of 20 = 80% YES rate, below 90% threshold.
-    outcomes = [1] * 16 + [0] * 4
+def test_yes_rate_soft_pause_auto_recovers(tmp_state_path: Path) -> None:
+    """Low favorite-won rate is now a NON-LATCHING, auto-recovering soft pause
+    (not a latching kill). Regression for the 2026-06-15 PM false halt where a
+    65%-over-20 soft patch latched yes_rate_drop and stranded a positive
+    strategy. rolling-30 floors set very low to isolate the yes-rate condition."""
+    cfg = KillTriggerConfig(
+        yes_rate_min=0.55, yes_rate_resume_min=0.65, yes_rate_window=20,
+        rolling_30_mean_pp_min=-99.0, rolling_30_resume_pp_min=-99.0,
+    )
+    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path, config=cfg)
+    # 50% favorite-won over the last 20 -> below the 0.55 pause floor.
+    m.state.recent_outcomes = [1, 0] * 10
+    assert m.evaluate_soft_pause() is not None
+    assert m.state.soft_paused is True
+    assert m.state.tripped is False          # NOT a hard kill
+    assert m.allowed_to_place_orders() is True
+    # Recover to 70% (>= 0.65 resume) -> auto-clears, no manual reset.
+    m.state.recent_outcomes = [1] * 14 + [0] * 6
+    assert m.evaluate_soft_pause() is None
+    assert m.state.soft_paused is False
+
+
+def test_low_yes_rate_does_not_latch_a_hard_kill(tmp_state_path: Path) -> None:
+    """A low favorite-won-rate run must NOT latch a hard kill via the settlement
+    path (yes-rate is the soft pause now). Same-day timestamps so the separate
+    14-day-negative kill cannot fire."""
+    cfg = KillTriggerConfig(
+        yes_rate_min=0.55, yes_rate_resume_min=0.65, yes_rate_window=20,
+        rolling_30_mean_pp_min=-99.0,
+    )
+    m = KillTriggerMonitor(starting_bankroll_usd=25.0, state_path=tmp_state_path, config=cfg)
     reason: KillReason | None = None
-    for i, o in enumerate(outcomes):
-        pnl = 0.05 if o == 1 else -0.70
-        reason = m.record_settlement(pnl_per_contract=pnl, outcome=o, settle_ts=_ts(i))
-    assert reason == KillReason.YES_RATE_DROP
-    assert m.allowed_to_place_orders() is False
+    for o in [1] * 12 + [0] * 8:  # 60% over 20
+        pnl = 0.20 if o == 1 else -0.50
+        reason = m.record_settlement(pnl_per_contract=pnl, outcome=o, settle_ts=_ts(0))
+    assert reason != KillReason.YES_RATE_DROP
+    assert not m.state.tripped
 
 
 def test_yes_rate_does_not_trip_before_window(tmp_state_path: Path) -> None:

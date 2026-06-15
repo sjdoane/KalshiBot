@@ -76,7 +76,8 @@ class KillTriggerState:
 
 @dataclass(frozen=True)
 class KillTriggerConfig:
-    yes_rate_min: float = 0.90
+    yes_rate_min: float = 0.90        # soft-pause floor (favorite-won rate over the window)
+    yes_rate_resume_min: float = 0.90  # auto-resume when favorite-won rate recovers to this
     yes_rate_window: int = 20
     rolling_mean_window: int = 10
     rolling_mean_days_negative: int = 14
@@ -203,16 +204,13 @@ class KillTriggerMonitor:
         c = self.config
         s = self.state
 
-        # Trigger 1: YES rate over last N fills.
-        if len(s.recent_outcomes) >= c.yes_rate_window:
-            window = s.recent_outcomes[-c.yes_rate_window:]
-            yes_rate = sum(window) / len(window)
-            if yes_rate < c.yes_rate_min:
-                self.state.trip_detail = (
-                    f"YES rate {yes_rate:.3f} < {c.yes_rate_min} "
-                    f"over last {c.yes_rate_window} fills"
-                )
-                return KillReason.YES_RATE_DROP
+        # Trigger 1 (YES / favorite-won rate) is NO LONGER a latching kill, as
+        # of 2026-06-15. Like edge-compression it is a non-latching,
+        # AUTO-RECOVERING soft pause (evaluate_soft_pause): a 0.70-over-20 floor
+        # tripped on a normal-variance soft patch (65% over 20) and LATCHED,
+        # halting a positive strategy until a manual reset. It now PAUSES below a
+        # much-more-intense floor (0.55 = favorites genuinely collapsing) and
+        # auto-resumes. The HARD latching capital kills below remain.
 
         # Trigger 6 (rolling-30 edge compression) is NO LONGER a latching kill.
         # It is a non-latching, AUTO-RECOVERING soft pause, evaluated each loop
@@ -313,44 +311,56 @@ class KillTriggerMonitor:
     def evaluate_soft_pause(self) -> str | None:
         """Non-latching, AUTO-RECOVERING edge-compression pause (call each loop).
 
-        Distinct from the hard latching kills: pauses NEW placement while the
-        trailing-30 mean is below the pause floor, and auto-resumes once it
-        recovers to the (higher) resume floor. Hysteresis (resume floor above
-        pause floor) prevents flapping. Persists `soft_paused` so the pause
-        survives loop iterations and restarts but clears itself with no manual
+        Distinct from the hard latching kills: covers the two edge-degradation
+        conditions (trailing-30 edge compression AND favorite-won rate). Pauses
+        NEW placement while EITHER is below its pause floor, and auto-resumes
+        only once BOTH have recovered to their (higher) resume floors. One
+        combined `soft_paused` flag with hysteresis prevents flapping; it
+        persists across loops and restarts but self-clears with no manual
         intervention. Returns a reason string while paused, else None. The hard
-        capital kills are untouched and remain the real backstops.
+        capital kills (catastrophic single loss, 14-day-negative, 20% drawdown)
+        are untouched and remain the real backstops.
         """
         c = self.config
         s = self.state
-        if len(s.recent_pnl_per_contract) < 30:
-            if s.soft_paused:
-                s.soft_paused = False
-                self._save()
-            return None
-        mean_pp = (sum(s.recent_pnl_per_contract[-30:]) / 30.0) * 100.0
+        # Trailing-30 per-contract edge in pp (None if < 30 settled fills).
+        r30: float | None = None
+        if len(s.recent_pnl_per_contract) >= 30:
+            r30 = (sum(s.recent_pnl_per_contract[-30:]) / 30.0) * 100.0
+        # Favorite-won rate over the window (side-aware; None if too few fills).
+        yr: float | None = None
+        if len(s.recent_outcomes) >= c.yes_rate_window:
+            yr = sum(s.recent_outcomes[-c.yes_rate_window:]) / c.yes_rate_window
+
         if s.soft_paused:
-            if mean_pp >= c.rolling_30_resume_pp_min:
+            # Resume only when EVERY condition is healthy; insufficient data for
+            # a condition counts as healthy so it never blocks a resume alone.
+            r30_ok = r30 is None or r30 >= c.rolling_30_resume_pp_min
+            yr_ok = yr is None or yr >= c.yes_rate_resume_min
+            if r30_ok and yr_ok:
                 s.soft_paused = False
                 self._save()
-                log.info("soft_pause_cleared", rolling_30_mean_pp=round(mean_pp, 2),
-                         resume_pp=c.rolling_30_resume_pp_min)
+                log.info("soft_pause_cleared",
+                         rolling_30_mean_pp=round(r30, 2) if r30 is not None else None,
+                         favorite_won_rate=round(yr, 3) if yr is not None else None)
                 return None
-            return (
-                f"rolling-30 mean {mean_pp:.2f}pp < resume "
-                f"{c.rolling_30_resume_pp_min}pp (soft pause, auto-resumes when "
-                f"the edge recovers)"
-            )
-        if mean_pp < c.rolling_30_mean_pp_min:
+            why = []
+            if r30 is not None and r30 < c.rolling_30_resume_pp_min:
+                why.append(f"rolling-30 {r30:.2f}pp < resume {c.rolling_30_resume_pp_min}pp")
+            if yr is not None and yr < c.yes_rate_resume_min:
+                why.append(f"favorite-won {yr:.2f} < resume {c.yes_rate_resume_min}")
+            return "soft pause (auto-resumes when the edge recovers): " + "; ".join(why)
+
+        why = []
+        if r30 is not None and r30 < c.rolling_30_mean_pp_min:
+            why.append(f"rolling-30 {r30:.2f}pp < {c.rolling_30_mean_pp_min}pp")
+        if yr is not None and yr < c.yes_rate_min:
+            why.append(f"favorite-won {yr:.2f} < {c.yes_rate_min}")
+        if why:
             s.soft_paused = True
             self._save()
-            log.warning("soft_pause_engaged", rolling_30_mean_pp=round(mean_pp, 2),
-                        pause_pp=c.rolling_30_mean_pp_min,
-                        resume_pp=c.rolling_30_resume_pp_min)
-            return (
-                f"rolling-30 mean {mean_pp:.2f}pp < {c.rolling_30_mean_pp_min}pp "
-                f"(soft pause, auto-resumes >= {c.rolling_30_resume_pp_min}pp)"
-            )
+            log.warning("soft_pause_engaged", reasons="; ".join(why))
+            return "soft pause (auto-resumes when the edge recovers): " + "; ".join(why)
         return None
 
     def clear(
