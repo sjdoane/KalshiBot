@@ -76,8 +76,8 @@ class KillTriggerState:
 
 @dataclass(frozen=True)
 class KillTriggerConfig:
-    yes_rate_min: float = 0.90        # soft-pause floor (favorite-won rate over the window)
-    yes_rate_resume_min: float = 0.90  # auto-resume when favorite-won rate recovers to this
+    yes_rate_min: float = 0.55        # soft-pause floor (favorite-won rate over the window)
+    yes_rate_resume_min: float = 0.65  # auto-resume when favorite-won rate recovers to this
     yes_rate_window: int = 20
     rolling_mean_window: int = 10
     rolling_mean_days_negative: int = 14
@@ -100,6 +100,17 @@ class KillTriggerConfig:
     # True only to restore the hard kill.
     fill_rate_kill: bool = False
     max_history_entries: int = 200
+
+    def __post_init__(self) -> None:
+        # Soft-pause hysteresis requires each resume floor at/above its pause
+        # floor, else the pause would flap or never clear. Guard it so a future
+        # mis-set config fails fast instead of misbehaving live.
+        if self.rolling_30_resume_pp_min < self.rolling_30_mean_pp_min:
+            raise ValueError(
+                "rolling_30_resume_pp_min must be >= rolling_30_mean_pp_min"
+            )
+        if self.yes_rate_resume_min < self.yes_rate_min:
+            raise ValueError("yes_rate_resume_min must be >= yes_rate_min")
 
 
 class KillTriggerMonitor:

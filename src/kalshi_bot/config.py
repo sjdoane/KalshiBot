@@ -73,10 +73,11 @@ class Settings(BaseSettings):
     # trips on a single normal-variance unlucky night (7 losses). -3.0 fires
     # only on a genuinely degraded window (8+ losses/30, win rate below ~73%,
     # ~6pp under the ~80% norm) and still ahead of the 20% drawdown kill, so it
-    # keeps its early-warning role. The EV/capital backstops are unchanged and
-    # remain the real protection: 20% drawdown, 5-consecutive-loss, yes-rate
-    # < 0.70, rolling-10-mean-negative-14d. See project_kalshi.md 2026-06-13 and
-    # the KILL_YES_RATE_MIN recalibration above.
+    # keeps its early-warning role. The HARD latching backstops are unchanged
+    # and remain the real protection: catastrophic single-loss, 14-day-rolling
+    # -10-negative, and the external 20% drawdown. (yes-rate is now ALSO a soft
+    # auto-recovering pause, see KILL_YES_RATE_MIN above, not a latching kill.)
+    # See project_kalshi.md 2026-06-13 / 06-15.
     # 2026-06-15: edge-compression is now a NON-LATCHING, AUTO-RECOVERING soft
     # PAUSE, not a latching kill. The latch was the recurring-false-halt root
     # cause: on this asymmetric-payoff strategy the rolling-30 mean swings ~3pp
