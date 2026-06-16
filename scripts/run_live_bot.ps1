@@ -217,7 +217,14 @@ while ($true) {
         # the best bid and sellers fill it first (fill-rate boost), capped below
         # the ask so it stays a maker and re-checked for edge. Trades ~1c of the
         # +5-8% edge for a large fill-rate gain. Tick env V1_STEP_TICK_CENTS (1).
-        "--step-in-front"
+        "--step-in-front",
+        # OPERATOR OVERRIDE (2026-06-16): bypass the soft pause + ALL kill/stop
+        # guardrails (edge, win-rate, catastrophic single-loss, 14-day-negative,
+        # 20% drawdown). v1 keeps placing regardless of recent results; the
+        # operator stops it manually. The hard $100 capital ceiling + per-trade
+        # sizing + max-open-positions still apply. Remove this line to re-enable
+        # the automated stops.
+        "--disable-stop-guardrails"
     )
     if (Test-Path $RebaselineFlag) {
         Write-LauncherLog "REBASELINE flag detected; passing --rebaseline to bot."

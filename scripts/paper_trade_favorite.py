@@ -729,6 +729,7 @@ def one_loop_favorite_live(
     enable_no_underdog: bool = False,
     band_sizing: bool = False,
     step_in_front_enabled: bool = False,
+    disable_stop_guardrails: bool = False,
 ) -> None:
     """One scan + place + reconcile cycle for LIVE mode.
 
@@ -1085,48 +1086,52 @@ def one_loop_favorite_live(
         except Exception as exc:  # noqa: BLE001
             log.warning("adverse_selection_sweep_failed", error=str(exc))
 
-    # NEW PLACEMENT is gated by the hard kill, the auto-recovering soft pause,
-    # or the drawdown state (maintenance above already ran). The soft pause is
-    # re-evaluated every loop and clears itself when the edge recovers, so a
-    # transient unlucky cluster never leaves the bot halted awaiting a manual
-    # reset (the recurring 2026-06-13 / 06-15 false halts).
-    was_soft_paused = kt.state.soft_paused
-    soft_pause_reason = kt.evaluate_soft_pause()
-    if discord_url and kt.state.soft_paused != was_soft_paused:
-        if kt.state.soft_paused:
-            send_discord(
-                discord_url,
-                content=(
-                    f"LIVE FAV SOFT-PAUSE: {soft_pause_reason}. New placement "
-                    f"paused; maintenance + cancels keep running. AUTO-RESUMES "
-                    f"when the trailing-30 edge recovers. No manual reset needed."
-                ),
-            )
-        else:
-            send_discord(
-                discord_url,
-                content=(
-                    "LIVE FAV soft-pause CLEARED: trailing-30 edge recovered; "
-                    "new placement resumed automatically."
-                ),
-            )
-    if (
-        kt.state.tripped
-        or soft_pause_reason is not None
-        or not dd.allowed_to_place_orders()
-    ):
-        if kt.state.tripped:
-            # Name the actual hard kill so a halt is never an opaque
-            # "kill_or_drawdown" (the remaining HARD kills are catastrophic
-            # single-loss and 14-day-negative; the edge/win-rate checks are now
-            # auto-recovering soft pauses).
-            hb = f"hard_kill:{kt.state.trip_reason}"
-        elif soft_pause_reason is not None:
-            hb = "soft_pause(auto-recovers)"
-        else:
-            hb = "drawdown_pause"
-        _emit_v1_heartbeat(hb)
-        return
+    # NEW PLACEMENT gating. When the operator has disabled stop guardrails
+    # (--disable-stop-guardrails, 2026-06-16: "turn off the soft pause and the
+    # stop guardrails; I will stop it myself"), ALL performance stops are
+    # bypassed: the soft pause (edge + win-rate), every hard kill (catastrophic
+    # single-loss, 14-day-negative), AND the 20% drawdown stop. The hard CAPITAL
+    # ceiling ($100 cap), per-trade sizing, and max-open-positions downstream are
+    # NOT bypassed and remain the only automated protection. Maintenance +
+    # cancels above already ran regardless.
+    if not disable_stop_guardrails:
+        was_soft_paused = kt.state.soft_paused
+        soft_pause_reason = kt.evaluate_soft_pause()
+        if discord_url and kt.state.soft_paused != was_soft_paused:
+            if kt.state.soft_paused:
+                send_discord(
+                    discord_url,
+                    content=(
+                        f"LIVE FAV SOFT-PAUSE: {soft_pause_reason}. New placement "
+                        f"paused; maintenance + cancels keep running. AUTO-RESUMES "
+                        f"when the trailing-30 edge recovers. No manual reset needed."
+                    ),
+                )
+            else:
+                send_discord(
+                    discord_url,
+                    content=(
+                        "LIVE FAV soft-pause CLEARED: trailing-30 edge recovered; "
+                        "new placement resumed automatically."
+                    ),
+                )
+        if (
+            kt.state.tripped
+            or soft_pause_reason is not None
+            or not dd.allowed_to_place_orders()
+        ):
+            if kt.state.tripped:
+                # Name the actual hard kill so a halt is never an opaque
+                # "kill_or_drawdown" (the remaining HARD kills are catastrophic
+                # single-loss and 14-day-negative; the edge/win-rate checks are
+                # now auto-recovering soft pauses).
+                hb = f"hard_kill:{kt.state.trip_reason}"
+            elif soft_pause_reason is not None:
+                hb = "soft_pause(auto-recovers)"
+            else:
+                hb = "drawdown_pause"
+            _emit_v1_heartbeat(hb)
+            return
 
     candidates = scan(client, scanner_cfg)
     if not candidates:
@@ -1533,6 +1538,16 @@ def main() -> int:
              "edge for a large fill-rate gain. Tick env-tunable: "
              "V1_STEP_TICK_CENTS (1). Off by default. See research/v19/03.",
     )
+    parser.add_argument(
+        "--disable-stop-guardrails", action="store_true",
+        help="OPERATOR OVERRIDE (2026-06-16): bypass ALL performance stops in "
+             "the placement loop: the soft pause (edge + win-rate), every hard "
+             "kill (catastrophic single-loss, 14-day-negative), AND the 20%% "
+             "drawdown stop. The bot keeps placing regardless of recent results; "
+             "the operator stops it manually. The hard $100 capital ceiling, "
+             "per-trade sizing, and max-open-positions are NOT bypassed and "
+             "remain the only automated protection. Off by default.",
+    )
     args = parser.parse_args()
 
     if args.log_file is not None:
@@ -1760,6 +1775,26 @@ def main() -> int:
                 detail="LIVE_OVERRIDE_GATE=true bypasses acceptance criteria",
             )
 
+        if args.disable_stop_guardrails:
+            log_main.critical(
+                "stop_guardrails_disabled",
+                detail=("operator override: soft pause + all kill triggers + the "
+                        "20% drawdown stop are BYPASSED; only the $100 capital "
+                        "ceiling + per-trade sizing remain"),
+            )
+            if discord_url:
+                send_discord(
+                    discord_url,
+                    content=(
+                        "LIVE FAV WARNING: STOP GUARDRAILS DISABLED by operator. "
+                        "The soft pause and every performance stop (edge, "
+                        "win-rate, catastrophic-loss, 14-day-negative, 20% "
+                        "drawdown) are OFF. v1 will keep placing regardless of "
+                        "results. Only the $100 capital ceiling + per-trade "
+                        "sizing remain. Stop it manually if needed."
+                    ),
+                )
+
         bankroll = lm.current_live_bankroll()
         if (
             not args.once
@@ -1801,6 +1836,7 @@ def main() -> int:
                 enable_no_underdog=args.enable_no_underdog,
                 band_sizing=args.band_sizing,
                 step_in_front_enabled=args.step_in_front,
+                disable_stop_guardrails=args.disable_stop_guardrails,
             )
             return 0
 
@@ -1816,6 +1852,7 @@ def main() -> int:
                     enable_no_underdog=args.enable_no_underdog,
                     band_sizing=args.band_sizing,
                     step_in_front_enabled=args.step_in_front,
+                    disable_stop_guardrails=args.disable_stop_guardrails,
                 )
             except Exception as exc:
                 log_main.error("live_loop_failed", error=str(exc))
