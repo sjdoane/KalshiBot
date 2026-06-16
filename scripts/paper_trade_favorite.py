@@ -1780,7 +1780,7 @@ def main() -> int:
                 "stop_guardrails_disabled",
                 detail=("operator override: soft pause + all kill triggers + the "
                         "20% drawdown stop are BYPASSED; only the $100 capital "
-                        "ceiling + per-trade sizing remain"),
+                        "ceiling + per-trade sizing + max-open-positions remain"),
             )
             if discord_url:
                 send_discord(
@@ -1791,7 +1791,7 @@ def main() -> int:
                         "win-rate, catastrophic-loss, 14-day-negative, 20% "
                         "drawdown) are OFF. v1 will keep placing regardless of "
                         "results. Only the $100 capital ceiling + per-trade "
-                        "sizing remain. Stop it manually if needed."
+                        "sizing + max-open-positions remain. Stop it manually if needed."
                     ),
                 )
 
