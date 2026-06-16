@@ -185,6 +185,11 @@ while ($true) {
         # See research/v19/03-fill-rate-diagnosis.md.
         "--min-lifetime-days", "0",
         "--max-lifetime-days", "21",
+        # 2026-06-16: lower the scanner liquidity floor 50 -> 10 so v1 quotes
+        # thinner / earlier tennis + MLB markets and places more often (operator
+        # wants more deployment). Tradeoff: thin-market maker bids fill less
+        # reliably. Raise back toward 50 if too many bids sit unfilled.
+        "--min-volume", "10",
         # Enable cancel-on-drift: rotate v1 resting bids if the
         # underlying market drifts materially since placement. Defaults
         # in paper_trade_favorite.py CLI are conservative (3c drift
