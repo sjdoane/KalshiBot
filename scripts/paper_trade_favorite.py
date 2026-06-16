@@ -1449,14 +1449,6 @@ def main() -> int:
     # v1's near-zero fill rate. See research/v19/03-fill-rate-diagnosis.md.
     parser.add_argument("--min-lifetime-days", type=int, default=0)
     parser.add_argument(
-        "--min-volume", type=float, default=50.0,
-        help="Scanner minimum cumulative volume (contracts) for a market to be "
-             "an eligible candidate. Default 50 (liquidity floor). Lower it to "
-             "quote thinner / earlier markets so the bot places more often "
-             "(tradeoff: thin-market bids fill less reliably). Maps to "
-             "ScannerConfig.min_volume.",
-    )
-    parser.add_argument(
         "--max-lifetime-days", type=int, default=180,
         help="Upper bound on market lifetime (open_time to close_time) in "
              "days. Default 180 per research/time-scale-analysis.md: edge "
@@ -1616,7 +1608,6 @@ def main() -> int:
         series_denylist=series_denylist,
         series_allowlist=series_allowlist,
         min_minutes_to_close=min_minutes_to_close,
-        min_volume=args.min_volume,
     )
     log_main_init = structlog.get_logger("paper_trade_favorite")
     log_main_init.info(

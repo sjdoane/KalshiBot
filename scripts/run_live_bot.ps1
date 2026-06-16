@@ -173,7 +173,12 @@ while ($true) {
     $BotArgs = @(
         "run", "python", "-m", "scripts.paper_trade_favorite",
         "--mode", "live", "--yes-i-authorize",
-        "--cadence", "900",
+        # 2026-06-16: 10-minute scan cadence (was 900s/15m) so v1 catches newly
+        # liquid markets and places sooner. The min-volume=50 liquidity floor is
+        # KEPT (reverted the 06-16 lowering to 10) so it only quotes liquid
+        # markets; faster cadence increases placement frequency without that
+        # quality tradeoff.
+        "--cadence", "600",
         "--max-concurrent", "auto",
         "--min-net-edge", "0.01",
         # Lifetime window [0, 21] days (was [30, 180]). FIX 2026-06-02: the old
@@ -185,11 +190,6 @@ while ($true) {
         # See research/v19/03-fill-rate-diagnosis.md.
         "--min-lifetime-days", "0",
         "--max-lifetime-days", "21",
-        # 2026-06-16: lower the scanner liquidity floor 50 -> 10 so v1 quotes
-        # thinner / earlier tennis + MLB markets and places more often (operator
-        # wants more deployment). Tradeoff: thin-market maker bids fill less
-        # reliably. Raise back toward 50 if too many bids sit unfilled.
-        "--min-volume", "10",
         # Enable cancel-on-drift: rotate v1 resting bids if the
         # underlying market drifts materially since placement. Defaults
         # in paper_trade_favorite.py CLI are conservative (3c drift
