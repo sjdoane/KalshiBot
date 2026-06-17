@@ -21,13 +21,15 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # Hard safety constants. Pre-trade gate refuses orders that would breach.
-    # Operator-authorized capital ceiling is $100; the default value here is
-    # the recommended $25 initial deployment per the post-Phase-1 critic.
-    # The operator can raise the deployed value up to $100 in `.env` once a
-    # strategy validates. Raising past $100 requires explicit operator
-    # authorization AND a bump to the `le=` bound below.
-    CAPITAL_CAP_USD: float = Field(default=25.0, ge=0.0, le=100.0)
+    # 2026-06-16: the $100 capital CEILING was removed per operator ("absolutely
+    # shouldn't be a constraint if I increase capital"). The le=100 bound is
+    # gone, so CAPITAL_CAP_USD can be any non-negative value. NOTE: the v1 live
+    # path does NOT use CAPITAL_CAP_USD at all; v1 sizes off the LIVE Kalshi
+    # balance each loop (per-bid = a fraction of the balance, max_concurrent
+    # auto-derived from it), so depositing more capital deploys more
+    # AUTOMATICALLY. This constant remains only for the (now informational)
+    # preflight report and legacy callers.
+    CAPITAL_CAP_USD: float = Field(default=25.0, ge=0.0)
     CAPITAL_ABSOLUTE_FLOOR_USD: float = 25.0
     PER_TRADE_USD: float = 2.0
     PER_MARKET_CAP_PCT: float = 0.10

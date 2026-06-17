@@ -118,6 +118,13 @@ def test_check_capital_cap_passes_at_default() -> None:
     assert check_capital_cap(s).passed is True
 
 
+def test_check_capital_cap_no_ceiling_above_100() -> None:
+    # 2026-06-16: the $100 ceiling was removed per operator; the config accepts
+    # any non-negative value and the preflight check is informational (passes).
+    s = _make_settings(CAPITAL_CAP_USD=1000.0)
+    assert check_capital_cap(s).passed is True
+
+
 def test_check_per_trade_size_fails_below_upper_cap() -> None:
     s = _make_settings(LIVE_PER_TRADE_USD=0.50)
     r = check_per_trade_size(s)

@@ -75,13 +75,13 @@ def check_kalshi_env(settings: Settings, expected: str = "prod") -> CheckResult:
 
 
 def check_capital_cap(settings: Settings) -> CheckResult:
-    if settings.CAPITAL_CAP_USD > 100.0:
-        return CheckResult(
-            "capital_cap", False,
-            f"CAPITAL_CAP_USD={settings.CAPITAL_CAP_USD} > $100 ceiling",
-        )
+    # 2026-06-16: the $100 ceiling was removed per operator. v1 sizes off the
+    # live Kalshi balance, so this constant does not constrain live deployment;
+    # this check is now informational (always passes) and only reports the value.
     return CheckResult(
-        "capital_cap", True, f"CAPITAL_CAP_USD=${settings.CAPITAL_CAP_USD:.2f}",
+        "capital_cap", True,
+        f"CAPITAL_CAP_USD=${settings.CAPITAL_CAP_USD:.2f} (no ceiling; v1 sizes "
+        f"off live balance)",
     )
 
 
