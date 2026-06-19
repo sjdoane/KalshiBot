@@ -47,6 +47,7 @@ calling site can be updated; the wire format is centralized here.
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -243,7 +244,20 @@ class LiveOrderManager:
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.state_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
-        tmp.replace(self.state_path)
+        # Atomic replace, with retry on transient Windows file locks. This dir
+        # lives under OneDrive, which intermittently holds state.json open while
+        # syncing it (WinError 5 "Access is denied" on the rename); AV scans can
+        # too. Mirrors the kill_state append retry. The loop's own try/except
+        # already prevents a crash, but retrying avoids skipping the persist on
+        # a sync collision (which left a stale state.tmp on 2026-06-19).
+        for attempt in range(6):
+            try:
+                tmp.replace(self.state_path)
+                return
+            except PermissionError:
+                if attempt == 5:
+                    raise
+                time.sleep(0.5)
 
     def realized_summary_since(
         self, since_ts: str | None,
