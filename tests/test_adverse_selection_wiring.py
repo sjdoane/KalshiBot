@@ -117,7 +117,7 @@ def _place_aged_resting_order(
     min_order_age_minutes gate during evaluation. Returns intent_id.
     """
     client.post_responses.append({
-        "order": {"order_id": order_id, "status": "resting"},
+        "order_id": order_id, "fill_count": "0", "remaining_count": "1",
     })
     order = mgr.place_live_order(
         ticker=ticker, series_ticker=series_ticker,
@@ -149,7 +149,7 @@ def test_cancel_fires_on_adverse_drift(tmp_state_path: Path) -> None:
     )
     # Mid dropped 5c against our bid.
     client.get_responses.append(_orderbook_with_mid(0.69, 0.71))
-    client.delete_responses.append({"order": {"status": "cancelled"}})
+    client.delete_responses.append({"order_id": "k-1", "reduced_by": 1, "ts_ms": 0})
 
     cancelled = mgr.reconcile_adverse_selection()
 
@@ -158,7 +158,7 @@ def test_cancel_fires_on_adverse_drift(tmp_state_path: Path) -> None:
     assert intent_id in mgr.state.closed
     assert mgr.state.closed[intent_id].status == LiveOrderStatus.LIVE_CANCELLED
     delete_call = [c for c in client.calls if c[0] == "DELETE"][0]
-    assert delete_call[1] == "/portfolio/orders/k-1"
+    assert delete_call[1] == "/portfolio/events/orders/k-1"
 
 
 def test_no_cancel_when_drift_within_threshold(tmp_state_path: Path) -> None:
@@ -214,7 +214,7 @@ def test_multiple_orders_processed_independently(tmp_state_path: Path) -> None:
     client.get_responses.append(_orderbook_with_mid(0.69, 0.71))   # A mid 0.70
     client.get_responses.append(_orderbook_with_mid(0.64, 0.66))   # B mid 0.65 vs target 72c
     client.get_responses.append(_orderbook_with_mid(0.84, 0.86))   # C mid 0.85 vs target 80c
-    client.delete_responses.append({"order": {"status": "cancelled"}})
+    client.delete_responses.append({"order_id": "k-1", "reduced_by": 1, "ts_ms": 0})
 
     cancelled = mgr.reconcile_adverse_selection()
 
@@ -242,7 +242,7 @@ def test_orderbook_fetch_failure_does_not_crash(tmp_state_path: Path) -> None:
     # via the raise without consuming a response).
     client.get_raises.append(RuntimeError("rate limit"))
     client.get_responses.append(_orderbook_with_mid(0.65, 0.67))   # mid 0.66
-    client.delete_responses.append({"order": {"status": "cancelled"}})
+    client.delete_responses.append({"order_id": "k-1", "reduced_by": 1, "ts_ms": 0})
 
     cancelled = mgr.reconcile_adverse_selection()
 
@@ -326,7 +326,7 @@ def test_state_persists_cancellation(tmp_state_path: Path) -> None:
         mgr, client, target_price=0.75, order_id="k-1",
     )
     client.get_responses.append(_orderbook_with_mid(0.65, 0.67))
-    client.delete_responses.append({"order": {"status": "cancelled"}})
+    client.delete_responses.append({"order_id": "k-1", "reduced_by": 1, "ts_ms": 0})
     mgr.reconcile_adverse_selection()
 
     mgr2 = LiveOrderManager(client=client, state_path=tmp_state_path)

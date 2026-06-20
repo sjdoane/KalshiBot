@@ -85,7 +85,7 @@ def main() -> int:
                 order_id = (response.get("order") or {}).get("order_id")
                 if order_id:
                     try:
-                        client.delete(f"/portfolio/orders/{order_id}")
+                        client.delete(f"/portfolio/events/orders/{order_id}")
                         log.info("cancelled_probe_order", order_id=order_id)
                     except Exception as exc:
                         log.error("cancel_failed",

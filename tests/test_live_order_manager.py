@@ -682,13 +682,14 @@ def test_cancel_all_resting_calls_delete(tmp_state_path: Path) -> None:
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75)
-    client.delete_responses.append({"order": {"status": "cancelled"}})
+    client.delete_responses.append({"order_id": "k-1", "reduced_by": 1, "ts_ms": 0})
     ids = mgr.cancel_all_resting()
     assert order.intent_id in ids
     assert order.intent_id in mgr.state.closed
     method, endpoint, _ = client.calls[1]
     assert method == "DELETE"
-    assert endpoint == "/portfolio/orders/k-1"
+    # V2 cancel path (legacy /portfolio/orders/{id} mutation is being deprecated).
+    assert endpoint == "/portfolio/events/orders/k-1"
 
 
 def test_cancel_all_resting_continues_on_failure(tmp_state_path: Path) -> None:
@@ -709,7 +710,7 @@ def test_cancel_all_resting_continues_on_failure(tmp_state_path: Path) -> None:
     # First cancel fails, second succeeds.
     client.delete_raises.append(RuntimeError("network"))
     client.delete_raises.append(None)
-    client.delete_responses.append({"order": {"status": "cancelled"}})
+    client.delete_responses.append({"order_id": "k-1", "reduced_by": 1, "ts_ms": 0})
     ids = mgr.cancel_all_resting()
     # One success, one still in resting.
     assert len(ids) == 1
@@ -780,6 +781,9 @@ def test_cancel_resting_by_series_cancels_only_denylisted(tmp_state_path: Path) 
     assert "r1" not in mgr.state.resting and "r1" in mgr.state.closed
     assert "r2" in mgr.state.resting  # not denylisted: kept
     assert mgr.state.closed["r1"].status == LiveOrderStatus.LIVE_CANCELLED
+    # Cancels via the V2 endpoint, identifying the order by its Kalshi order_id.
+    delete_calls = [c for c in client.calls if c[0] == "DELETE"]
+    assert delete_calls == [("DELETE", "/portfolio/events/orders/r1", {})]
 
 
 def test_cancel_resting_by_series_empty_denylist_noops(tmp_state_path: Path) -> None:

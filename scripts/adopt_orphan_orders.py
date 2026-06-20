@@ -202,7 +202,7 @@ def main() -> int:
                     print(f"  [dry-run] would cancel {ticker} (order_id={oid})")
                     continue
                 try:
-                    client.delete(f"/portfolio/orders/{oid}")
+                    client.delete(f"/portfolio/events/orders/{oid}")
                     print(f"  cancelled {ticker} (order_id={oid})")
                     cancelled += 1
                 except Exception as exc:

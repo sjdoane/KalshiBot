@@ -167,7 +167,7 @@ def main() -> int:
                 cancelled_notional += notional
                 continue
             try:
-                client.delete(f"/portfolio/orders/{order_id}")
+                client.delete(f"/portfolio/events/orders/{order_id}")
                 print(
                     f"  cancelled {ticker:40s} ${notional:.2f} age={age_label}",
                 )

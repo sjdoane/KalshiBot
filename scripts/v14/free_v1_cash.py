@@ -11,7 +11,7 @@ Run manually ONCE before launching the v14 daemon for the first time.
 The script:
 1. Reads v1 state.json (data/live_trades/state.json) and lists resting orders
 2. Sorts by `expected_net_edge` ascending (cancel the WORST trades first)
-3. For each, calls Kalshi DELETE /portfolio/orders/{order_id}
+3. For each, calls Kalshi DELETE /portfolio/events/orders/{order_id} (V2)
 4. Stops when cumulative freed cash >= target
 5. Updates v1 state.json to mark the cancelled orders
 
@@ -82,7 +82,7 @@ def main() -> int:
                 print(f"  {o.ticker}: no order_id; skip", flush=True)
                 continue
             try:
-                kc.delete(f"/portfolio/orders/{o.order_id}")
+                kc.delete(f"/portfolio/events/orders/{o.order_id}")
                 # Mark in state
                 from kalshi_bot.strategy.live_order_manager import LiveOrderStatus
                 o.status = LiveOrderStatus.LIVE_CANCELLED

@@ -23,7 +23,9 @@ Kalshi endpoints used:
   legacy /portfolio/orders create endpoint was deprecated and removed
   2026-06, returning HTTP 410 deprecated_v1_order_endpoint).
 - GET /portfolio/orders: list resting orders (by status / ticker).
-- DELETE /portfolio/orders/{order_id}: cancel a resting order.
+- DELETE /portfolio/events/orders/{order_id}: cancel a resting order (V2
+  single-book; the legacy DELETE /portfolio/orders/{order_id} mutation is
+  being deprecated 2026-06-18..25 alongside the create endpoint).
 - GET /portfolio/fills: list fills since timestamp.
 - GET /markets/{ticker}: check settlement.
 - GET /portfolio/balance: pre-flight balance check (called by
@@ -967,7 +969,7 @@ class LiveOrderManager:
             if not order.order_id:
                 continue
             try:
-                self._client.delete(f"/portfolio/orders/{order.order_id}")
+                self._client.delete(f"/portfolio/events/orders/{order.order_id}")
             except Exception as exc:
                 log.warning(
                     "live_cancel_failed",
@@ -1012,7 +1014,7 @@ class LiveOrderManager:
             if placed > cutoff:
                 continue
             try:
-                self._client.delete(f"/portfolio/orders/{order.order_id}")
+                self._client.delete(f"/portfolio/events/orders/{order.order_id}")
             except Exception as exc:
                 log.warning(
                     "live_cancel_stale_failed",
@@ -1058,7 +1060,7 @@ class LiveOrderManager:
             if prefix not in denylisted_series:
                 continue
             try:
-                self._client.delete(f"/portfolio/orders/{order.order_id}")
+                self._client.delete(f"/portfolio/events/orders/{order.order_id}")
             except Exception as exc:
                 log.warning(
                     "live_cancel_denylist_failed",
@@ -1130,7 +1132,7 @@ class LiveOrderManager:
             if order is None or not order.order_id:
                 continue
             try:
-                self._client.delete(f"/portfolio/orders/{order.order_id}")
+                self._client.delete(f"/portfolio/events/orders/{order.order_id}")
             except Exception as exc:
                 log.warning(
                     "adverse_selection_cancel_failed",

@@ -92,7 +92,7 @@ def main() -> int:
             if not order.order_id:
                 continue
             try:
-                client.delete(f"/portfolio/orders/{order.order_id}")
+                client.delete(f"/portfolio/events/orders/{order.order_id}")
             except Exception as exc:
                 log.error("cancel_failed", intent_id=intent_id,
                           order_id=order.order_id, error=str(exc))

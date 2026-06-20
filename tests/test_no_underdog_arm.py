@@ -164,7 +164,7 @@ def test_band_multiplier_low_high_outside() -> None:
 # --- LiveOrderManager NO-side order body -----------------------------------
 def test_place_no_order_body(state_path: Path) -> None:
     client = MockClient()
-    client.post_responses.append({"order": {"order_id": "k1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k1", "fill_count": "0", "remaining_count": "2"})
     mgr = LiveOrderManager(client=client, state_path=state_path)
     order = mgr.place_live_order(
         ticker="KXMLBGAME-X-HOME", series_ticker="KXMLBGAME",
@@ -172,11 +172,14 @@ def test_place_no_order_body(state_path: Path) -> None:
         expected_net_edge=0.06, market_mid_at_placement=0.74, side="no",
     )
     assert order.side == "no"
-    _m, _e, body = client.calls[0]
-    assert body["side"] == "no"
-    assert body["no_price"] == 74
-    assert "yes_price" not in body
-    assert body["count"] == 2
+    _m, endpoint, body = client.calls[0]
+    # V2 single-book: a NO favorite maps to side="ask" at the YES-equivalent
+    # price (100 - no_price = 26c -> "0.26"); count is a fixed-point string.
+    assert endpoint == "/portfolio/events/orders"
+    assert body["side"] == "ask"
+    assert body["price"] == "0.26"
+    assert "no_price" not in body and "yes_price" not in body
+    assert body["count"] == "2"
 
 
 def test_place_rejects_bad_side(state_path: Path) -> None:
@@ -229,7 +232,7 @@ def test_pnl_void_is_fee_only_both_sides(state_path: Path) -> None:
 # --- side-aware fill-price conversion in reconcile_fills --------------------
 def test_reconcile_fills_converts_yes_price_to_no_for_no_order(state_path: Path) -> None:
     client = MockClient()
-    client.post_responses.append({"order": {"order_id": "ord-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "ord-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=state_path)
     order = mgr.place_live_order(
         ticker="KXMLBGAME-X-HOME", series_ticker="KXMLBGAME",
@@ -252,7 +255,7 @@ def test_reconcile_fills_converts_yes_price_to_no_for_no_order(state_path: Path)
 
 def test_reconcile_fills_yes_order_unchanged(state_path: Path) -> None:
     client = MockClient()
-    client.post_responses.append({"order": {"order_id": "ord-2", "status": "resting"}})
+    client.post_responses.append({"order_id": "ord-2", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=state_path)
     order = mgr.place_live_order(
         ticker="KXMLBGAME-Y-HOME", series_ticker="KXMLBGAME",
