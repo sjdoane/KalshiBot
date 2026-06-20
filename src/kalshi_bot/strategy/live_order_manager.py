@@ -1,4 +1,4 @@
-"""Live order manager: real Kalshi /portfolio/orders integration.
+﻿"""Live order manager: real Kalshi /portfolio/orders integration.
 
 PARALLEL to PaperOrderManager. Same persistence + state pattern,
 different endpoints. Live state lives at data/live_trades/state.json
@@ -481,6 +481,30 @@ class LiveOrderManager:
         )
         return order
 
+    @staticmethod
+    def _order_lookup_params(order: LiveOrder) -> dict[str, Any]:
+        """Query params for finding `order` via GET /portfolio/orders.
+
+        Scope by ticker (a server-supported filter, "Filter by market ticker")
+        and drain that one market fully (max_pages=None), so a not-found
+        verdict is real rather than a pagination-truncation artifact. A finite
+        page cap is deliberately NOT used on the ticker path: it would reinstate
+        a (larger) version of the very windowing bug this fixes if Kalshi ever
+        sorted a heavily re-quoted market oldest-first. This strategy places
+        about one bid per market, so a scoped query returns only a handful of
+        records and the drain terminates in a single page; full drain is what
+        makes the not-found verdict trustworthy.
+        client_order_id is NOT a supported query parameter here (Kalshi ignores
+        it), so the lookup never relies on it server-side; callers match it
+        locally. No status filter is applied: the lookup must see resting AND
+        executed AND canceled records to read the current status of the order.
+        The no-ticker branch is defensive only (placement always sets a ticker)
+        and keeps a finite page cap so it can never drain the whole account.
+        """
+        if order.ticker:
+            return {"ticker": order.ticker, "max_pages": None}
+        return {"max_pages": 10}
+
     def reconcile_intents(self) -> list[LiveOrder]:
         """For each INTENT_RECORDED / LIVE_PENDING, ask Kalshi if it knows
         about the client_order_id. Resolves the lost-ack case.
@@ -490,12 +514,14 @@ class LiveOrderManager:
         changed: list[LiveOrder] = []
         for intent_id, order in list(self.state.intents.items()):
             try:
-                # Kalshi exposes resting orders via /portfolio/orders. We
-                # filter by client_order_id when supported; otherwise
-                # paginate and match locally.
+                # Look the order up scoped to its market (see
+                # _order_lookup_params), then match our client_order_id
+                # locally. Scoping by ticker bounds the page so an order
+                # outside an unscoped first-page window can no longer be
+                # missed and falsely cancelled.
                 results = list(self._client.paginate(
                     "/portfolio/orders", item_key="orders", limit=100,
-                    client_order_id=intent_id, max_pages=2,
+                    **self._order_lookup_params(order),
                 ))
             except Exception as exc:
                 log.warning(
@@ -558,9 +584,12 @@ class LiveOrderManager:
         changed: list[LiveOrder] = []
         for intent_id, order in list(self.state.resting.items()):
             try:
+                # Scope by ticker and match client_order_id locally; see
+                # _order_lookup_params and reconcile_intents for why an
+                # unscoped client_order_id query is unreliable.
                 results = list(self._client.paginate(
                     "/portfolio/orders", item_key="orders", limit=100,
-                    client_order_id=intent_id, max_pages=2,
+                    **self._order_lookup_params(order),
                 ))
             except Exception as exc:
                 log.warning(

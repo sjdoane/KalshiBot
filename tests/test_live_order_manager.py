@@ -71,6 +71,15 @@ class MockKalshiClient:
         if not self.paginate_responses:
             return iter([])
         items = self.paginate_responses.pop(0)
+        # Simulate Kalshi server-side behavior so tests exercise the real
+        # contract: a `ticker` filter returns only that market's records, and
+        # the walk truncates at max_pages * limit (max_pages None = drain all).
+        ticker = params.get("ticker")
+        if ticker is not None:
+            items = [r for r in items if r.get("ticker") == ticker]
+        max_pages = params.get("max_pages")
+        if max_pages is not None:
+            items = items[: max_pages * params.get("limit", 100)]
         return iter(items)
 
 
@@ -259,6 +268,7 @@ def test_reconcile_intents_finds_lost_ack_order(tmp_state_path: Path) -> None:
         "client_order_id": order.intent_id,
         "order_id": "kalshi-lost-1",
         "status": "resting",
+        "ticker": order.ticker,
     }])
     changed = mgr.reconcile_intents()
     assert len(changed) == 1
@@ -927,6 +937,7 @@ def test_reconcile_resting_detects_external_fill(tmp_state_path: Path) -> None:
         "client_order_id": o.intent_id,
         "order_id": "k-1",
         "status": "filled",
+        "ticker": o.ticker,
     }])
     changed = mgr.reconcile_resting()
     assert len(changed) == 1
@@ -946,10 +957,85 @@ def test_reconcile_resting_noop_when_still_resting(tmp_state_path: Path) -> None
         "client_order_id": o.intent_id,
         "order_id": "k-1",
         "status": "resting",
+        "ticker": o.ticker,
     }])
     changed = mgr.reconcile_resting()
     assert len(changed) == 0
     assert o.intent_id in mgr.state.resting
+
+
+def test_reconcile_intents_scopes_lookup_by_ticker(tmp_state_path: Path) -> None:
+    """The lookup must scope GET /portfolio/orders by ticker (a server-honored
+    filter) and must NOT depend on client_order_id, which Kalshi ignores as a
+    query parameter. Guards the latent false-cancel bug where an order outside
+    the unscoped first-page window was wrongly marked cancelled."""
+    client = MockKalshiClient()
+    client.post_raises.append(RuntimeError("connection reset"))
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    order = _place(mgr)
+    assert order.status == LiveOrderStatus.INTENT_RECORDED
+    client.paginate_responses.append([{
+        "client_order_id": order.intent_id, "order_id": "kalshi-lost-1",
+        "status": "resting", "ticker": order.ticker,
+    }])
+    mgr.reconcile_intents()
+    paginate_calls = [c for c in client.calls if c[0] == "PAGINATE"]
+    assert paginate_calls, "expected a paginate lookup"
+    _method, endpoint, params = paginate_calls[-1]
+    assert endpoint == "/portfolio/orders"
+    assert params.get("ticker") == order.ticker
+    assert "client_order_id" not in params
+    assert order.intent_id in mgr.state.resting
+
+
+def test_reconcile_resting_finds_order_beyond_unscoped_window(tmp_state_path: Path) -> None:
+    """With ticker scoping the order is found even when the account has more
+    orders than an unscoped pagination window (max_pages * limit). Before the
+    fix, an order past that window was missed and falsely cancelled."""
+    client = MockKalshiClient()
+    client.post_responses.append({
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
+    })
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _place(mgr, target_price=0.70)
+    # 300 unrelated orders on OTHER tickers (which would crowd ours out of an
+    # unscoped 2-page / 200-row window), plus ours on its own ticker last.
+    decoys = [
+        {"client_order_id": f"other-{i}", "order_id": f"o-{i}",
+         "status": "resting", "ticker": f"KXOTHER-{i}"}
+        for i in range(300)
+    ]
+    ours = {"client_order_id": o.intent_id, "order_id": "k-1",
+            "status": "resting", "ticker": o.ticker}
+    client.paginate_responses.append([*decoys, ours])
+    changed = mgr.reconcile_resting()
+    # Found and confirmed still resting, NOT falsely cancelled.
+    assert changed == []
+    assert o.intent_id in mgr.state.resting
+    assert o.intent_id not in mgr.state.closed
+
+
+def test_reconcile_resting_matches_only_our_coid_on_same_ticker(tmp_state_path: Path) -> None:
+    """Sibling orders on the SAME ticker (different client_order_ids) must not
+    be mistaken for ours; only the exact client_order_id match drives the
+    transition. The decoy is listed first to prove we do not blindly take
+    results[0]."""
+    client = MockKalshiClient()
+    client.post_responses.append({
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
+    })
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    o = _place(mgr, target_price=0.70)
+    client.paginate_responses.append([
+        {"client_order_id": "someone-else", "order_id": "x-9",
+         "status": "canceled", "ticker": o.ticker},
+        {"client_order_id": o.intent_id, "order_id": "k-1",
+         "status": "filled", "ticker": o.ticker},
+    ])
+    changed = mgr.reconcile_resting()
+    assert len(changed) == 1
+    assert o.intent_id in mgr.state.filled
+    assert o.intent_id not in mgr.state.resting
 
 
 def test_open_order_count_includes_filled(tmp_state_path: Path) -> None:
