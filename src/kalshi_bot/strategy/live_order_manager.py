@@ -19,7 +19,9 @@ Critic-required design points:
    not just scanner candidates.
 
 Kalshi endpoints used:
-- POST /portfolio/orders: place maker bid.
+- POST /portfolio/events/orders: place maker bid (V2 single-book; the
+  legacy /portfolio/orders create endpoint was deprecated and removed
+  2026-06, returning HTTP 410 deprecated_v1_order_endpoint).
 - GET /portfolio/orders: list resting orders (by status / ticker).
 - DELETE /portfolio/orders/{order_id}: cancel a resting order.
 - GET /portfolio/fills: list fills since timestamp.
@@ -27,21 +29,23 @@ Kalshi endpoints used:
 - GET /portfolio/balance: pre-flight balance check (called by
   preflight module, not here).
 
-Order body shape (POST /portfolio/orders):
+Order body shape (POST /portfolio/events/orders, Kalshi V2 single-book):
 
     {
-      "action": "buy",
-      "side": "yes",
       "ticker": "KX...-...-T",
-      "type": "limit",
-      "count": 1,
-      "yes_price": 75,                      # integer cents (1..99)
+      "side": "bid",                         # bid = buy YES; ask = sell YES
+      "count": "1",                          # fixed-point contract string
+      "price": "0.75",                       # fixed-point YES-side dollars
       "client_order_id": "<uuid hex 32ch>",
-      "time_in_force": "good_til_cancel"
+      "time_in_force": "good_till_canceled",
+      "self_trade_prevention_type": "taker_at_cross"
     }
 
-If Kalshi later requires dollar strings instead of integer cents the
-calling site can be updated; the wire format is centralized here.
+The book is quoted entirely from the YES side: a YES-favorite bid is
+side="bid" at the YES price; a NO-underdog bid is side="ask" at the
+YES-equivalent price (1 - no_price). The legacy /portfolio/orders body
+(action/side=yes|no/yes_price|no_price in integer cents) was deprecated
+and removed 2026-06. The wire format is centralized in place_live_order.
 """
 
 from __future__ import annotations
@@ -325,7 +329,7 @@ class LiveOrderManager:
         1. Generate UUID intent_id.
         2. Build LiveOrder with INTENT_RECORDED status.
         3. Persist state.json BEFORE the POST attempt. (Crash-safety.)
-        4. POST /portfolio/orders.
+        4. POST /portfolio/events/orders.
         5. On ack: store order_id, flip status to LIVE_RESTING, persist.
         6. On exception: leave INTENT_RECORDED in state.intents for
            the next reconcile pass. The persisted intent_id IS the
@@ -364,28 +368,48 @@ class LiveOrderManager:
         self.state.intents[intent_id] = order
         self._save()
 
-        # Kalshi REST API order body. Probed live 2026-05-23: the only
-        # valid `time_in_force` enum values are `immediate_or_cancel` and
-        # `good_till_canceled` (American spelling, snake_case). `EOD`,
-        # `IOC`, `FOK`, and `good_til_cancelled` are all rejected with
-        # `oneof` validation. We want a resting maker bid, so GTC fits.
-        # `expiration_ts: 0` was rejected as EXPIRED_TIMESTAMP (epoch
-        # zero = 1970). See scripts/probe_order_tif.py for the probe.
+        # Kalshi V2 single-book order body. The legacy /portfolio/orders
+        # create endpoint (action/side=yes|no/yes_price|no_price in cents) was
+        # deprecated and removed 2026-06 (HTTP 410 deprecated_v1_order_endpoint);
+        # V2 /portfolio/events/orders is now required.
+        #
+        # The V2 book is quoted ENTIRELY from the YES side:
+        #   side="bid" buys YES; side="ask" sells YES (== buys NO at 1 - price).
+        # Our two arms map onto that single book as:
+        #   favorite YES arm (side=="yes"): bid at the YES price.
+        #   no-underdog arm  (side=="no") : ask at the YES-EQUIVALENT price,
+        #     i.e. (100 - target_price_cents) cents, because buying NO at
+        #     no_price is economically selling YES at (1 - no_price).
+        # target_price_cents is always the bid's OWN-side price (validated
+        # 1..99 above), so yes_price_cents stays in 1..99 for both arms.
+        #
+        # price/count are fixed-point DOLLAR/contract STRINGS, not cents.
+        # time_in_force good_till_canceled preserves the resting-maker behavior
+        # (probed 2026-05-23: only immediate_or_cancel and good_till_canceled
+        # are valid). self_trade_prevention_type is REQUIRED by V2;
+        # taker_at_cross is the documented default and our event-level dedup
+        # means self-crosses do not arise in practice. post_only is left unset
+        # to preserve legacy behavior (a crossing bid may fill immediately).
+        if side == "yes":
+            v2_side = "bid"
+            yes_price_cents = target_price_cents
+        else:  # side == "no": buy NO at target_price_cents == sell YES at (100 - it)
+            v2_side = "ask"
+            yes_price_cents = 100 - target_price_cents
+        price_dollars = f"{yes_price_cents // 100}.{yes_price_cents % 100:02d}"
         body = {
-            "action": "buy",
-            "side": side,
             "ticker": ticker,
-            "type": "limit",
-            "count": contracts,
-            # Kalshi takes the price in the bid's own side terms.
-            ("yes_price" if side == "yes" else "no_price"): target_price_cents,
-            "client_order_id": intent_id,
+            "side": v2_side,
+            "count": str(contracts),
+            "price": price_dollars,
             "time_in_force": "good_till_canceled",
+            "self_trade_prevention_type": "taker_at_cross",
+            "client_order_id": intent_id,
         }
 
         try:
             order.status = LiveOrderStatus.LIVE_PENDING
-            response = self._client.post("/portfolio/orders", json=body)
+            response = self._client.post("/portfolio/events/orders", json=body)
         except Exception as exc:
             log.error(
                 "live_order_post_failed",
@@ -397,9 +421,11 @@ class LiveOrderManager:
             self._save()
             return order
 
-        # Successful ack. Pull order_id from response.
-        order_data = response.get("order", {})
-        kalshi_order_id = order_data.get("order_id") or order_data.get("id")
+        # V2 ack is a FLAT object (no nested "order"): order_id,
+        # client_order_id, fill_count, remaining_count, average_fill_price,
+        # average_fee_paid (all strings), ts_ms. There is no "status" field;
+        # fill state is read from the counts.
+        kalshi_order_id = response.get("order_id") or response.get("id")
         if not kalshi_order_id:
             log.error(
                 "live_order_ack_missing_order_id",
@@ -411,18 +437,32 @@ class LiveOrderManager:
 
         order.order_id = kalshi_order_id
         order.acked_ts = datetime.now(UTC).isoformat()
-        # If Kalshi already marked it filled (FOK/IOC path; not our default),
-        # transition straight to filled. NOTE: this path does NOT capture the
-        # actual fee (fee_cost lives on the /portfolio/fills record, not the
-        # order ack), and reconcile_fills only matches RESTING orders, so such
-        # an order would keep fee_cost_usd=0. This is acceptable because v1 is a
-        # pure good_till_canceled maker that never takes the FOK/IOC path; its
-        # fills always arrive via reconcile_fills (resting -> filled), where the
-        # real fee IS captured. Revisit if an IOC/FOK arm is ever added.
-        kalshi_status = (order_data.get("status") or "").lower()
-        if kalshi_status in ("filled", "executed"):
+
+        try:
+            fill_count = float(response.get("fill_count") or 0)
+        except (TypeError, ValueError):
+            fill_count = 0.0
+        try:
+            remaining_count = float(response.get("remaining_count") or 0)
+        except (TypeError, ValueError):
+            remaining_count = 0.0
+        # A pure good_till_canceled maker bid normally rests (fill_count 0). If
+        # Kalshi reports a full immediate fill (fill_count > 0 and nothing
+        # remaining), record it as filled. Any partial fill keeps the order
+        # RESTING so reconcile_fills / reconcile_resting pick up the remainder.
+        # NOTE: this straight-to-filled path does NOT capture the actual fee
+        # (fee_cost lives on the /portfolio/fills record, not the order ack, and
+        # reconcile_fills only matches RESTING orders), so such an order would
+        # keep fee_cost_usd=0. This is acceptable because v1 is a pure GTC maker
+        # whose fills normally arrive via reconcile_fills (resting -> filled),
+        # where the real fee IS captured; an immediate full fill is a non-default
+        # edge case. Revisit if an IOC/FOK arm is ever added.
+        if fill_count > 0 and remaining_count <= 0:
             order.status = LiveOrderStatus.LIVE_FILLED
             order.filled_ts = order.acked_ts
+            # A full immediate fill means all placed contracts filled. Use the
+            # placed count (robust to the ack's fill_count string format and
+            # identical to the legacy behavior).
             order.filled_count = contracts
             order.filled_price_cents = target_price_cents
             self.state.filled[intent_id] = order
@@ -435,7 +475,9 @@ class LiveOrderManager:
         log.info(
             "live_order_placed",
             intent_id=intent_id, order_id=kalshi_order_id, ticker=ticker,
-            yes_price_cents=target_price_cents, contracts=contracts,
+            side=v2_side, yes_price_cents=yes_price_cents,
+            own_side_price_cents=target_price_cents, contracts=contracts,
+            fill_count=fill_count, remaining_count=remaining_count,
         )
         return order
 

@@ -109,6 +109,14 @@ class Settings(BaseSettings):
 
     # Kalshi API
     KALSHI_ENV: Literal["demo", "prod"] = "demo"
+    # 2026-06-19: the prod REST host moved. The bot's long-standing host
+    # external-api.kalshi.com went fully unreachable (TCP 443 timeout, 3/3) and
+    # so did the older trading-api.kalshi.com, while api.elections.kalshi.com
+    # (the same Kalshi backend; external-api.kalshi.com is a CNAME to the
+    # elections-external-api ELB) returns /exchange/status 200 in ~20ms. The bot
+    # was crash-looping in preflight on the dead host. This is env-overridable so
+    # a future host change needs no code edit: set KALSHI_PROD_BASE_URL in .env.
+    KALSHI_PROD_BASE_URL: str = "https://api.elections.kalshi.com/trade-api/v2"
     KALSHI_API_KEY_ID: str = ""
     KALSHI_PRIVATE_KEY_PATH: str = ""
     KALSHI_DEMO_API_KEY_ID: str = ""
@@ -120,7 +128,7 @@ class Settings(BaseSettings):
     @property
     def kalshi_base_url(self) -> str:
         if self.KALSHI_ENV == "prod":
-            return "https://external-api.kalshi.com/trade-api/v2"
+            return self.KALSHI_PROD_BASE_URL
         return "https://external-api.demo.kalshi.co/trade-api/v2"
 
     @property

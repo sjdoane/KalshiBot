@@ -160,7 +160,7 @@ def test_place_records_intent_before_post(tmp_state_path: Path) -> None:
     crash mid-POST doesn't lose the client_order_id."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "kalshi-abc-1", "status": "resting"},
+        "order_id": "kalshi-abc-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75)
@@ -169,16 +169,19 @@ def test_place_records_intent_before_post(tmp_state_path: Path) -> None:
     assert order.order_id == "kalshi-abc-1"
     assert order.intent_id in mgr.state.resting
     assert order.intent_id not in mgr.state.intents
-    # The intent IS the client_order_id.
+    # The intent IS the client_order_id. V2 single-book body: a YES favorite
+    # is a "bid" priced from the YES side, count/price as fixed-point strings,
+    # posted to /portfolio/events/orders.
     method, endpoint, body = client.calls[0]
     assert method == "POST"
-    assert endpoint == "/portfolio/orders"
+    assert endpoint == "/portfolio/events/orders"
     assert body["client_order_id"] == order.intent_id
-    assert body["yes_price"] == 75
-    assert body["count"] == 1
-    assert body["action"] == "buy"
-    assert body["side"] == "yes"
-    assert body["type"] == "limit"
+    assert body["side"] == "bid"
+    assert body["price"] == "0.75"
+    assert body["count"] == "1"
+    assert body["time_in_force"] == "good_till_canceled"
+    assert body["self_trade_prevention_type"] == "taker_at_cross"
+    assert "yes_price" not in body and "action" not in body
 
 
 def test_intent_persisted_before_post_call(tmp_state_path: Path) -> None:
@@ -196,7 +199,7 @@ def test_intent_persisted_before_post_call(tmp_state_path: Path) -> None:
 def test_ack_missing_order_id_keeps_intent(tmp_state_path: Path) -> None:
     """If Kalshi acks with no order_id, treat as failure."""
     client = MockKalshiClient()
-    client.post_responses.append({"order": {}})  # no order_id
+    client.post_responses.append({})  # no order_id
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr)
     assert order.status == LiveOrderStatus.INTENT_RECORDED
@@ -204,10 +207,11 @@ def test_ack_missing_order_id_keeps_intent(tmp_state_path: Path) -> None:
 
 
 def test_ack_with_filled_status_jumps_to_filled(tmp_state_path: Path) -> None:
-    """FOK/IOC path: Kalshi can fill on the POST. Handle inline."""
+    """Immediate-fill path: Kalshi can fill on the POST. V2 reports it via the
+    counts (fill_count > 0, remaining_count 0), not a status string."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "kalshi-fok-1", "status": "filled"},
+        "order_id": "kalshi-fok-1", "fill_count": "2", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.80, contracts=2)
@@ -215,6 +219,31 @@ def test_ack_with_filled_status_jumps_to_filled(tmp_state_path: Path) -> None:
     assert order.filled_count == 2
     assert order.filled_price_cents == 80
     assert order.intent_id in mgr.state.filled
+
+
+def test_place_no_arm_maps_to_ask_at_yes_equivalent_price(tmp_state_path: Path) -> None:
+    """The NO-underdog arm buys NO at its own-side price; on the V2 single book
+    that is an ASK at the YES-equivalent price (100 - no_price cents). Getting
+    this inverted would place the OPPOSITE real-money bet, so guard it."""
+    client = MockKalshiClient()
+    client.post_responses.append({
+        "order_id": "kalshi-no-1", "fill_count": "0", "remaining_count": "2",
+    })
+    mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
+    order = mgr.place_live_order(
+        ticker="KXNBA-26-LAL", series_ticker="KXNBA", event_ticker="KXNBA-26",
+        target_price=0.30, contracts=2, side="no",
+        expected_net_edge=0.05, market_mid_at_placement=0.30,
+    )
+    assert order.status == LiveOrderStatus.LIVE_RESTING
+    method, endpoint, body = client.calls[0]
+    assert endpoint == "/portfolio/events/orders"
+    assert body["side"] == "ask"      # selling YES == buying NO
+    assert body["price"] == "0.70"    # YES-equivalent of buying NO at 0.30
+    assert body["count"] == "2"
+    # The order keeps its own-side identity (side="no", no_price 30c) for P&L.
+    assert order.side == "no"
+    assert order.target_price_cents == 30
 
 
 def test_reconcile_intents_finds_lost_ack_order(tmp_state_path: Path) -> None:
@@ -255,7 +284,7 @@ def test_reconcile_intents_orphan_is_cancelled(tmp_state_path: Path) -> None:
 def test_reconcile_fills_applies_full_fill(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=1)
@@ -280,7 +309,7 @@ def test_reconcile_fills_captures_actual_fee_cost(tmp_state_path: Path) -> None:
     actual fee rather than a model. Guards the 2026-06-13 over-fee fix."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=2)
@@ -305,7 +334,7 @@ def test_reconcile_fills_captures_actual_fee_cost(tmp_state_path: Path) -> None:
 def test_reconcile_fills_idempotent_on_same_fill_id(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.75, contracts=1)
@@ -325,7 +354,7 @@ def test_reconcile_fills_idempotent_on_same_fill_id(tmp_state_path: Path) -> Non
 def test_reconcile_fills_partial_keeps_in_resting(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=3)
@@ -342,7 +371,7 @@ def test_reconcile_fills_partial_keeps_in_resting(tmp_state_path: Path) -> None:
 def test_reconcile_settlements_yes_winner(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=2)
@@ -367,7 +396,7 @@ def test_reconcile_settlements_yes_winner(tmp_state_path: Path) -> None:
 def test_reconcile_settlements_no_loser(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.80, contracts=1)
@@ -385,7 +414,7 @@ def test_reconcile_settlements_no_loser(tmp_state_path: Path) -> None:
 def test_reconcile_settlements_void(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=1)
@@ -402,7 +431,7 @@ def test_reconcile_settlements_void(tmp_state_path: Path) -> None:
 def test_reconcile_settlements_unsettled_market_no_change(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.75, contracts=1)
@@ -420,7 +449,7 @@ def test_reconcile_settlements_determined_not_yet_settled(tmp_state_path: Path) 
     # We deliberately wait for "finalized" rather than settle early.
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.75, contracts=1)
@@ -439,7 +468,7 @@ def test_reconcile_settlements_finalized_unrecognized_result_voids(tmp_state_pat
     for bad_result in ("", "scalar", "all_no"):
         client = MockKalshiClient()
         client.post_responses.append({
-            "order": {"order_id": "k-1", "status": "filled"},
+            "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
         })
         mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
         _place(mgr, target_price=0.75, contracts=1)
@@ -478,7 +507,7 @@ def _fill_and_age(mgr: LiveOrderManager, *, ticker: str = "KXMLBGAME-26X-T",
 def test_stuck_position_flat_voids(tmp_state_path: Path) -> None:
     # Stuck filled order; Kalshi shows position flat -> void-settle, release.
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=48.0)
     client.get_responses.append({
@@ -495,7 +524,7 @@ def test_stuck_position_flat_voids(tmp_state_path: Path) -> None:
 def test_stuck_position_held_flags_once(tmp_state_path: Path) -> None:
     # Position still held -> flag once, never void, never re-flag.
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=48.0)
     client.get_responses.append({
@@ -518,7 +547,7 @@ def test_stuck_position_missing_key_is_not_flat(tmp_state_path: Path) -> None:
     # CRITICAL: a ticker ABSENT from positions is UNKNOWN, never flat.
     # Must flag, never void (else we recreate the phantom-exit foot-gun).
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=48.0)
     client.get_responses.append({"market_positions": []})
@@ -531,7 +560,7 @@ def test_stuck_position_missing_key_is_not_flat(tmp_state_path: Path) -> None:
 def test_stuck_position_young_order_no_api_call(tmp_state_path: Path) -> None:
     # A recently-filled order is not stuck; positions must not even be polled.
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _fill_and_age(mgr, age_hours=1.0)
     void_settled, flagged = mgr.reconcile_stuck_positions(stuck_age_hours=24.0)
@@ -543,7 +572,7 @@ def test_stuck_position_young_order_no_api_call(tmp_state_path: Path) -> None:
 def test_stuck_position_fetch_error_is_safe(tmp_state_path: Path) -> None:
     # Positions fetch failure must leave state untouched (no guesswork).
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=48.0)
     client.get_raises.append(RuntimeError("rate limit"))
@@ -562,7 +591,7 @@ def test_flag_stuck_past_close_flags_once_no_void(tmp_state_path: Path) -> None:
     # Past its close_time + buffer, not terminal -> flag once. v1 NEVER voids:
     # the order stays in filled and realized P&L is not mutated.
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, ticker="KXNFLGAME-26X-T", age_hours=1.0)
     client.get_responses.append(
@@ -581,7 +610,7 @@ def test_flag_stuck_past_close_future_close_not_flagged(tmp_state_path: Path) ->
     # A normal long-horizon OPEN position (close_time in the future) is never
     # flagged. This is the guard against false-flagging v1's 24 season-long bets.
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=1.0)
     client.get_responses.append(
@@ -594,7 +623,7 @@ def test_flag_stuck_past_close_future_close_not_flagged(tmp_state_path: Path) ->
 
 def test_flag_stuck_past_close_terminal_left_for_settlement(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _fill_and_age(mgr, age_hours=1.0)
     client.get_responses.append(
@@ -605,7 +634,7 @@ def test_flag_stuck_past_close_terminal_left_for_settlement(tmp_state_path: Path
 
 def test_flag_stuck_past_close_missing_close_time(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=1.0)
     client.get_responses.append({"market": {"status": "active"}})
@@ -615,7 +644,7 @@ def test_flag_stuck_past_close_missing_close_time(tmp_state_path: Path) -> None:
 
 def test_flag_stuck_past_close_fetch_error_safe(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=1.0)
     client.get_raises.append(RuntimeError("rate limit"))
@@ -626,7 +655,7 @@ def test_flag_stuck_past_close_fetch_error_safe(tmp_state_path: Path) -> None:
 def test_flag_stuck_past_close_garbage_close_time(tmp_state_path: Path) -> None:
     # An unparseable close_time must not flag (never act on garbage data).
     client = MockKalshiClient()
-    client.post_responses.append({"order": {"order_id": "k-1", "status": "resting"}})
+    client.post_responses.append({"order_id": "k-1", "fill_count": "0", "remaining_count": "1"})
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _fill_and_age(mgr, age_hours=1.0)
     client.get_responses.append(
@@ -639,7 +668,7 @@ def test_flag_stuck_past_close_garbage_close_time(tmp_state_path: Path) -> None:
 def test_cancel_all_resting_calls_delete(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75)
@@ -655,10 +684,10 @@ def test_cancel_all_resting_calls_delete(tmp_state_path: Path) -> None:
 def test_cancel_all_resting_continues_on_failure(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     client.post_responses.append({
-        "order": {"order_id": "k-2", "status": "resting"},
+        "order_id": "k-2", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o1 = _place(mgr, target_price=0.75)
@@ -684,7 +713,7 @@ def test_cancel_all_resting_continues_on_failure(tmp_state_path: Path) -> None:
 def test_state_persists_across_instances(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr1 = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _place(mgr1)
@@ -764,7 +793,7 @@ def test_cancel_resting_by_series_delete_failure_is_safe(tmp_state_path: Path) -
 def test_bankroll_accounts_for_realized_pnl(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     order = _place(mgr, target_price=0.75, contracts=2)
@@ -781,7 +810,7 @@ def test_open_order_count_includes_intents_and_resting(tmp_state_path: Path) -> 
     client = MockKalshiClient()
     client.post_raises.append(RuntimeError("net down"))
     client.post_responses.append({
-        "order": {"order_id": "k-2", "status": "resting"},
+        "order_id": "k-2", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.75)
@@ -798,7 +827,7 @@ def test_reconcile_fills_parses_count_fp_and_yes_price_dollars(tmp_state_path: P
     """
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.70, contracts=1)
@@ -824,7 +853,7 @@ def test_reconcile_fills_handles_partial_count_fp(tmp_state_path: Path) -> None:
     """Partial fills also need count_fp parsing."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     mgr.place_live_order(
@@ -849,7 +878,7 @@ def test_reconcile_fills_falls_back_to_old_field_names(tmp_state_path: Path) -> 
     parse correctly via fallback (defensive for future API changes)."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.70, contracts=1)
@@ -872,7 +901,7 @@ def test_reconcile_resting_detects_external_cancellation(tmp_state_path: Path) -
     detect it and move the order to closed."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _place(mgr, target_price=0.70)
@@ -890,7 +919,7 @@ def test_reconcile_resting_detects_external_fill(tmp_state_path: Path) -> None:
     must move it to state.filled."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _place(mgr, target_price=0.70)
@@ -909,7 +938,7 @@ def test_reconcile_resting_noop_when_still_resting(tmp_state_path: Path) -> None
     """No state change when Kalshi confirms the order is still resting."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     o = _place(mgr, target_price=0.70)
@@ -928,10 +957,10 @@ def test_open_order_count_includes_filled(tmp_state_path: Path) -> None:
     capital doesn't escape max_concurrent as positions fill."""
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     client.post_responses.append({
-        "order": {"order_id": "k-2", "status": "resting"},
+        "order_id": "k-2", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr, target_price=0.75)  # straight to filled
@@ -947,7 +976,7 @@ def test_open_order_count_includes_filled(tmp_state_path: Path) -> None:
 def test_fills_fetch_failure_does_not_raise(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "resting"},
+        "order_id": "k-1", "fill_count": "0", "remaining_count": "1",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr)
@@ -959,7 +988,7 @@ def test_fills_fetch_failure_does_not_raise(tmp_state_path: Path) -> None:
 def test_settle_fetch_failure_continues(tmp_state_path: Path) -> None:
     client = MockKalshiClient()
     client.post_responses.append({
-        "order": {"order_id": "k-1", "status": "filled"},
+        "order_id": "k-1", "fill_count": "1", "remaining_count": "0",
     })
     mgr = LiveOrderManager(client=client, state_path=tmp_state_path)
     _place(mgr)
