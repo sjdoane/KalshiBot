@@ -1,0 +1,238 @@
+{
+  "KXBTCD": {
+    "name": "KXBTCD",
+    "band": [
+      0.3,
+      0.7
+    ],
+    "zero": {
+      "train": {
+        "n_fills": 1211919,
+        "n_events": 3796,
+        "cluster_mean": 0.017931627443748304,
+        "cluster_ci_low": 0.015502642866444922,
+        "cluster_ci_high": 0.020336487552531188,
+        "k_clusters": 3796,
+        "event_mean": 0.023421180636090826
+      },
+      "oos": {
+        "n_fills": 693136,
+        "n_events": 1490,
+        "cluster_mean": 0.010836920892869507,
+        "cluster_ci_low": 0.006478836521532561,
+        "cluster_ci_high": 0.015323672192475232,
+        "k_clusters": 1490,
+        "event_mean": 0.01709396317753527
+      }
+    },
+    "worst": {
+      "train": {
+        "n_fills": 1211919,
+        "n_events": 3796,
+        "cluster_mean": 0.007931627443748293,
+        "cluster_ci_low": 0.005502642866444913,
+        "cluster_ci_high": 0.010336487552531179,
+        "k_clusters": 3796,
+        "event_mean": 0.013421180636090813
+      },
+      "oos": {
+        "n_fills": 693136,
+        "n_events": 1490,
+        "cluster_mean": 0.0008369208928694987,
+        "cluster_ci_low": -0.003521163478467448,
+        "cluster_ci_high": 0.005323672192475223,
+        "k_clusters": 1490,
+        "event_mean": 0.007093963177535263
+      }
+    },
+    "conc_train": 0.0026064437021086737,
+    "conc_train_fam": "KXBTCD-24NOV2517",
+    "conc_oos": 0.0018927677525331804,
+    "conc_oos_fam": "KXBTCD-25SEP2916",
+    "pass": false,
+    "gate_detail": {
+      "B1_minN": true,
+      "B23_zero": true,
+      "B4_worst": false,
+      "B5_decay": true,
+      "B6_conc": true
+    }
+  },
+  "KXETHD": {
+    "name": "KXETHD",
+    "band": [
+      0.3,
+      0.7
+    ],
+    "zero": {
+      "train": {
+        "n_fills": 97089,
+        "n_events": 3241,
+        "cluster_mean": 0.03516598172810514,
+        "cluster_ci_low": 0.028506727245625266,
+        "cluster_ci_high": 0.04152464010700279,
+        "k_clusters": 3241,
+        "event_mean": 0.06902642793398807
+      },
+      "oos": {
+        "n_fills": 78289,
+        "n_events": 1454,
+        "cluster_mean": 0.01586991786841063,
+        "cluster_ci_low": 0.008989604880958757,
+        "cluster_ci_high": 0.024459315365099533,
+        "k_clusters": 1454,
+        "event_mean": 0.03266671082948951
+      }
+    },
+    "worst": {
+      "train": {
+        "n_fills": 97089,
+        "n_events": 3241,
+        "cluster_mean": 0.02516598172810513,
+        "cluster_ci_low": 0.01850672724562526,
+        "cluster_ci_high": 0.03152464010700278,
+        "k_clusters": 3241,
+        "event_mean": 0.05902642793398806
+      },
+      "oos": {
+        "n_fills": 78289,
+        "n_events": 1454,
+        "cluster_mean": 0.005869917868410623,
+        "cluster_ci_low": -0.001010395119041253,
+        "cluster_ci_high": 0.014459315365099526,
+        "k_clusters": 1454,
+        "event_mean": 0.022666710829489508
+      }
+    },
+    "conc_train": 0.004392910151163209,
+    "conc_train_fam": "KXETHD-24NOV1317",
+    "conc_oos": 0.005008256126646207,
+    "conc_oos_fam": "KXETHD-25SEP0309",
+    "pass": false,
+    "gate_detail": {
+      "B1_minN": true,
+      "B23_zero": true,
+      "B4_worst": false,
+      "B5_decay": false,
+      "B6_conc": true
+    }
+  },
+  "KXBTC_range": {
+    "name": "KXBTC_range",
+    "band": [
+      0.3,
+      0.7
+    ],
+    "zero": {
+      "train": {
+        "n_fills": 225791,
+        "n_events": 3765,
+        "cluster_mean": 0.024090951366529223,
+        "cluster_ci_low": 0.018387302453516143,
+        "cluster_ci_high": 0.029703375518119527,
+        "k_clusters": 3765,
+        "event_mean": 0.02732148697480949
+      },
+      "oos": {
+        "n_fills": 97369,
+        "n_events": 1485,
+        "cluster_mean": 0.0145752754983619,
+        "cluster_ci_low": 0.00756950780515009,
+        "cluster_ci_high": 0.021901878628904043,
+        "k_clusters": 1485,
+        "event_mean": 0.012703434532911348
+      }
+    },
+    "worst": {
+      "train": {
+        "n_fills": 225791,
+        "n_events": 3765,
+        "cluster_mean": 0.014090951366529214,
+        "cluster_ci_low": 0.008387302453516135,
+        "cluster_ci_high": 0.019703375518119515,
+        "k_clusters": 3765,
+        "event_mean": 0.017321486974809484
+      },
+      "oos": {
+        "n_fills": 97369,
+        "n_events": 1485,
+        "cluster_mean": 0.004575275498361889,
+        "cluster_ci_low": -0.0024304921948499177,
+        "cluster_ci_high": 0.01190187862890403,
+        "k_clusters": 1485,
+        "event_mean": 0.0027034345329113385
+      }
+    },
+    "conc_train": 0.0030647315226781852,
+    "conc_train_fam": "KXBTC-24NOV0717",
+    "conc_oos": 0.0030444991294403837,
+    "conc_oos_fam": "KXBTC-25OCT0117",
+    "pass": false,
+    "gate_detail": {
+      "B1_minN": true,
+      "B23_zero": true,
+      "B4_worst": false,
+      "B5_decay": false,
+      "B6_conc": true
+    }
+  },
+  "OTHER": {
+    "name": "OTHER",
+    "band": [
+      0.6,
+      0.8
+    ],
+    "zero": {
+      "train": {
+        "n_fills": 58369,
+        "n_events": 152,
+        "cluster_mean": 0.022352790008394866,
+        "cluster_ci_low": -0.021900782563157337,
+        "cluster_ci_high": 0.0648875687435626,
+        "k_clusters": 152,
+        "event_mean": 0.017242964934522757
+      },
+      "oos": {
+        "n_fills": 31205,
+        "n_events": 183,
+        "cluster_mean": 0.04346130427816055,
+        "cluster_ci_low": -0.03356854889015232,
+        "cluster_ci_high": 0.11482776529870084,
+        "k_clusters": 183,
+        "event_mean": 0.059861461556525095
+      }
+    },
+    "worst": {
+      "train": {
+        "n_fills": 58369,
+        "n_events": 152,
+        "cluster_mean": 0.012352790008394857,
+        "cluster_ci_low": -0.03190078256315735,
+        "cluster_ci_high": 0.0548875687435626,
+        "k_clusters": 152,
+        "event_mean": 0.007242964934522741
+      },
+      "oos": {
+        "n_fills": 31205,
+        "n_events": 183,
+        "cluster_mean": 0.03346130427816054,
+        "cluster_ci_low": -0.04356854889015231,
+        "cluster_ci_high": 0.10482776529870086,
+        "k_clusters": 183,
+        "event_mean": 0.04986146155652507
+      }
+    },
+    "conc_train": 0.017341114103697215,
+    "conc_train_fam": "KXPERSONTOPICCOLDPLAYATRONOMOR",
+    "conc_oos": 0.1056540284068906,
+    "conc_oos_fam": "KXDEMVASWEEP",
+    "pass": false,
+    "gate_detail": {
+      "B1_minN": true,
+      "B23_zero": false,
+      "B4_worst": false,
+      "B5_decay": true,
+      "B6_conc": true
+    }
+  }
+}
