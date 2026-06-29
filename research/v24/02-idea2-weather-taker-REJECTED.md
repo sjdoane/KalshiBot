@@ -1,8 +1,26 @@
 # v24 Idea 2: TAKER on external-forecast-vs-market divergence (KXHIGH). REJECTED at the plan critic.
 
+> **CORRECTION (2026-06-29, see `04-arithmetic-correction-and-checkpoint.md`):**
+> point 1 below (the "hurdle ~15pp, fails by an order of magnitude" arithmetic)
+> is WRONG. It conflated the taker fee as a FRACTION OF CAPITAL (2c on a 20c
+> contract = 10pp) with the pp-of-$1 PROBABILITY-EDGE hurdle (the fee is 1-2pp of
+> the $1 contract, and SMALLEST at cheap prices), and compared it against the
+> broad-shoulder average edge instead of the high-conviction subset. On the
+> correct basis the taker hurdle is ~2-3pp and the high-conviction subset edge
+> (~7.9pp net of maker fees) plausibly clears it. Weather is therefore NOT killed
+> on arithmetic; its honest prior is ~12-15% and the BINDING question is the
+> capture phantom (+ spread on thin books), which is $0-testable. The other kill
+> reasons (points 2-5: circular +7.9pp from a recalibration not an external
+> forecast, leaky single-member infra, capacity, capture phantom) still stand and
+> keep the prior modest, but the verdict downgrades from "rejected build ~6-8%" to
+> "PAUSED pending an operator direction call ~12-15%." See the correction doc.
+
 **Verdict: REJECTED as a build at the plan-critic gate (honest prior ~6-8%, below
 the ~10% floor). No methodology lock, NO data pulled, NO engineering built.**
 A $0 reprieve probe is noted but deferred (see below).
+
+**(SUPERSEDED by the correction above: prior revised to ~12-15%, status PAUSED
+not rejected.)**
 
 **Date:** 2026-06-29
 **Mechanism proposed:** external NWP/NWS forecast probability of the daily-high
