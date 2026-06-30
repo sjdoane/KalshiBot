@@ -119,30 +119,40 @@ def main():
     out={"train":[],"oos":[]}; clusters={"train":[],"oos":[]}        # realized-vol model
     outv={"train":[],"oos":[]}; clustersv={"train":[],"oos":[]}      # VIX model (control)
     n_have=0; n_traded=0
-    def model_prob(kind,a,b,spot,sig_h):
-        def p_above(K): return 1.0-ncdf((math.log(K/spot)+0.5*sig_h*sig_h)/sig_h)
+    R = 0.04  # annualized risk-free drift (immaterial at short horizon; included for correctness)
+    def model_prob(kind,a,b,spot,sig,T):
+        den=sig*math.sqrt(T)
+        def p_above(K): return ncdf((math.log(spot/K)+(R-0.5*sig*sig)*T)/den)
         if kind=="gt": mp=p_above(a)
         elif kind=="lt": mp=1.0-p_above(a)
-        else: mp=max(p_above(a)-p_above(b),0.0)
+        else: mp=max(p_above(a)-p_above(b),0.0)   # band [a,b]: P(a<S<b)
         return min(max(mp,0.0),1.0)
     for ticker,title,result,close_time,vwap_c,n in rows:
         p=parse_title(title)
         if not p or vwap_c is None or n is None or n<1: continue
         kind,a,b=p
         settle_date=close_time.date()
-        tradeday=prior_trading_day(settle_date)
-        if tradeday is None: continue
-        spot=sp.get(tradeday)
-        if spot is None: continue
-        rv=realized_vol(tradeday)
-        vx=vix.get(tradeday)
+        # spot = last FRED close STRICTLY before the trade-window start (no look-ahead)
+        window_start=(close_time-timedelta(hours=36)).date().isoformat()
+        spot_day=None
+        for dd in reversed(days):
+            if dd<window_start: spot_day=dd; break
+        if spot_day is None: continue
+        spot=sp[spot_day]
+        rv=realized_vol(spot_day); vx=vix.get(spot_day)
         if rv is None or vx is None: continue
         vx=vx/100.0
+        # actual horizon: trading days from spot_day to the settlement date
+        settle_idx=None
+        for dd in reversed(days):
+            if dd<=settle_date.isoformat(): settle_idx=idx[dd]; break
+        if settle_idx is None: continue
+        T_days=max(settle_idx-idx[spot_day],1)
+        T=T_days/252.0
         n_have+=1
-        T=1.0/252.0
         p_mkt=vwap_c/100.0
-        model_p=model_prob(kind,a,b,spot,rv*math.sqrt(T))      # realized-vol model
-        vix_p  =model_prob(kind,a,b,spot,vx*math.sqrt(T))      # VIX (market) model
+        model_p=model_prob(kind,a,b,spot,rv,T)      # realized-vol model
+        vix_p  =model_prob(kind,a,b,spot,vx,T)      # VIX (market) model
         # diagnostic: does Kalshi price at VIX (capture phantom) and is realized < VIX (VRP)?
         diag_pmkt_minus_vix.append(p_mkt-vix_p)
         diag_rv_minus_vix.append(model_p-vix_p)
