@@ -1,5 +1,14 @@
 # v24 Idea 5: index/financial volatility-mispricing taker.
 
+> **FINAL 2026-06-30 (CONCLUSIVE NULL after the power-up):** the marginal status
+> below was resolved by the full power-up (5x more KXINX history via the live Kalshi
+> API + the same-day intraday window with an as-of SPY spot). The day-before
+> "+2.3 to +6.9pp" was a STALE-SPOT artifact: with a correct as-of intraday spot the
+> edge flips NEGATIVE (-3.34pp OOS, 220 clusters) and the realized model never beats
+> the VIX control. Binding gate FAILS. See `11-realized-vol-powerup-NULL.md` for the
+> decisive result. The text below is the earlier marginal/underpowered framing,
+> retained for the record.
+
 > **UPDATE 2026-06-30 (status changed from NULL to MARGINAL/UNDERPOWERED, being
 > powered up):** a correctness fix (the original spot used the prior CLOSE, which
 > had seen post-trade info = a mild look-ahead; now the spot is the last close
