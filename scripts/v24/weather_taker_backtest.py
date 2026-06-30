@@ -210,6 +210,18 @@ def main() -> None:
     sigma_cs = {k: _std(v) for k, v in err_cs.items() if len(v) >= 10}
     sigma_c = {c: _std(v) for c, v in err_c.items() if len(v) >= 10}
 
+    # Persist FROZEN TRAIN params so the live signal generator uses identical params.
+    params_path = "research/v24/weather_frozen_params.json"
+    with open(params_path, "w", encoding="utf-8") as fh:
+        json.dump({
+            "offset": offset,
+            "sigma_cs": {f"{c}|{s}": v for (c, s), v in sigma_cs.items()},
+            "sigma_c": sigma_c,
+            "divergence": DIVERGENCE, "band_lo": BAND_LO, "band_hi": BAND_HI,
+            "spread_haircut": SPREAD_HAIRCUT, "train_end": TRAIN_END.isoformat(),
+        }, fh, indent=2)
+    print(f"frozen params -> {params_path}")
+
     # ---- trade selection + net P&L ----
     def window(od):
         if od < TRAIN_END:
