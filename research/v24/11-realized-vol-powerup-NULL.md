@@ -92,10 +92,37 @@ settlement-day clusters of SETTLED outcomes (far more decisive than a one-shot s
 of unsettled markets), and the diagnostic already shows the model agrees with current
 asks to ~2pp.
 
-Per the operator directive (NULL honestly, then pivot), the next step is the EVENT-VOL
-candidate: test whether the variance risk premium is larger and less arbed on KXINX
-settlement days that span a scheduled macro event (CPI / FOMC / NFP) than on ordinary
-days, using the same artifact-free as-of-spot pipeline. See `12-event-vol-*.md`.
+## Pivot attempt 1: EVENT-VOL (the handoff's designated pivot) = REJECTED
+
+`scripts/v24/index_vol_event_probe.py`. The event-VRP thesis: selling vol should be
+MORE profitable around scheduled events (hedgers overpay for event protection). On
+KXINX (settles 4pm ET) the only cleanly PRE-event same-day window is FOMC days (2pm
+announcement, after the 11:00-13:00 window, before settle; CPI/NFP at 8:30am are
+pre-window/post-event). Result (reduced fee, exploratory, ~14 FOMC days):
+
+| group | realized OOS-style net | VIX control net |
+|---|---|---|
+| FOMC days | -11.29pp [-21.04,+2.09] | -10.03pp [-20.31,-0.12] |
+| non-FOMC days | -4.74pp [-6.80,-2.64] | -3.37pp [-4.85,-1.80] |
+
+Selling vol on FOMC days is WORSE, not better, the OPPOSITE of the event-VRP premium:
+the FOMC move is large enough to hit the bands, so the band-NO seller loses MORE. If
+anything FOMC vol is slightly UNDER-priced (a crowded buy-vol trade, n=14, not
+actionable). Kalshi prices index vol efficiently INCLUDING around events. Event-vol
+SELL pivot rejected.
+
+## Overall: the financial-vol space is a confirmed wall for a retail taker
+
+Index realized-vol taker NULL + event-vol sell REJECTED, on the strongest dataset the
+project has assembled (4217 markets, 220+ OOS clusters, as-of intraday spots). This is
+the 6th independent confirmation of the capture phantom and is fully consistent with
+the v24 meta-summary (financial markets are the most efficient; Becker Finance gap
+0.17pp). Capital stays flat (no manufactured loss). The genuinely-different pivot with
+real escape potential is the meta-summary's one untested route: thin sports props with
+NO sharp-book reference (e.g. KXMLBSTATCOUNT season-long combos), now testable since
+MLB is in-season. That is a separate domain warranting its own focused build with a
+pre-registered kill gate; it is NOT another financial-vol idea (which would re-hit this
+wall).
 
 ## Data / reproduction notes
 
