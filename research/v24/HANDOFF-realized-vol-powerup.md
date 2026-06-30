@@ -17,6 +17,30 @@ realized-vol edge must BEAT the VIX-model control out of sample; if they stay
 equal, there is no realized-vol edge, only a small general VRP/skew that any vol
 model catches (and the only question is whether it clears the fee).
 
+## Connectors / data sources: do NOT ask the operator to add anything upfront
+
+The decisive power-up needs NOTHING new. You already have: the Kalshi API (key in
+.env; for more KXINX history), FRED (SP500 + VIXCLS, free), and the Massive Market
+Data connector ENTITLED for stocks (SPY, incl. 5-min intraday) + crypto. That is
+enough to: extend the history, run the same-day intraday window, and build a better
+realized-vol forecast. Proceed on these. Do NOT pause to request connectors.
+
+A short-dated SPX/SPY options-IV source (Massive 403s on options + indices) would
+only sharpen the capture-phantom DIAGNOSTIC (right-tenor implied vol vs 30d VIX); it
+does NOT improve the forecast (using IV as a feature re-imports the market's answer =
+capture phantom) and most likely just confirms the phantom more precisely. So it is
+NOT worth adding to decide whether an edge exists.
+
+CONDITIONAL connector instruction (the only time to involve the operator): IF the
+powered-up strategy CLEARS THE BINDING GATE (OOS cluster-CI lower > 0 net of fee AND
+realized beats the VIX control) and you are staging to LIVE, AND a short-dated
+options-IV benchmark (or another specific data source) would MATERIALLY improve live
+vol-benchmarking/execution, THEN stop and give the operator concrete, step-by-step
+setup directions for that specific connector (e.g., upgrade the massive.com plan to
+entitle Options + Indices, or add a Polygon.io options MCP: name the exact plan/MCP,
+the auth/key steps, and the exact endpoints/tickers you will use, e.g. short-dated
+SPX/SPY option-chain IV). Until that bar is met, add nothing.
+
 ## What the strategy is
 
 Kalshi lists S&P 500 range/threshold markets (series KXINX: "S&P above/below/between
