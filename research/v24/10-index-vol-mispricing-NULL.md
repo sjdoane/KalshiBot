@@ -1,4 +1,23 @@
-# v24 Idea 5: index/financial volatility-mispricing taker. NULL (the closest v24 came to a signal).
+# v24 Idea 5: index/financial volatility-mispricing taker.
+
+> **UPDATE 2026-06-30 (status changed from NULL to MARGINAL/UNDERPOWERED, being
+> powered up):** a correctness fix (the original spot used the prior CLOSE, which
+> had seen post-trade info = a mild look-ahead; now the spot is the last close
+> STRICTLY before the trade window, with the actual trading-day horizon + drift)
+> SHRANK the edge: realized OOS +4.7pp -> +2.3pp (CI[-3.7,+8.7], straddles 0),
+> TRAIN +7.0 -> +3.3pp (no longer significant); VIX control OOS ~+1.8pp. The
+> realized-vs-VIX wedge is tiny (~0.2-0.4pp), so the small positive is a general
+> "Kalshi slightly underprices stay-in-range" effect any vol model catches, largely
+> eaten by the ~2pp half-fee. Verdict: not a clean pass, not a clean null --
+> marginal + underpowered (~30 OOS clusters). Per the operator, being POWERED UP
+> (more KXINX history via the Kalshi API + the same-day intraday window via Massive
+> SPY) to resolve the CI conclusively. See HANDOFF-realized-vol-powerup.md. The
+> binding honesty guardrail: a real realized-vol edge must BEAT the VIX control OOS.
+> The original "NULL" framing below was on the look-ahead-inflated numbers; the
+> corrected picture is weaker, which makes a real edge less likely, but the
+> power-up will decide.
+
+# (original) NULL writeup (closest v24 came to a signal)
 
 **Verdict: NULL. Fails the OOS gate; the VIX-model control refutes a real vol edge
 (capture phantom in the vol dimension). No capital deployed.**
