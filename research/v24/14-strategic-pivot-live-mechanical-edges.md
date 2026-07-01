@@ -70,4 +70,44 @@ does not apply. Two concrete candidates:
 This keeps the loop alive on the one frontier that is not yet proven walled, and it does
 so honestly (measure first, deploy only on evidence).
 
+## LIVE RESULT (2026-06-30 night): post-determination convergence = NULL
+
+Ran `postdet_monitor.py` for 90 x 60s through 8 MLB game settlements (PITPHI, CWSBAL,
+DETNYY, NYMTOR, STLATL, CINMIL, WSHBOS, TBKC), logging KXMLBGAME bid/ask/status +
+the-odds-api scores to `scratchpad/postdet_log.jsonl`. Findings:
+
+- At EVERY settlement, the winning side's last pre-settlement quote was bid 0.99 / ask
+  **1.00** (loser 0.00 / 0.01). There was NO poll where a decided winner could be BOUGHT
+  (ask) below 1.00. Tracing the ask into settlement (e.g. STLATL): it oscillated
+  0.90-0.96 while the game was genuinely in-progress-and-uncertain, then jumped straight
+  to 1.00 at determination and settled ~1-2 min later. Sub-1.00 winner asks (235 of them)
+  occurred ONLY while the result was still uncertain = the live win probability = the
+  sharp-line capture phantom (the leading team can still lose), NOT a determined outcome.
+- There is no gap between "outcome determined" and "ask still < 1.00": the ask converges
+  to 1.00 AT determination. The only near-arb (buy the 0.99 BID as a maker) nets ~0 after
+  the KXMLBGAME maker fee (ceil(1.75*p*(1-p)) ~ 1c at p=0.99).
+- Bonus finding: the-odds-api `/scores` reported 0 completed even at the final poll while
+  Kalshi had already settled the games. the-odds-api is SLOWER than Kalshi's own
+  settlement, so it cannot serve as a fast determination detector; beating Kalshi would
+  need a sub-second feed AND a window, and there is no window.
+
+Verdict: post-determination convergence is a clean live NULL. Kalshi is efficient in the
+settlement/mechanics dimension too, not just the informational one. The live-mechanical
+frontier now has one candidate left: transient dutch books during volatility (the
+`kalshi_arb_scanner.py --monitor` tool; 0 in calm conditions, needs a vol window to
+measure). That is the only Kalshi edge-class not yet conclusively walled, and its EV is
+unknown and likely small.
+
+## Bottom line for the project
+
+Across 15+ rounds plus this session's five newly-closed angles (index realized-vol,
+event-vol, sports-props, static structural-arb, post-determination), Kalshi is
+comprehensively efficient for a retail account across BOTH the informational and the
+mechanical/settlement dimensions. A real edge now requires a new external advantage the
+project does not have: a sub-second private/data-speed feed, an auto-execution latency
+layer aimed at transient arbs during volatility, or materially more capital for
+fee-rebate economics. Absent that, capital stays flat; the thorough negative result is
+the honest deliverable. The one standing, $0, non-phantom tool worth keeping live is the
+transient-arb monitor, run during volatility windows.
+
 *Em-dash and en-dash audit: verified clean after write.*
