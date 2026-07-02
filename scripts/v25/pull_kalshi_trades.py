@@ -70,10 +70,14 @@ def main() -> None:
             for m in json.load(open(fp, encoding="utf-8-sig")):
                 m["_series"] = s
                 markets[m["ticker"]] = m
-        # live settled endpoint covers the recency window the historical drain misses
+        # live settled endpoint covers the recency window the historical drain misses;
+        # prefer whichever object carries a result (review M: a resultless drain object
+        # must not shadow the settled live object)
         for m in paged("/markets", {"series_ticker": s, "status": "settled", "limit": 200}, "markets"):
             m["_series"] = s
-            markets.setdefault(m["ticker"], m)
+            cur = markets.get(m["ticker"])
+            if cur is None or cur.get("result") not in ("yes", "no"):
+                markets[m["ticker"]] = m
     # settled + in-window only
     markets = {
         t: m
