@@ -25,8 +25,8 @@ import urllib.parse
 import urllib.request
 
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
-OUT_DIR = os.path.join("data", "v25")
-SERIES = ["KXAAAGASW", "KXAAAGASM"]
+OUT_DIR = os.environ.get("V25_OUT_DIR") or os.path.join("data", "v25")
+SERIES = (os.environ.get("V25_SERIES") or "KXAAAGASW,KXAAAGASM").split(",")
 UA = {"User-Agent": "Mozilla/5.0 (research)", "Accept": "application/json"}
 
 
