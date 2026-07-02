@@ -67,7 +67,11 @@ def main() -> None:
     for s in SERIES:
         fp = os.path.join(scratch, f"hist_markets_{s}.json")
         if os.path.exists(fp):
-            for m in json.load(open(fp, encoding="utf-8-sig")):
+            raw = open(fp, encoding="utf-8-sig").read().strip()
+            hist = json.loads(raw) if raw else []
+            if isinstance(hist, dict):
+                hist = [hist]
+            for m in hist:
                 m["_series"] = s
                 markets[m["ticker"]] = m
         # live settled endpoint covers the recency window the historical drain misses;

@@ -45,7 +45,7 @@ def fetch(url: str, tries: int = 4, timeout: int = 45) -> bytes:
                 return r.read()
         except Exception as e:  # noqa: BLE001 - retry any transient failure
             last = e
-            time.sleep(2.0 * (i + 1))
+            time.sleep(8.0 * (i + 1))
     raise RuntimeError(f"failed after {tries}: {url}: {last}")
 
 
@@ -96,12 +96,12 @@ def main() -> None:
                     json.dump(out, open(OUT, "w", encoding="utf-8"), indent=0, sort_keys=True)
                     print(f"progress {counters['done']}/{len(todo)}: {len(out)} dates", flush=True)
 
-    sem = threading.Semaphore(6)
+    sem = threading.Semaphore(2)
 
     def gated(ts: str) -> None:
         with sem:
             work(ts)
-            time.sleep(0.2)
+            time.sleep(1.0)
 
     threads = [threading.Thread(target=gated, args=(ts,)) for ts in todo]
     for t in threads:
