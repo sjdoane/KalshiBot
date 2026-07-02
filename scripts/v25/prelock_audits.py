@@ -66,10 +66,10 @@ def audit_0a(markets: dict, aaa_raw: dict) -> None:
         print(f"    {tk}: D_agrees={a} Dm1_agrees={b}")
 
 
-def audit_0b(markets: dict) -> None:
-    print("\n=== AUDIT 0b: power, divergence distribution, threshold decision (outcome-blind) ===")
+def audit_0b(markets: dict, fallback: bool = False) -> None:
+    print(f"\n=== AUDIT 0b: power, divergence, threshold decision (outcome-blind; fallback={fallback}) ===")
     data = load_data()
-    model = Model(data)
+    model = Model(data, fallback=fallback)
     # evaluate at the LOWER candidate threshold; the 0.12 projection reuses the same fires
     fires, funnel = evaluate_fires(data, model, threshold=0.08, verbose=True)
     print(f"funnel: {funnel}")
@@ -164,6 +164,9 @@ def main() -> None:
     print(f"markets={len(markets)} aaa_days={len(aaa_raw)}")
     if "--allow-partial" not in sys.argv:
         assert_aaa_coverage(aaa_raw)
+    if "--fallback-only" in sys.argv:
+        audit_0b(markets, fallback=True)
+        return
     audit_0a(markets, aaa_raw)
     audit_0b(markets)
     audit_0c_r2()

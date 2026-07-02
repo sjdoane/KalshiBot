@@ -21,8 +21,9 @@ DATA = os.path.join("data", "v25")
 ET = ZoneInfo("America/New_York")
 
 # ---- lock constants (section references to 02-methodology-lock.md) ----
-W_LAG_DAYS = 5              # sec 2 (E3): W visible if obs date <= d - 5 calendar days
-W_LAG_SENS = 3              # non-binding sensitivity
+W_LAG_DAYS = None           # sec 2: None = EIA weekly-release calendar rule (primary);
+                            # an int = flat calendar-day lag (non-binding sensitivity)
+W_LAG_SENS = 3              # non-binding flat-lag sensitivity
 MARGIN_WIN = 180            # sec 3: rolling median window
 MARGIN_MIN_PAIRS = 90       # sec 2 (E2)
 MIN_FIT_ROWS = 120          # sec 3
@@ -84,8 +85,19 @@ class GasData:
     def r(self, d: date) -> float | None:
         return self.aaa.get(d)
 
-    def w_asof(self, d: date, lag: int = W_LAG_DAYS) -> float | None:
-        cut = d - timedelta(days=lag)
+    @staticmethod
+    def _release_cutoff(d: date) -> date:
+        """EIA petroleum spot publishes WEEKLY on Wednesdays, covering through the
+        prior Monday (verified 2026-07-02: freshest DGASNYH obs was Mon 06-29 after
+        the Wed 07-01 release; eia.gov release dates 7/1 and 7/8). Visibility: the
+        last Wednesday W <= d-1 (one-day FRED-mirror margin), data through W-2."""
+        w = d - timedelta(days=1)
+        while w.weekday() != 2:
+            w -= timedelta(days=1)
+        return w - timedelta(days=2)
+
+    def w_asof(self, d: date, lag: int | None = W_LAG_DAYS) -> float | None:
+        cut = (d - timedelta(days=lag)) if lag is not None else self._release_cutoff(d)
         i = bisect.bisect_right(self.w_dates, cut)
         if i == 0:
             return None
