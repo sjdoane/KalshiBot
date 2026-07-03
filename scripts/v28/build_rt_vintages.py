@@ -70,8 +70,29 @@ SLUGS = {
     "KXRT-JAC": ("jackass_best_and_last", "scout"),
     "KXRT-SUPE": ("supergirl_2026", "scout"),
     "KXRT-SEN": ("send_help", "scout"),
-    # cdx-resolved in this session (filled after resolve_slugs.py run)
-    # PLACEHOLDER_CDX_SLUGS
+    # cdx-resolved (winner = most in-window snapshots; evidence in
+    # data/v28/rt_slug_candidates.json; KXRT-LEE corrected by direct CDX probe:
+    # lee_cronins_the_mummy 21 in-window vs the_mummy_2017 background noise)
+    "KXRT-BRI": ("the_bride_2026", "cdx"),
+    "KXRT-CRI": ("crime_101_2026", "cdx"),
+    "KXRT-DRA": ("the_drama", "cdx"),
+    "KXRT-FRO": ("forbidden_fruits_2026", "cdx"),
+    "KXRT-HOP": ("hoppers", "cdx"),
+    "KXRT-HOW": ("how_to_make_a_killing_2026", "cdx"),
+    "KXRT-LEE": ("lee_cronins_the_mummy", "cdx"),
+    "KXRT-MEL": ("melania", "cdx"),
+    "KXRT-MER": ("mercy_2026", "cdx"),
+    "KXRT-PRO": ("project_hail_mary", "cdx"),
+    "KXRT-REA": ("ready_or_not_2_here_i_come", "cdx"),
+    "KXRT-REM": ("reminders_of_him", "cdx"),
+    "KXRT-SCR": ("scream_7", "cdx"),
+    "KXRT-SHE": ("shelter_2026", "cdx"),
+    "KXRT-STR": ("the_strangers_chapter_3", "cdx"),
+    "KXRT-SUP": ("the_super_mario_galaxy_movie", "cdx"),
+    "KXRT-WHI": ("whistle_2025", "cdx"),
+    "KXRT-WIL": ("they_will_kill_you", "cdx"),
+    "KXRT-WUT": ("wuthering_heights_2026", "cdx"),
+    "KXRT-YOU": ("you_me_and_tuscany", "cdx"),
 }
 
 SCORECARD_RE = re.compile(

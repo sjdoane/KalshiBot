@@ -88,7 +88,29 @@ unbankable-without-live-read; stage-1 $0 read before any shadow).
   floors (15/8) must be reachable, else KILL pre-lock at $0 (v26 pattern).
 - 0-L ledger: exhaustive pre-lock computation list.
 
-RESULTS: [PENDING the vintage crawl; filled before the locking commit.]
+RESULTS (2026-07-03, all outcome-blind except 0-S which reduces to coverage
+booleans; vintage layer complete: 43/43 events, 691 rows, 0 parse failures):
+- 0-W: CLEAN. 373 consecutive-row pairs, zero count decreases beyond 3 reviews.
+- 0-S (bound-coverage form; the draft's naive |nearest-row minus read| form was
+  refined pre-lock after it conflated snapshot staleness with read divergence):
+  with the VALIDITY RULE that an event needs a proven row at/after the read
+  (34/43 events qualify; the 9 without one leave the binding set), coverage is
+  34/34 at READ_MARGIN 1.0, worst excess 0.00. The five violations seen under the
+  naive form were exactly thin-archive events whose last row predated the read;
+  the validity rule removes the cause. READ_MARGIN stays 1.0.
+- 0-B H-A: ZERO fires (38 decided prints all beyond 0.955). Per the pre-committed
+  rule, H-A IS KILLED PRE-LOCK: the conservative arrival cap never decides inside
+  the executable band during archive-visible trading; the v26 kill shape on a
+  liquid family. No settlement-conditioned H-A run will ever occur.
+- 0-B D': 18 fires across 9 movie clusters (floors 15/8 REACHABLE); 2,385 decided
+  prints unexecutable (>0.955): 99.25 percent of decided states are already
+  priced past breakeven, and 18 exceptions exist. D' is the SOLE surviving
+  registered component; its settled-P&L run and gates proceed post-lock.
+- 0-E evaluability: 64.4 percent of prints have a proven prior state (line 30).
+- 0-L ledger: the numbers above; the universe recount (43 events, method:
+  /historical/markets drain + live settled endpoint, result-field filter); the
+  crawl summary stats (per-event row quartiles 5/11/15/19/39); nothing else was
+  computed pre-lock.
 
 ## AMENDMENTS v2 (methodology critic E1-E13 + D' adoption; full text in
 ## 03-methodology-critic.md; all binding)
