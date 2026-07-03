@@ -371,3 +371,161 @@ reconcile_needed must fail closed and must suppress the assumed-zero unwind).
 Everything else from the original review is genuinely fixed, M2 is verified
 against v1's live body, and no other new defect was found. With B1 and B2
 patched, this file is safe to arm within the charter caps.
+
+---
+
+# Round 3: arms C/D resting-maker surface (2026-07-03)
+
+Scope: NEW surface only (rt_decided_strikes, tsa_decided_strikes, rest_rows,
+reconcile_and_place_rests, constants, main wiring) per the expansion addendum.
+In passing: round-2 blockers B1 and B2 are verified FIXED in the current file
+(unwind_leg returns exited count, naked rows carry remainders, retry_naked
+nets naked minus resolved; unresolved_reconciles halts main fail-closed and
+arm_a skips auto-unwind on an errored leg).
+
+## Verified correct on the new surface
+
+1. NO-side resting construction: CORRECT, and matches the live v1 precedent
+   exactly. live_order_manager.py lines 395-400 (the v18 NO-underdog arm,
+   live since June) places side "ask" at 100 - own-side cents with no YES
+   inventory; a fill opens a NO position (the exchange mints a YES/NO pair;
+   the asker without inventory receives NO, paying 100 - yes_c). The new
+   code's no_bid_c = 100 - ask_c and no_ask_c = 100 - bid_c identities are
+   right. Resting is guaranteed at placement: cost_c <= no_ask_c - 1 implies
+   yes_c >= bid_c + 1, strictly above the best YES bid, so the GTC ask
+   cannot cross the book seen at quote time. Symmetrically the YES bid is
+   capped at ask_c - 1.
+2. Inside-spread pricing incl. the bid+1 == ask case: when the spread is 1c
+   the min() lands on ask-1 == bid, i.e. we JOIN the best bid, no cross; the
+   cost_c >= ask (resp. >= no_ask_c) guard also skips locked or crossed
+   books. If quotes go stale and the book moves so the GTC crosses at
+   placement, taker_at_cross plus a taker fill at our limit costs the
+   quadratic taker fee: at 95c that is 1c (net-if-right +4c), at 97c 1c
+   (net-if-right +2c), still positive. Not a loss vector.
+3. Cancel shape: DELETE /portfolio/events/orders/{order_id} matches the
+   documented V2 shape in the v1 header (lines 26-28), and order_id is taken
+   from the live listing record (better than the stored ack). A failed
+   DELETE leaves the row tracked and retried next run.
+4. Item 5 (the v1 gotcha): respected. GET /portfolio/orders is scoped by
+   ticker (server-honored) and client_order_id is matched LOCALLY, the same
+   pattern as v1's reconcile_intents (lines 519-535). Single page is fine at
+   max 4 orders per arm.
+5. Dry purity of PLACEMENT: intent logged with dry flag, `if dry: continue`
+   before the POST, rest_open only after a real ack. No dry rest_open rows
+   are possible. (Cancellation is NOT dry-pure: CD5.)
+6. Constants match the addendum (ALLOC_FRAC 0.25, DAILY_CAP_C 12000, 4
+   orders per arm, 3000c per order, caps 95/97).
+
+## Blockers
+
+### CD1 (CRITICAL): fill detection against the orders listing is schema-fragile in both directions
+
+reconcile checks `status in ("executed",) or (mine and rem == 0)` with
+rem = remaining_count defaulted to 0. Two facts from v1's live code:
+(a) the listing record's status values seen live are "filled" AND
+"executed" (live_order_manager.py line 550 checks both, lowercased); the new
+code omits "filled". (b) remaining_count is documented on the flat ACK
+(lines 426-429); v1 deliberately reads STATUS, not remaining_count, from
+listing records, so the field's presence on the LISTING is unverified. If
+the listing lacks it, rem defaults to 0 and EVERY tracked order is declared
+rest_filled on its first reconcile: tracking is dropped while the orders
+keep resting live, never to be cancelled on bound weakening, plus phantom
+rest_filled rows. If the listing has it but status comes back "filled", the
+status branch never fires and correctness rides entirely on the unverified
+field. FIX: match v1: lowercase status and test in ("filled", "executed");
+parse remaining_count as None when absent and treat None as UNKNOWN (skip
+with an error row, never classify); before arming C/D, verify one real
+listing record's fields with a 1-contract probe rest.
+
+### CD2 (CRITICAL): partial fills are invisible everywhere; cancel and expiry swallow the filled portion
+
+rest_filled fires only on FULL fill. Money paths that lose the filled
+contracts entirely: (a) partial fill then bound weakens: DELETE succeeds,
+rest_closed "bound_weakened" is logged, the filled portion (position bought
+on a thesis that just BROKE) is recorded NOWHERE, alerted NEVER, and counted
+in no cap; (b) fill completes between lookup and DELETE: the DELETE response
+(reduced_by) is ignored and rest_closed removes tracking, so the next-run
+rest_filled write does NOT happen (rest_rows already dropped the coid);
+(c) partial fill then market closes: mine is None, rest_closed "gone".
+Quantified: up to 3000c per order, 8 slots across both arms = up to $240 of
+real positions absent from LEDGER, spend, and the addendum's weekly review
+dataset. FIX: at every reconcile compute filled_so_far = n - rem (n is
+already on rest_open) and include count and bid_c on EVERY rest_filled and
+rest_closed row; after any DELETE, read the cancel response's reduced_by
+(or re-GET the order) and log the delta as filled; Discord-alert any
+bound_weakened close with filled > 0 for an operator exit decision (arms
+C/D have no unwind path).
+
+### CD3 (CRITICAL): the daily cap ignores all resting fills
+
+spent_today_cents sums order_ack rows; a GTC ack normally has fill_count 0,
+and later fills surface (once CD1/CD2 are fixed) only as LEDGER rest_filled
+rows, which the function never reads. So arms C/D can fill up to $240 in a
+day while spent_today_cents reports ~0, and arms A/B size against the same
+broken number. FIX (minimal): with CD2's count+bid_c on rest_filled and
+rest_closed rows, extend spent_today_cents to add today's rest fill rows:
+tot += count * bid_c for kind rest_filled or any rest_closed with count > 0.
+
+### CD4 (HIGH): a feed failure mass-cancels every resting order
+
+rt_decided_strikes and tsa_decided_strikes both return [] on ANY failure
+(Kalshi fetch, RT page block, missing v26 data file). reconcile cannot
+distinguish "feed down" from "no strike is decided anymore": with decided
+empty, bound_ok is False for every tracked row and ALL resting orders are
+cancelled. RT page blocks are a known recurring event (v28 history). Cost:
+queue position and maker opportunity forfeited on every feed blip,
+place/cancel flapping, and each cancel is a CD2 accounting hazard on
+partially filled orders. FIX: return None on feed/bound-machinery failure
+and [] only on a genuine empty result; in reconcile, when decided is None,
+skip bound_ok cancels (still process fill detection) and log a feed_down
+row.
+
+### CD5 (MEDIUM): cancellation is not dry-gated; a --dry run mutates live orders
+
+The DELETE fires regardless of dry. A --dry test run (or a disarmed
+scheduled run, since dry is the default) can cancel real resting orders,
+and combined with CD4 a dry run on a machine missing data/v26/tsa_daily.json
+cancels the whole arm-D book. FIX: gate the DELETE on `not dry` (log a
+would_cancel row instead), and document that disarming freezes cancel
+protection, consistent with the retry_naked precedent (L-R2).
+
+## Non-blocking notes
+
+CD-M1 (MEDIUM): the addendum defines arm C for the ABOVE-taker-band case,
+but the code places rests on every decided strike, so arm B (taker fire,
+$30) and arm C (rest, $30) can stack $60 on the same ticker and same bound.
+Add the ask > ARM_B_MAX_COST_C filter to arm C placement, or skip tickers in
+arm B's fired set.
+
+CD-M2 (MEDIUM): the addendum's frozen GLOBAL 90 percent live-exposure cap is
+not implemented anywhere (four arms x 25 percent = 100 with no global
+check). Balance collateral reservation partially self-limits, but the
+frozen limit should exist in code before full deployment.
+
+CD-M3 (MEDIUM): a reconcile_needed on a GTC is worse than on an IOC: an
+accepted-but-unacked GTC rests indefinitely with no local record. The B2
+halt contains it, but the resolution runbook must include ticker-scoped
+lookup and cancel (v1's reconcile_intents, live_order_manager.py line 510,
+is the template).
+
+CD-L1: tsa_decided_strikes derives the week from close_time[:10] as a UTC
+date; a late-ET close could mis-bucket Sunday by one day. Verify against the
+v26 machinery that was validated 82/82 before arming D.
+
+CD-L2: the KXRT feed is fetched and RT pages parsed twice per run (arm_b and
+rt_decided_strikes); drift between the two reads can make B and C act on
+different bounds in the same run. Cosmetic at this cadence.
+
+## Round 3 verdict
+
+NOT SAFE-TO-ARM-CD. Blockers: CD1, CD2, CD3 (one cluster: fill truth must
+come from verified listing fields or /portfolio/fills, partial fills must be
+recorded with count and cost everywhere they exit tracking, and those fills
+must enter the daily cap), CD4 (feed-down must not read as bound-weakened),
+CD5 (dry must not mutate). Plus a mandatory pre-arm probe: one 1-contract
+rest to capture the real listing record schema (CD1), exactly as M2 was
+cleared last round. The resting-order side/price construction itself,
+including the NO-side ask mapping against the v1 live precedent and the
+join-at-bid behavior when bid+1 == ask, is correct and always rests at
+placement. Arms A/B remain SAFE-TO-ARM as verdicted in round 2, with B1/B2
+now confirmed fixed in the current file.

@@ -42,13 +42,17 @@ ARMED = os.path.join(V30, "LIVE_ARMED")
 LOCK = os.path.join(V30, "run.lock")
 EXPIRY = date(2026, 9, 1)
 
-ALLOC_FRAC = 0.15
+ALLOC_FRAC = 0.25              # expansion addendum 2026-07-03 (was 0.15)
 ARM_A_BASKET_CAP_C = 4000      # cents
 ARM_A_DAILY_BASKETS = 2
 ARM_B_FIRE_CAP_C = 3000
 ARM_B_MAX_CONCURRENT = 3
 ARM_B_MAX_COST_C = 94
-DAILY_CAP_C = 6000
+DAILY_CAP_C = 12000            # expansion addendum (was 6000)
+REST_MAX_ORDERS = 4            # arms C/D: max resting orders per arm
+REST_MAX_NOTIONAL_C = 3000     # per resting order
+REST_RT_MAX_BID_C = 95         # arm C price cap
+REST_TSA_MAX_BID_C = 97        # arm D price cap
 
 
 def now_et_date() -> str:
@@ -138,6 +142,10 @@ def spent_today_cents() -> int:
         if (r.get("kind") == "order_ack" and r.get("et_date") == now_et_date()
                 and r.get("tag") != "armA_unwind"):
             tot += fill_count(r.get("ack") or {}) * int(r.get("cost_per_contract_c") or 0)
+    # CD3: resting fills discovered at reconcile enter the daily cap too
+    for r in rows(LEDGER):
+        if r.get("kind") == "rest_filled" and r.get("et_date") == now_et_date():
+            tot += int(r.get("count") or 0) * int(r.get("bid_c") or 0)
     return tot
 
 
@@ -341,6 +349,272 @@ def arm_b(cli, bal_c: int, dry: bool) -> None:
             return  # one fire attempt per run
 
 
+def rt_decided_strikes():
+    """(market, side, bid_c, ask_c) for KXRT strikes decided by the live envelope
+    bound. Returns None if the FEED is down (CD4: caller must then skip
+    bound-weakening cancels), [] if feeds are up and nothing is decided."""
+    out = []
+    try:
+        mkts = ab.get_json(f"{ab.BASE}/markets?series_ticker=KXRT&status=open&limit=200")["markets"]
+    except Exception:  # noqa: BLE001
+        return None
+    feed_ok = False
+    byev = {}
+    for m in mkts:
+        byev.setdefault(m["event_ticker"], []).append(m)
+    cache = json.load(open(rt.CACHE, encoding="utf-8")) if os.path.exists(rt.CACHE) else {}
+    for ev, ms in sorted(byev.items()):
+        slug = cache.get(ev)
+        if slug is None:
+            continue
+        try:
+            st = rt.parse_live(slug)
+        except Exception:  # noqa: BLE001
+            continue
+        if st is None:
+            continue
+        feed_ok = True
+        s, n = st
+        close = datetime.fromisoformat(ms[0]["close_time"].replace("Z", "+00:00"))
+        hours_left = max(0.0, (close - datetime.now(timezone.utc)).total_seconds() / 3600.0)
+        if n <= 0 or hours_left <= 0:
+            continue
+        d = min(14, max(1, math.ceil(hours_left / 24.0)))
+        a_cap = max(rt.A_FLOOR, math.ceil(rt.CAP_MULT * rt.ENV_RATIO[d] * n),
+                    math.ceil(rt.CAP_MULT * rt.arrivals_24h(ev, n) * hours_left / 24.0))
+        lo_l, hi_l = rt.l_interval(s, n)
+        low = 100.0 * lo_l / (n + a_cap)
+        high = 100.0 * (hi_l + a_cap) / (n + a_cap)
+        for m in ms:
+            if m.get("floor_strike") is None or m.get("strike_type") != "greater":
+                continue
+            k = float(m["floor_strike"])
+            if low > k + rt.READ_MARGIN:
+                side = "yes"
+            elif high < k - rt.READ_MARGIN:
+                side = "no"
+            else:
+                continue
+            out.append((m, side, cents(m.get("yes_bid_dollars")) or 0,
+                        cents(m.get("yes_ask_dollars")) or 100))
+    return out if feed_ok else None
+
+
+def tsa_decided_strikes():
+    """(market, side, bid_c, ask_c) for KXTSAW strikes decided by the v26 bound.
+    None = feed down (CD4); [] = nothing decided."""
+    out = []
+    sys.path.insert(0, "scripts/v26")
+    try:
+        import live_certainty_monitor as cm
+        live = cm.tsa_page_values()
+        if not live:
+            return None
+        hist = {date.fromisoformat(k): v for k, v in json.load(
+            open(os.path.join("data", "v26", "tsa_daily.json"), encoding="utf-8")).items()}
+        hist.update(live)
+        mkts = ab.get_json(f"{ab.BASE}/markets?series_ticker=KXTSAW&status=open&limit=200")["markets"]
+    except Exception:  # noqa: BLE001
+        return None
+    from datetime import timedelta
+    for m in mkts:
+        k = m.get("floor_strike")
+        if k is None or m.get("strike_type") != "greater":
+            continue
+        k = float(k)
+        if k <= 1000:
+            k *= 1_000_000.0
+        close_utc = datetime.strptime(m["close_time"][:10], "%Y-%m-%d").date()
+        sunday = close_utc - timedelta(days=1)
+        days = [sunday - timedelta(days=i) for i in range(6, -1, -1)]
+        pub = [live[dd] for dd in days if dd in live]
+        unpub = [dd for dd in days if dd not in live]
+        los, his = [], []
+        ok = bool(pub)
+        for dd in unpub:
+            same = [v for h, v in hist.items()
+                    if h.weekday() == dd.weekday() and 0 < (dd - h).days <= 730]
+            if len(same) < 20:
+                ok = False
+                break
+            los.append(min(same) * 0.85)
+            his.append(max(same) * 1.15)
+        if not ok:
+            continue
+        lo_avg = (sum(pub) + sum(los)) / 7.0
+        hi_avg = (sum(pub) + sum(his)) / 7.0
+        # 0.5 percent revision tolerance on the published component (the documented
+        # TSA revision hazard; prevents near-boundary fires like a bare lo_avg > k)
+        if lo_avg * 0.995 > k:
+            side = "yes"
+        elif hi_avg * 1.005 < k:
+            side = "no"
+        else:
+            continue
+        out.append((m, side, cents(m.get("yes_bid_dollars")) or 0,
+                    cents(m.get("yes_ask_dollars")) or 100))
+    return out
+
+
+def rest_rows():
+    open_by_coid = {}
+    for r in rows(LEDGER):
+        if r.get("kind") == "rest_open":
+            open_by_coid[r["client_order_id"]] = r
+        elif r.get("kind") in ("rest_closed", "rest_filled"):
+            open_by_coid.pop(r.get("client_order_id"), None)
+    return open_by_coid
+
+
+def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
+                              bal_c: int, dry: bool) -> None:
+    """Arms C/D: cancel bids whose bound broke; place new bids on decided strikes.
+    decided is None when the FEED is down (CD4): fill detection still runs, but no
+    bound-weakening cancels and no new placements."""
+    feed_down = decided is None
+    decided_by_tk = {} if feed_down else {
+        m["ticker"]: (side, bid_c, ask_c) for m, side, bid_c, ask_c in decided}
+    tracked = {c: r for c, r in rest_rows().items() if r.get("arm") == arm}
+    for coid, r in tracked.items():
+        tk = r["ticker"]
+        n0 = int(r.get("n") or 0)
+        still = decided_by_tk.get(tk)
+        bound_ok = feed_down or (still is not None and still[0] == r["side"])
+        try:
+            lst = cli.get("/portfolio/orders", ticker=tk)
+            mine = next((o for o in (lst.get("orders") or [])
+                         if o.get("client_order_id") == coid), None)
+        except Exception as e:  # noqa: BLE001
+            log(ORDERS, {"kind": "error", "where": f"rest_lookup:{tk}",
+                         "err": str(e)[:200], "et_date": now_et_date()})
+            continue
+        # probe-verified listing schema (2026-07-03): status lowercase incl.
+        # "resting"; counts are *_fp strings (remaining_count_fp, fill_count_fp)
+        status = str((mine or {}).get("status", "gone")).lower()
+
+        def fpint(obj, *keys):
+            for kk in keys:
+                v = obj.get(kk) if obj else None
+                if v is not None:
+                    try:
+                        return int(float(v))
+                    except (TypeError, ValueError):
+                        continue
+            return None
+
+        rem = fpint(mine, "remaining_count_fp", "remaining_count")
+        fil = fpint(mine, "fill_count_fp", "fill_count")
+        if mine is not None and (status in ("filled", "executed") or rem == 0):
+            filled = fil if fil is not None else (n0 if rem is None else max(0, n0 - rem))
+            log(LEDGER, {"kind": "rest_filled", "client_order_id": coid, "ticker": tk,
+                         "arm": arm, "count": filled, "bid_c": r["bid_c"],
+                         "et_date": now_et_date()})
+            discord(f"v30 {arm} RESTING FILLED: {tk} {r['side']} x{filled} @ {r['bid_c']}c")
+            continue
+        if mine is None:
+            # listing lags ~6s after create (probe-verified); grace-period young rows
+            try:
+                age_s = (datetime.now(timezone.utc) - datetime.fromisoformat(
+                    r.get("logged_utc", ""))).total_seconds()
+            except (ValueError, TypeError):
+                age_s = 1e9
+            if age_s < 20 * 60:
+                continue  # keep tracking; re-check next run
+            log(LEDGER, {"kind": "rest_closed", "client_order_id": coid, "ticker": tk,
+                         "arm": arm, "reason": "gone", "count_unknown": True,
+                         "n": n0, "bid_c": r["bid_c"], "et_date": now_et_date()})
+            discord(f"v30 {arm} rest GONE (fills unknown, review): {tk}")
+            continue
+        if not bound_ok and not dry:  # CD5: no live mutations in dry mode
+            try:
+                ackd = cli.delete(f"/portfolio/events/orders/{mine.get('order_id')}")
+                reduced = None
+                try:
+                    reduced = int(float(ackd.get("reduced_by")))
+                except (TypeError, ValueError, AttributeError):
+                    pass
+                filled_before_cancel = (n0 - reduced) if reduced is not None else None
+                log(LEDGER, {"kind": "rest_closed", "client_order_id": coid,
+                             "ticker": tk, "arm": arm, "reason": "bound_weakened",
+                             "count": filled_before_cancel, "bid_c": r["bid_c"],
+                             "n": n0, "et_date": now_et_date()})
+                if filled_before_cancel:
+                    log(LEDGER, {"kind": "rest_filled", "client_order_id": coid,
+                                 "ticker": tk, "arm": arm,
+                                 "count": filled_before_cancel, "bid_c": r["bid_c"],
+                                 "note": "filled_then_cancelled",
+                                 "et_date": now_et_date()})
+                    discord(f"v30 {arm} FILLED-THEN-CANCELLED {tk} "
+                            f"x{filled_before_cancel} (bound broke): REVIEW")
+                else:
+                    discord(f"v30 {arm} CANCELLED (bound weakened): {tk}")
+            except Exception as e:  # noqa: BLE001
+                log(ORDERS, {"kind": "error", "where": f"rest_cancel:{tk}",
+                             "err": str(e)[:200], "et_date": now_et_date()})
+    if feed_down:
+        return  # no placements on a down feed; dry placements continue (intent-only)
+    # place new
+    tracked = {c: r for c, r in rest_rows().items() if r.get("arm") == arm}
+    have_tk = {r["ticker"] for r in tracked.values()}
+    if len(tracked) >= REST_MAX_ORDERS:
+        return
+    armb_tickers = {r["ticker"] for r in rows(LEDGER)
+                    if r.get("kind") == "armB_open" and not r.get("dry")}
+    for m, side, bid_c, ask_c in decided:
+        tk = m["ticker"]
+        if tk in have_tk or tk in armb_tickers:  # no same-ticker stacking with arm B
+            continue
+        # our bid on the DECIDED side, priced inside the spread, capped
+        if side == "yes":
+            cost_c = min(max_bid_c, max(bid_c + 1, 1), max(ask_c - 1, 1))
+            if cost_c > max_bid_c or cost_c >= ask_c:
+                continue
+            yes_c = cost_c
+        else:
+            no_bid_c = 100 - ask_c          # best NO bid = 100 - yes ask
+            no_ask_c = 100 - bid_c
+            cost_c = min(max_bid_c, max(no_bid_c + 1, 1), max(no_ask_c - 1, 1))
+            if cost_c > max_bid_c or cost_c >= no_ask_c:
+                continue
+            yes_c = 100 - cost_c
+        resting_notional_c = sum(int(r.get("bid_c") or 0) * int(r.get("n") or 0)
+                                 for r in tracked.values())
+        cap_c = min(int(ALLOC_FRAC * bal_c) - resting_notional_c, REST_MAX_NOTIONAL_C,
+                    DAILY_CAP_C - spent_today_cents())
+        n = cap_c // max(cost_c, 1)
+        if n < 1:
+            continue
+        n = min(n, 25)
+        body = {
+            "ticker": tk, "side": "bid" if side == "yes" else "ask",
+            "count": str(int(n)), "price": f"{yes_c / 100:.2f}",
+            "time_in_force": "good_till_canceled",
+            "self_trade_prevention_type": "taker_at_cross",
+            "client_order_id": "30" + uuid.uuid4().hex[:22],
+        }
+        log(ORDERS, {"kind": "order_intent", "tag": f"{arm}_rest", "body": body,
+                     "dry": dry, "cost_per_contract_c": cost_c,
+                     "et_date": now_et_date()})
+        if dry:
+            continue
+        try:
+            ack = cli.post("/portfolio/events/orders", json=body)
+        except Exception as e:  # noqa: BLE001
+            log(ORDERS, {"kind": "reconcile_needed", "tag": f"{arm}_rest",
+                         "client_order_id": body["client_order_id"],
+                         "err": str(e)[:300], "et_date": now_et_date()})
+            discord(f"v30 {arm} REST POST FAILED {tk}: reconcile_needed")
+            return
+        log(ORDERS, {"kind": "order_ack", "tag": f"{arm}_rest", "body": body,
+                     "ack": ack, "cost_per_contract_c": cost_c,
+                     "et_date": now_et_date()})
+        log(LEDGER, {"kind": "rest_open", "client_order_id": body["client_order_id"],
+                     "order_id": ack.get("order_id"), "ticker": tk, "arm": arm,
+                     "side": side, "bid_c": cost_c, "n": n, "et_date": now_et_date()})
+        discord(f"v30 {arm} RESTING: {tk} {side} bid {cost_c}c x{n}")
+        return  # one new rest per arm per run
+
+
 def main() -> int:
     if date.today() > EXPIRY:
         return 0
@@ -383,8 +657,24 @@ def main() -> int:
                 return 0
             if not dry:
                 retry_naked(cli, dry)
-            arm_a(cli, bal_c, dry)
-            arm_b(cli, bal_c, dry)
+            # addendum global cap: committed exposure must stay under 90 pct of balance
+            committed_c = 0
+            for r in rows(LEDGER):
+                if r.get("kind") == "armB_open" and not r.get("dry"):
+                    committed_c += int(r.get("cost_c") or 0) * int(r.get("n") or 0)
+            for r in rest_rows().values():
+                committed_c += int(r.get("bid_c") or 0) * int(r.get("n") or 0)
+            if committed_c > int(0.9 * bal_c):
+                log(ORDERS, {"kind": "global_cap_halt", "committed_c": committed_c,
+                             "balance_c": bal_c, "et_date": now_et_date()})
+            else:
+                arm_a(cli, bal_c, dry)
+                arm_b(cli, bal_c, dry)
+                # arms C/D (expansion addendum): maker bids on decided outcomes
+                rt_dec = rt_decided_strikes()
+                reconcile_and_place_rests(cli, "armC", rt_dec, REST_RT_MAX_BID_C, bal_c, dry)
+                tsa_dec = tsa_decided_strikes()
+                reconcile_and_place_rests(cli, "armD", tsa_dec, REST_TSA_MAX_BID_C, bal_c, dry)
     finally:
         try:
             os.remove(LOCK)
