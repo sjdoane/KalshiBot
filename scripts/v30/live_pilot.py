@@ -32,6 +32,7 @@ from kalshi_bot.data.kalshi_client import KalshiClient  # noqa: E402
 
 import live_rt_read as rt  # noqa: E402
 import arb_sentinel as ab  # noqa: E402
+import highs  # noqa: E402  (ARM E: KXHIGH determined-strike module; scripts/v30 on path)
 
 ET = ZoneInfo("America/New_York")
 V30 = os.path.join("data", "v30")
@@ -39,6 +40,7 @@ ORDERS = os.path.join(V30, "orders.jsonl")
 LEDGER = os.path.join(V30, "positions.jsonl")
 STOP = os.path.join(V30, "STOP")
 ARMED = os.path.join(V30, "LIVE_ARMED")
+ARM_E_ARMED = os.path.join(V30, "ARM_E_ARMED")  # staged arm: REAL arm E orders only if present
 LOCK = os.path.join(V30, "run.lock")
 EXPIRY = date(2026, 9, 1)
 
@@ -58,6 +60,15 @@ REST_TSA_MAX_BID_C = 97        # arm D price cap
 # static for days). Existing filled positions are held; this blocks only NEW
 # placement / resting, never a cancel of an already-held position.
 ARM_BC_BLOCKLIST = {"KXRT-MOA"}
+# ARM E (KXHIGH daily-high determined-strike capture; research/v30/03-armE-highs-addendum.md;
+# staged-disarmed by default). REAL orders require data/v30/ARM_E_ARMED in addition to
+# LIVE_ARMED; absent it, arm E only logs armE_intent rows (calibration, no placement).
+ARM_E_FLAT_BID_C = 90          # maker rests flat at 90c on the decided side
+ARM_E_MAX_BID_C = 97           # maker price ceiling (backtest bids 90-97c)
+ARM_E_TAKER_MAX_C = 93         # taker only when decided-side ask <= 93c
+ARM_E_TAKER_MIN_NET_C = 5      # ... and net-of-fee edge >= 5c
+ARM_E_TAKER_CAP_C = 3000       # $30 taker cost cap (matches arm B fire cap)
+ARM_E_FEE_COEFF = 0.07         # KXHIGH taker fee coeff (worst-case quadratic)
 
 
 def now_et_date() -> str:
@@ -511,12 +522,20 @@ def rest_rows():
 
 
 def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
-                              bal_c: int, dry: bool, place_halted: bool = False) -> None:
-    """Arms C/D: cancel bids whose bound broke; place new bids on decided strikes.
+                              bal_c: int, dry: bool, place_halted: bool = False,
+                              flat_bid_c: int | None = None,
+                              bound_by_tk: dict | None = None) -> None:
+    """Arms C/D/E: cancel bids whose bound broke; place new bids on decided strikes.
     decided is None when the FEED is down (CD4): fill detection still runs, but no
     bound-weakening cancels and no new placements. place_halted=True (defect-1 global
     cap halt) still runs the full reconcile/cancel/fill-detection pass and only blocks
-    NEW placement."""
+    NEW placement. flat_bid_c (arm E) rests at exactly that price on the decided side
+    and skips a strike whose current best bid on that side is already >= flat_bid_c;
+    default None keeps the arms C/D best-bid-plus-1c pricing unchanged. bound_by_tk (arm E)
+    is the authoritative {ticker: decided_side} map used for the bound check INSTEAD of the
+    held-filtered placement list, so a still-decided rest is never cancelled merely for
+    being held/taker-mode; combined with highs.is_bound_checkable it leaves prior-day and
+    feed-down-city rests resting (fixes 1/3/5b). Default None = arms C/D behaviour."""
     feed_down = decided is None
     decided_by_tk = {} if feed_down else {
         m["ticker"]: (side, bid_c, ask_c) for m, side, bid_c, ask_c in decided}
@@ -525,7 +544,17 @@ def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
         tk = r["ticker"]
         n0 = int(r.get("n") or 0)
         still = decided_by_tk.get(tk)
-        bound_ok = feed_down or (still is not None and still[0] == r["side"])
+        if bound_by_tk is not None:
+            # arm E: bound against the authoritative today-decided side map (includes
+            # held/taker-mode strikes), and treat a rest as bound-weakened only when its
+            # market is TODAY on a HEALTHY feed and genuinely no longer decided. Prior-day
+            # tickers (day rollover) and feed-down cities are left resting (fixes 3/5b).
+            bs = bound_by_tk.get(tk)
+            bound_ok = feed_down or (bs is not None and bs == r["side"])
+            if not bound_ok and not feed_down and not highs.is_bound_checkable(tk):
+                bound_ok = True
+        else:
+            bound_ok = feed_down or (still is not None and still[0] == r["side"])
         try:
             lst = cli.get("/portfolio/orders", ticker=tk)
             mine = next((o for o in (lst.get("orders") or [])
@@ -601,9 +630,13 @@ def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
         return  # no placements on a down feed; dry placements continue (intent-only)
     if place_halted:
         # defect-1: reconcile/cancel/fill-detection above ALWAYS runs; the global cap
-        # halt blocks only NEW resting-order placement, not existing-order monitoring
-        log(ORDERS, {"kind": "halt_reconcile_ran", "arm": arm,
-                     "et_date": now_et_date()})
+        # halt blocks only NEW resting-order placement, not existing-order monitoring.
+        # fix 1: while disarmed arm E is place_halted EVERY run; skip the marker when it has
+        # no rests to reconcile so a staged-disarmed arm E logs only intent/feed rows (this
+        # never fires for arms C/D, which are place_halted only under the rare global cap).
+        if tracked or arm != "armE":
+            log(ORDERS, {"kind": "halt_reconcile_ran", "arm": arm,
+                         "et_date": now_et_date()})
         return
     # place new
     tracked = {c: r for c, r in rest_rows().items() if r.get("arm") == arm}
@@ -632,7 +665,20 @@ def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
                              "et_date": now_et_date()})
                 continue
         # our bid on the DECIDED side, priced inside the spread, capped
-        if side == "yes":
+        if flat_bid_c is not None:
+            # arm E flat-price maker: rest at exactly flat_bid_c on the decided side,
+            # only if the best bid on that side leaves room (skip if >= flat) and the
+            # flat price does not cross that side's ask.
+            if side == "yes":
+                if bid_c >= flat_bid_c or flat_bid_c >= ask_c:
+                    continue
+                cost_c, yes_c = flat_bid_c, flat_bid_c
+            else:
+                no_bid_c, no_ask_c = 100 - ask_c, 100 - bid_c
+                if no_bid_c >= flat_bid_c or flat_bid_c >= no_ask_c:
+                    continue
+                cost_c, yes_c = flat_bid_c, 100 - flat_bid_c
+        elif side == "yes":
             cost_c = min(max_bid_c, max(bid_c + 1, 1), max(ask_c - 1, 1))
             if cost_c > max_bid_c or cost_c >= ask_c:
                 continue
@@ -697,6 +743,131 @@ def committed_open_map(tickers) -> dict:
     return out
 
 
+def highs_decided_strikes():
+    """ARM E: (market, side, bid_c, ask_c) for KXHIGH strikes LOCKED by the live running
+    max, same shape/None-semantics as rt_decided_strikes()/tsa_decided_strikes(). None =
+    feed down (CD4: keep rests, no cancels, no placement); [] = feeds up, nothing decided.
+    highs.py owns the weather feed and monotone-lock determination (recomputed fresh every
+    call). The running max is carried on each market dict under _armE_rmax for the
+    armE_intent log; it does not affect the shared 4-tuple contract."""
+    dec = highs.decided_strikes()
+    if dec is None:
+        return None
+    out = []
+    for m, side, bid_c, ask_c, rmax in dec:
+        m["_armE_rmax"] = rmax
+        out.append((m, side, bid_c, ask_c))
+    return out
+
+
+def held_tickers() -> set:
+    """Tickers currently held/committed by ANY arm (arm B opens, arm E taker opens, filled
+    arm E maker rests, all still-open resting orders). Arm E skips these (same no-stacking
+    rule as arms C/D). Arm A baskets are index/crypto series and never collide with KXHIGH,
+    so they need no entry here."""
+    held = set()
+    for r in rows(LEDGER):
+        k = r.get("kind")
+        if k in ("armB_open", "armE_open") and not r.get("dry"):
+            held.add(r.get("ticker"))
+        elif k == "rest_filled" and r.get("arm") == "armE" and not r.get("dry"):
+            held.add(r.get("ticker"))  # fix 4: a filled maker rest still holds the strike;
+            # rest_rows() drops it on rest_filled, so add it back or arm E would re-stack
+    for r in rest_rows().values():
+        held.add(r.get("ticker"))
+    held.discard(None)
+    return held
+
+
+def arm_e(cli, bal_c: int, dry: bool, halted: bool) -> None:
+    """ARM E: KXHIGH determined-strike capture, staged-disarmed. Determination is recomputed
+    fresh every run. When data/v30/ARM_E_ARMED is ABSENT: compute the taker/maker decision
+    for every decided, non-held strike and log armE_intent rows only (place NOTHING). When
+    PRESENT: E-taker first (decided-side ask <= 93c and >= 5c net of the worst-case taker
+    fee -> one IOC per run via arm B plumbing, $30 cap, ledger armE_open); otherwise E-maker
+    (flat 90c GTC rest on the decided side via reconcile_and_place_rests, arm='armE'). Never
+    both modes on one ticker in one run.
+
+    fix 1: the E-maker reconcile runs UNCONDITIONALLY every run (arms C/D parity), place_halted
+    when disarmed/halted, so a de-arm after fills never strands live armE rests (they are
+    still fill-detected and bound-cancelled; only NEW placement stops). Per-city feed-down is
+    handled inside highs (is_bound_checkable leaves feed-down/prior-day rests alone)."""
+    armed = os.path.exists(ARM_E_ARMED)
+    decided = highs_decided_strikes()
+    if decided is None:                       # defensive whole-arm feed-down signal
+        log(ORDERS, {"kind": "armE_feed_down", "armed": armed, "et_date": now_et_date()})
+        # fix 1: monitor/keep existing rests EVERY run (armed or not); decided=None never
+        # cancels on a down feed and places nothing.
+        reconcile_and_place_rests(cli, "armE", None, ARM_E_MAX_BID_C, bal_c, dry,
+                                  place_halted=(not armed) or halted,
+                                  flat_bid_c=ARM_E_FLAT_BID_C)
+        return
+    # authoritative today-decided side map for the bound check (fixes 1/3): built from the
+    # FULL highs output (every today-decided strike, incl. held/taker-mode) so an existing
+    # rest on a still-decided strike is never cancelled for being absent from the held-
+    # filtered placement list below.
+    bound_by_tk = {mk["ticker"]: sd for mk, sd, _b, _a in decided}
+    held = held_tickers()
+    maker_decided = []                        # held-filtered maker-mode strikes to PLACE on
+    taker_pick = None                         # (m, side, take_cost_c, n) chosen taker fire
+    for m, side, bid_c, ask_c in decided:
+        tk = m["ticker"]
+        if tk in held:                        # fix 4: no NEW taker/maker on a held strike
+            continue
+        # taker economics on the decided side (YES -> pay yes_ask; NO -> pay 100 - yes_bid)
+        take_cost_c = ask_c if side == "yes" else 100 - bid_c
+        fee_c = math.ceil(ab.taker_fee(take_cost_c / 100.0, ARM_E_FEE_COEFF) * 100)
+        net_c = 100 - take_cost_c - fee_c
+        taker_ok = (1 <= take_cost_c <= ARM_E_TAKER_MAX_C
+                    and net_c >= ARM_E_TAKER_MIN_NET_C)
+        best_bid_c = bid_c if side == "yes" else 100 - ask_c   # best bid on the decided side
+        maker_ok = best_bid_c < ARM_E_FLAT_BID_C
+        if taker_ok:
+            mode, price = "taker", take_cost_c
+        elif maker_ok:
+            mode, price = "maker", ARM_E_FLAT_BID_C
+        else:
+            mode, price = "skip", None
+        if not armed:
+            log(ORDERS, {"kind": "armE_intent", "ticker": tk, "side": side,
+                         "running_max": m.get("_armE_rmax"), "yes_bid_c": bid_c,
+                         "yes_ask_c": ask_c, "mode": mode, "would_price_c": price,
+                         "et_date": now_et_date()})
+            continue
+        if mode == "taker" and taker_pick is None and not halted:
+            cap_c = min(int(ALLOC_FRAC * bal_c), ARM_E_TAKER_CAP_C,
+                        DAILY_CAP_C - spent_today_cents())
+            size = ab.fnum(m.get("yes_ask_size_fp") if side == "yes"
+                           else m.get("yes_bid_size_fp")) or 0.0
+            n = int(min(size, cap_c // max(take_cost_c, 1)))
+            if n >= 1:
+                taker_pick = (m, side, take_cost_c, n)
+        elif mode == "maker":
+            maker_decided.append((m, side, bid_c, ask_c))
+    taker_fired = False
+    if armed and taker_pick is not None:      # E-taker first: one IOC fire per run
+        m, side, take_cost_c, n = taker_pick
+        tk = m["ticker"]
+        log(ORDERS, {"kind": "armE_trigger", "ticker": tk, "side": side,
+                     "cost_c": take_cost_c, "n": n, "running_max": m.get("_armE_rmax"),
+                     "et_date": now_et_date()})
+        yes_c = take_cost_c if side == "yes" else 100 - take_cost_c
+        ack = place_ioc(cli, tk, side, yes_c, n, "armE", take_cost_c, dry)
+        got = fill_count(ack)
+        if got > 0:
+            log(LEDGER, {"kind": "armE_open", "ticker": tk, "side": side,
+                         "cost_c": take_cost_c, "n": got, "dry": dry,
+                         "et_date": now_et_date()})
+        taker_fired = True
+    # fix 1: E-maker reconcile ALWAYS runs (monitor/fill-detect/bound-cancel existing rests
+    # even while disarmed). place_halted blocks only NEW placement: True when disarmed, when
+    # the global cap is halted, or when a taker fired this run (never both modes per run).
+    # bound_by_tk drives the fix-3/5b bound check (prior-day / feed-down rests left alone).
+    reconcile_and_place_rests(cli, "armE", maker_decided, ARM_E_MAX_BID_C, bal_c, dry,
+                              (not armed) or halted or taker_fired,
+                              flat_bid_c=ARM_E_FLAT_BID_C, bound_by_tk=bound_by_tk)
+
+
 def main() -> int:
     if date.today() > EXPIRY:
         return 0
@@ -742,21 +913,24 @@ def main() -> int:
             # addendum global cap: committed exposure must stay under 90 pct of balance.
             # defect-A: only positions whose market is still open/unsettled count. Summing
             # every armB_open for all time (never subtracting settlements) wedged the halt
-            # permanently. The rest component is already net of ledger closure rows via
-            # rest_rows() (rest_closed / rest_filled / cancelled drop out); we additionally
-            # drop rests whose market has since settled. One status GET per distinct ticker
-            # across BOTH components (arm B open_now pattern, H1); fail-safe stays committed.
-            armb_cost: dict[str, int] = {}
+            # permanently. fix 2: arm E taker opens (armE_open) are taker exposure exactly
+            # like arm B opens, so they aggregate and status-filter identically here or arm
+            # E exposure would escape the global cap. The rest component is already net of
+            # ledger closure rows via rest_rows() (rest_closed / rest_filled / cancelled drop
+            # out); we additionally drop rests whose market has since settled. One status GET
+            # per distinct ticker across BOTH components (arm B open_now pattern, H1);
+            # fail-safe stays committed.
+            open_cost: dict[str, int] = {}
             for r in rows(LEDGER):
-                if r.get("kind") == "armB_open" and not r.get("dry"):
+                if r.get("kind") in ("armB_open", "armE_open") and not r.get("dry"):
                     tk = r.get("ticker") or ""
-                    armb_cost[tk] = (armb_cost.get(tk, 0)
+                    open_cost[tk] = (open_cost.get(tk, 0)
                                      + int(r.get("cost_c") or 0) * int(r.get("n") or 0))
             rest_open = list(rest_rows().values())
             open_map = committed_open_map(
-                set(armb_cost) | {r.get("ticker") for r in rest_open})
+                set(open_cost) | {r.get("ticker") for r in rest_open})
             committed_c = 0
-            for tk, cost in armb_cost.items():
+            for tk, cost in open_cost.items():
                 if open_map.get(tk, True):
                     committed_c += cost
             for r in rest_open:
@@ -780,6 +954,10 @@ def main() -> int:
             tsa_dec = tsa_decided_strikes()
             reconcile_and_place_rests(cli, "armD", tsa_dec, REST_TSA_MAX_BID_C, bal_c,
                                       dry, halted)
+            # ARM E (staged-disarmed KXHIGH determined-strike capture). Determination is
+            # recomputed fresh here every run; disarmed it logs armE_intent only. Same
+            # global controls as C/D (daily cap, global-cap halt blocks NEW placement).
+            arm_e(cli, bal_c, dry, halted)
     finally:
         try:
             os.remove(LOCK)
