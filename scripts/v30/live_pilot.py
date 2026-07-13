@@ -94,15 +94,22 @@ def rows(fp: str):
     return out
 
 
-def discord(msg: str) -> None:
+def discord(msg: str) -> bool:
+    """Sends msg to the configured webhook (never echoes the URL itself). Returns True
+    on a clean send (or a no-op when no webhook is configured), False if the send
+    raised; on False an error row is logged so a failed alert is never silent (existing
+    error-row pattern). Callers that ignore the return value keep prior behavior."""
     try:
         from kalshi_bot.alerts import discord as dc
         s = Settings()
         url = getattr(s, "discord_webhook_url", None)
         if url:
             dc.post(str(url), msg, username="v30 live pilot")
-    except Exception:  # noqa: BLE001
-        pass
+        return True
+    except Exception as e:  # noqa: BLE001
+        log(ORDERS, {"kind": "error", "where": "discord", "err": str(e)[:200],
+                     "et_date": now_et_date()})
+        return False
 
 
 def cents(x) -> int | None:
@@ -779,6 +786,76 @@ def held_tickers() -> set:
     return held
 
 
+def _armE_room(side: str, bid_c: int, ask_c: int) -> tuple[int, int]:
+    """decided-side take-cost and best-bid, same formulas arm_e's own loop uses to
+    pick taker/maker mode. Read-only visibility math; does not feed back into any
+    order decision."""
+    take_cost_c = ask_c if side == "yes" else 100 - bid_c
+    best_bid_c = bid_c if side == "yes" else 100 - ask_c
+    return take_cost_c, best_bid_c
+
+
+def armE_scan_and_alert(decided) -> None:
+    """ARM E scan visibility only (logging + Discord); no bearing on the taker/maker
+    decision made later in arm_e(). Every run with a live highs feed: logs one
+    compact armE_scan ledger row (n_decided, n_room, best-by-cheapest-edge). Any
+    strike currently "in room" (decided-side ask <= ARM_E_TAKER_MAX_C or decided-side
+    best bid < ARM_E_FLAT_BID_C) gets at most one Discord room alert per
+    (ticker, et_date), deduped against today's armE_scan_room rows. Once per evening
+    (first run at/after 18:00 ET, deduped against today's armE_digest row) sends a
+    one-line daily digest. Discord failures are caught inside discord() (never raise
+    here) so a webhook outage cannot affect scanning or trigger any order path."""
+    today = now_et_date()
+    n_decided = len(decided)
+    room = []  # (ticker, side, yes_bid_c, yes_ask_c, take_cost_c, rmax)
+    for m, side, bid_c, ask_c in decided:
+        take_cost_c, best_bid_c = _armE_room(side, bid_c, ask_c)
+        if take_cost_c <= ARM_E_TAKER_MAX_C or best_bid_c < ARM_E_FLAT_BID_C:
+            room.append((m["ticker"], side, bid_c, ask_c, take_cost_c,
+                         m.get("_armE_rmax")))
+    n_room = len(room)
+    best = None
+    if room:
+        # diagnostic pick only (smallest decided-side take-cost = most edge); never
+        # consulted by the actual taker/maker logic below.
+        tk, side, bid_c, ask_c, _tc, _rm = min(room, key=lambda r: r[4])
+        best = {"ticker": tk, "side": side, "yes_bid_c": bid_c, "yes_ask_c": ask_c}
+    log(ORDERS, {"kind": "armE_scan", "n_decided": n_decided, "n_room": n_room,
+                 "best": best, "et_date": today})
+
+    already_alerted = {r.get("ticker") for r in rows(ORDERS)
+                       if r.get("kind") == "armE_scan_room" and r.get("et_date") == today}
+    for tk, side, bid_c, ask_c, _tc, rmax in room:
+        if tk in already_alerted:
+            continue
+        rmax_str = f"{int(rmax)}F" if isinstance(rmax, (int, float)) else "?F"
+        if side == "yes":
+            msg = (f"armE ROOM: {tk} decided YES, yes_bid/yes_ask "
+                   f"{bid_c}/{ask_c}c, rmax {rmax_str}")
+        else:
+            msg = (f"armE ROOM: {tk} decided NO, no_bid/no_ask "
+                   f"{100 - ask_c}/{100 - bid_c}c, rmax {rmax_str}")
+        discord(msg)
+        log(ORDERS, {"kind": "armE_scan_room", "ticker": tk, "side": side,
+                     "yes_bid_c": bid_c, "yes_ask_c": ask_c, "et_date": today})
+        already_alerted.add(tk)
+
+    if datetime.now(ET).hour >= 18:
+        have_digest = any(r.get("kind") == "armE_digest" and r.get("et_date") == today
+                          for r in rows(ORDERS))
+        if not have_digest:
+            k = sum(1 for r in rows(ORDERS)
+                    if r.get("kind") == "order_ack" and r.get("tag") == "armE"
+                    and r.get("et_date") == today)
+            k += sum(1 for r in rows(LEDGER)
+                     if r.get("kind") == "rest_filled" and r.get("arm") == "armE"
+                     and r.get("et_date") == today)
+            discord(f"armE digest {today}: {n_decided} decided strikes scanned, "
+                    f"{n_room} had room, {k} armE orders/fills today")
+            log(ORDERS, {"kind": "armE_digest", "et_date": today, "n_decided": n_decided,
+                         "n_room": n_room, "orders_fills": k})
+
+
 def arm_e(cli, bal_c: int, dry: bool, halted: bool) -> None:
     """ARM E: KXHIGH determined-strike capture, staged-disarmed. Determination is recomputed
     fresh every run. When data/v30/ARM_E_ARMED is ABSENT: compute the taker/maker decision
@@ -802,6 +879,9 @@ def arm_e(cli, bal_c: int, dry: bool, halted: bool) -> None:
                                   place_halted=(not armed) or halted,
                                   flat_bid_c=ARM_E_FLAT_BID_C)
         return
+    armE_scan_and_alert(decided)  # visibility only (log row + Discord); read-only over
+    # `decided`, runs before any held-filtering/taker-maker decision below, and does not
+    # feed back into it.
     # authoritative today-decided side map for the bound check (fixes 1/3): built from the
     # FULL highs output (every today-decided strike, incl. held/taker-mode) so an existing
     # rest on a still-decided strike is never cancelled for being absent from the held-
