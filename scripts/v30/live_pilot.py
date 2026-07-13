@@ -53,6 +53,11 @@ REST_MAX_ORDERS = 4            # arms C/D: max resting orders per arm
 REST_MAX_NOTIONAL_C = 3000     # per resting order
 REST_RT_MAX_BID_C = 95         # arm C price cap
 REST_TSA_MAX_BID_C = 97        # arm D price cap
+# defect-2: KXRT events hard-blocklisted from NEW arm B/C orders (known wrong-feed
+# history: KXRT-MOA resolved to the 2016 animated "moana" page, score 87 / count 15,
+# static for days). Existing filled positions are held; this blocks only NEW
+# placement / resting, never a cancel of an already-held position.
+ARM_BC_BLOCKLIST = {"KXRT-MOA"}
 
 
 def now_et_date() -> str:
@@ -267,6 +272,31 @@ def arm_a(cli, bal_c: int, dry: bool) -> None:
                 return  # one basket attempt per run
 
 
+def rt_latest_state(ev: str) -> dict | None:
+    """Freshest v28 live_rt_states row for a KXRT event (rows() preserves file order)."""
+    latest = None
+    for r in rows(rt.STATES):
+        if r.get("event") == ev:
+            latest = r
+    return latest
+
+
+def rt_ev_stale(ev: str, hours_left: float) -> bool:
+    """Defect-2 gate for arms B/C: the freshest v28 state row must be non-stale before
+    a NEW order. Stale if the row carries stale_feed true, or its score+count have been
+    unchanged for >= 24h with count < 50 while the market close is > 48h away. A missing
+    feed row is treated as stale (fail closed: never fire off an absent read)."""
+    latest = rt_latest_state(ev)
+    if latest is None:
+        return True
+    if latest.get("stale_feed") is True:
+        return True
+    s, n = latest.get("score"), latest.get("count")
+    if not isinstance(s, int) or not isinstance(n, int):
+        return True
+    return rt.feed_stale(ev, s, n, hours_left)
+
+
 def arm_b(cli, bal_c: int, dry: bool) -> None:
     live_opens = [r for r in rows(LEDGER)
                   if r.get("kind") == "armB_open" and not r.get("dry")
@@ -292,6 +322,10 @@ def arm_b(cli, bal_c: int, dry: bool) -> None:
         byev.setdefault(m["event_ticker"], []).append(m)
     cache = json.load(open(rt.CACHE, encoding="utf-8")) if os.path.exists(rt.CACHE) else {}
     for ev, ms in sorted(byev.items()):
+        if ev in ARM_BC_BLOCKLIST:  # defect-2: never open a NEW arm B position here
+            log(ORDERS, {"kind": "armB_skip_stale", "event": ev,
+                         "reason": "blocklist", "et_date": now_et_date()})
+            continue
         slug = cache.get(ev)
         if slug is None:
             continue
@@ -305,6 +339,11 @@ def arm_b(cli, bal_c: int, dry: bool) -> None:
         close = datetime.fromisoformat(ms[0]["close_time"].replace("Z", "+00:00"))
         hours_left = max(0.0, (close - datetime.now(timezone.utc)).total_seconds() / 3600.0)
         if n <= 0 or hours_left <= 0:
+            continue
+        if rt_ev_stale(ev, hours_left):  # defect-2: no fire on a stale/frozen feed
+            log(ORDERS, {"kind": "armB_skip_stale", "event": ev, "score": s,
+                         "count": n, "hours_left": round(hours_left, 1),
+                         "et_date": now_et_date()})
             continue
         d = min(14, max(1, math.ceil(hours_left / 24.0)))
         a_cap = max(rt.A_FLOOR, math.ceil(rt.CAP_MULT * rt.ENV_RATIO[d] * n),
@@ -365,7 +404,12 @@ def rt_decided_strikes():
     cache = json.load(open(rt.CACHE, encoding="utf-8")) if os.path.exists(rt.CACHE) else {}
     for ev, ms in sorted(byev.items()):
         slug = cache.get(ev)
-        if slug is None:
+        # defect-B: honor live_rt_read.SLUG_BLOCKLIST here too. A blocklisted cached
+        # slug (e.g. KXRT-MOA -> "moana", the 2016 animated page) is a known-wrong feed;
+        # ignore it so a bad bound never keeps an arm C rest open. A blocklisted-only
+        # event yields no bound (treated as "no bound available"), which the reconcile
+        # pass reads as bound-weakened and cancels the rest.
+        if slug is None or slug in rt.SLUG_BLOCKLIST.get(ev, set()):
             continue
         try:
             st = rt.parse_live(slug)
@@ -467,10 +511,12 @@ def rest_rows():
 
 
 def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
-                              bal_c: int, dry: bool) -> None:
+                              bal_c: int, dry: bool, place_halted: bool = False) -> None:
     """Arms C/D: cancel bids whose bound broke; place new bids on decided strikes.
     decided is None when the FEED is down (CD4): fill detection still runs, but no
-    bound-weakening cancels and no new placements."""
+    bound-weakening cancels and no new placements. place_halted=True (defect-1 global
+    cap halt) still runs the full reconcile/cancel/fill-detection pass and only blocks
+    NEW placement."""
     feed_down = decided is None
     decided_by_tk = {} if feed_down else {
         m["ticker"]: (side, bid_c, ask_c) for m, side, bid_c, ask_c in decided}
@@ -553,6 +599,12 @@ def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
                              "err": str(e)[:200], "et_date": now_et_date()})
     if feed_down:
         return  # no placements on a down feed; dry placements continue (intent-only)
+    if place_halted:
+        # defect-1: reconcile/cancel/fill-detection above ALWAYS runs; the global cap
+        # halt blocks only NEW resting-order placement, not existing-order monitoring
+        log(ORDERS, {"kind": "halt_reconcile_ran", "arm": arm,
+                     "et_date": now_et_date()})
+        return
     # place new
     tracked = {c: r for c, r in rest_rows().items() if r.get("arm") == arm}
     have_tk = {r["ticker"] for r in tracked.values()}
@@ -564,6 +616,21 @@ def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
         tk = m["ticker"]
         if tk in have_tk or tk in armb_tickers:  # no same-ticker stacking with arm B
             continue
+        if arm == "armC":  # defect-2: no NEW arm C rest on a blocklisted/stale KXRT feed
+            ev = m.get("event_ticker", "")
+            if ev in ARM_BC_BLOCKLIST:
+                log(ORDERS, {"kind": "armC_skip_stale", "event": ev, "ticker": tk,
+                             "reason": "blocklist", "et_date": now_et_date()})
+                continue
+            try:
+                cl = datetime.fromisoformat(m["close_time"].replace("Z", "+00:00"))
+                hl = max(0.0, (cl - datetime.now(timezone.utc)).total_seconds() / 3600.0)
+            except (KeyError, ValueError, AttributeError):
+                hl = 0.0
+            if rt_ev_stale(ev, hl):
+                log(ORDERS, {"kind": "armC_skip_stale", "event": ev, "ticker": tk,
+                             "et_date": now_et_date()})
+                continue
         # our bid on the DECIDED side, priced inside the spread, capped
         if side == "yes":
             cost_c = min(max_bid_c, max(bid_c + 1, 1), max(ask_c - 1, 1))
@@ -615,6 +682,21 @@ def reconcile_and_place_rests(cli, arm: str, decided, max_bid_c: int,
         return  # one new rest per arm per run
 
 
+def committed_open_map(tickers) -> dict:
+    """defect-A: {ticker: still_committed_bool} for the global-cap sum. A market that is
+    settled/finalized no longer ties up exposure. Reuses arm B's open_now pattern (H1):
+    one live status GET per DISTINCT ticker. Fail-safe: a status fetch error keeps the
+    ticker committed (conservative, holds the halt rather than releasing it blind)."""
+    out = {}
+    for tk in sorted({t for t in tickers if t}):
+        try:
+            mk = ab.get_json(f"{ab.BASE}/markets/{tk}").get("market") or {}
+            out[tk] = mk.get("status") not in ("settled", "finalized")
+        except Exception:  # noqa: BLE001
+            out[tk] = True  # unknown status stays committed (conservative)
+    return out
+
+
 def main() -> int:
     if date.today() > EXPIRY:
         return 0
@@ -657,24 +739,47 @@ def main() -> int:
                 return 0
             if not dry:
                 retry_naked(cli, dry)
-            # addendum global cap: committed exposure must stay under 90 pct of balance
-            committed_c = 0
+            # addendum global cap: committed exposure must stay under 90 pct of balance.
+            # defect-A: only positions whose market is still open/unsettled count. Summing
+            # every armB_open for all time (never subtracting settlements) wedged the halt
+            # permanently. The rest component is already net of ledger closure rows via
+            # rest_rows() (rest_closed / rest_filled / cancelled drop out); we additionally
+            # drop rests whose market has since settled. One status GET per distinct ticker
+            # across BOTH components (arm B open_now pattern, H1); fail-safe stays committed.
+            armb_cost: dict[str, int] = {}
             for r in rows(LEDGER):
                 if r.get("kind") == "armB_open" and not r.get("dry"):
-                    committed_c += int(r.get("cost_c") or 0) * int(r.get("n") or 0)
-            for r in rest_rows().values():
-                committed_c += int(r.get("bid_c") or 0) * int(r.get("n") or 0)
-            if committed_c > int(0.9 * bal_c):
+                    tk = r.get("ticker") or ""
+                    armb_cost[tk] = (armb_cost.get(tk, 0)
+                                     + int(r.get("cost_c") or 0) * int(r.get("n") or 0))
+            rest_open = list(rest_rows().values())
+            open_map = committed_open_map(
+                set(armb_cost) | {r.get("ticker") for r in rest_open})
+            committed_c = 0
+            for tk, cost in armb_cost.items():
+                if open_map.get(tk, True):
+                    committed_c += cost
+            for r in rest_open:
+                if open_map.get(r.get("ticker"), True):
+                    committed_c += int(r.get("bid_c") or 0) * int(r.get("n") or 0)
+            halted = committed_c > int(0.9 * bal_c)
+            if halted:
+                # defect-1: the halt blocks NEW exposure only. It must NOT skip the
+                # arm C/D reconcile/cancel pass below, or open rests go unmonitored.
                 log(ORDERS, {"kind": "global_cap_halt", "committed_c": committed_c,
                              "balance_c": bal_c, "et_date": now_et_date()})
             else:
                 arm_a(cli, bal_c, dry)
                 arm_b(cli, bal_c, dry)
-                # arms C/D (expansion addendum): maker bids on decided outcomes
-                rt_dec = rt_decided_strikes()
-                reconcile_and_place_rests(cli, "armC", rt_dec, REST_RT_MAX_BID_C, bal_c, dry)
-                tsa_dec = tsa_decided_strikes()
-                reconcile_and_place_rests(cli, "armD", tsa_dec, REST_TSA_MAX_BID_C, bal_c, dry)
+            # arms C/D (expansion addendum): maker bids on decided outcomes. The
+            # reconcile/cancel/fill-detection ALWAYS runs; place_halted=halted blocks
+            # only NEW resting placement when the global cap halt is active (defect-1).
+            rt_dec = rt_decided_strikes()
+            reconcile_and_place_rests(cli, "armC", rt_dec, REST_RT_MAX_BID_C, bal_c,
+                                      dry, halted)
+            tsa_dec = tsa_decided_strikes()
+            reconcile_and_place_rests(cli, "armD", tsa_dec, REST_TSA_MAX_BID_C, bal_c,
+                                      dry, halted)
     finally:
         try:
             os.remove(LOCK)

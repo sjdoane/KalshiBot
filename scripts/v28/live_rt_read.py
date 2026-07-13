@@ -63,6 +63,12 @@ CANDIDATES = {
     "KXRT-DUNE": ["dune_part_three"],
 }
 
+# Known-wrong bare slugs per event: the bare "moana" page is the 2016 animated film
+# (score 87, count 15, static for days), NOT the 2026 live-action remake KXRT-MOA
+# tracks. Never cache or accept a blocklisted slug for its event (defect-2 fix); the
+# live-action candidates (moana_2026 / moana_live_action) are still tried.
+SLUG_BLOCKLIST = {"KXRT-MOA": {"moana"}}
+
 
 def get(url: str, timeout: int = 45) -> bytes:
     req = urllib.request.Request(url, headers=UA)
@@ -89,10 +95,22 @@ def parse_live(slug: str):
     return int(s), int(n)
 
 
-def resolve_slug(ev: str, cache: dict):
-    if ev in cache:
-        return cache[ev]
+def resolve_slug(ev: str, cache: dict, force: bool = False):
+    """Resolve the live RT slug for an event. force=True re-attempts the FULL candidate
+    list even when a slug is cached, preferring an earlier-listed candidate that now
+    parses (defect-2 (ii)). A blocklisted cached slug is invalidated and re-resolved."""
+    blocked = SLUG_BLOCKLIST.get(ev, set())
+    cached = cache.get(ev)
+    if cached is not None and cached in blocked:
+        # invalidate a known-wrong cached slug and force full re-resolution (defect-2)
+        cache.pop(ev, None)
+        json.dump(cache, open(CACHE, "w", encoding="utf-8"))
+        cached = None
+    if cached is not None and not force:
+        return cached
     for slug in CANDIDATES.get(ev, []):
+        if slug in blocked:
+            continue
         try:
             st = parse_live(slug)
         except Exception:  # noqa: BLE001
@@ -102,8 +120,62 @@ def resolve_slug(ev: str, cache: dict):
             json.dump(cache, open(CACHE, "w", encoding="utf-8"))
             return slug
         time.sleep(1.0)
+    if cached is not None:
+        return cached  # re-resolution found nothing better; keep the prior slug
     log_row(LOG, {"kind": "slug_unresolved", "event": ev})
     return None
+
+
+def feed_stale(ev: str, s: int, n: int, hours_left: float) -> bool:
+    """Defect-2 (i): True when this event's (score, count) has been unchanged across
+    polls spanning >= 24h while count < 50 and the market still has > 48h to close. A
+    frozen low-count feed on a still-live market is the wrong-movie / dead-page
+    signature (e.g. KXRT-MOA stuck at the 2016 animated page: 87 / 15)."""
+    if n >= 50 or hours_left <= 48.0:
+        return False
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    run_start = None
+    try:
+        with open(STATES, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if r.get("event") != ev:
+                    continue
+                if r.get("score") == s and r.get("count") == n:
+                    lu = r.get("logged_utc", "")
+                    if run_start is None or lu < run_start:
+                        run_start = lu
+                else:
+                    run_start = None  # a differing reading resets the unchanged span
+    except FileNotFoundError:
+        return False
+    return run_start is not None and run_start <= cutoff
+
+
+def reresolve_due(ev: str) -> bool:
+    """Defect-2 (ii): True if the full candidate list has not been re-attempted for ev
+    in >= 12h, so re-resolution runs at least every 12h even without a stale flag."""
+    if not os.path.exists(LOG):
+        return True
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
+    last = None
+    try:
+        with open(LOG, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if r.get("kind") == "slug_reresolve" and r.get("event") == ev:
+                    lu = r.get("logged_utc", "")
+                    if last is None or lu > last:
+                        last = lu
+    except FileNotFoundError:
+        return True
+    return last is None or last <= cutoff
 
 
 def arrivals_24h(ev: str, n_now: int) -> int:
@@ -156,9 +228,25 @@ def main() -> int:
             log_row(LOG, {"kind": "no_scorecard", "event": ev, "slug": slug})
             continue
         s, n = st
-        log_row(STATES, {"event": ev, "slug": slug, "score": s, "count": n})
         close = datetime.fromisoformat(ms[0]["close_time"].replace("Z", "+00:00"))
         hours_left = max(0.0, (close - datetime.now(timezone.utc)).total_seconds() / 3600.0)
+        stale = feed_stale(ev, s, n, hours_left)
+        # defect-2 (ii): re-attempt the FULL candidate list when the feed looks stale,
+        # or at least every 12h, preferring an earlier-listed candidate that now parses
+        if stale or reresolve_due(ev):
+            log_row(LOG, {"kind": "slug_reresolve", "event": ev, "prev_slug": slug,
+                          "stale": stale})
+            new_slug = resolve_slug(ev, cache, force=True)
+            if new_slug is not None and new_slug != slug:
+                try:
+                    st2 = parse_live(new_slug)
+                except Exception:  # noqa: BLE001
+                    st2 = None
+                if st2 is not None:
+                    slug, (s, n) = new_slug, st2
+                    stale = feed_stale(ev, s, n, hours_left)
+        log_row(STATES, {"event": ev, "slug": slug, "score": s, "count": n,
+                         "stale_feed": stale})
         if n <= 0 or hours_left <= 0:
             continue
         d = min(14, max(1, math.ceil(hours_left / 24.0)))
