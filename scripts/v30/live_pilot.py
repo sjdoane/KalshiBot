@@ -102,9 +102,17 @@ def discord(msg: str) -> bool:
     try:
         from kalshi_bot.alerts import discord as dc
         s = Settings()
-        url = getattr(s, "discord_webhook_url", None)
-        if url:
-            dc.post(str(url), msg, username="v30 live pilot")
+        # Settings declares the field UPPERCASE (DISCORD_WEBHOOK_URL, default "").
+        # The old lowercase getattr always returned None, so every v30 alert since
+        # 2026-07-03 was a silent no-op reported as success. Unconfigured is now
+        # loud (error row), never a quiet True.
+        url = getattr(s, "DISCORD_WEBHOOK_URL", "") or ""
+        if not url:
+            log(ORDERS, {"kind": "error", "where": "discord",
+                         "err": "DISCORD_WEBHOOK_URL not configured; alert dropped",
+                         "et_date": now_et_date()})
+            return False
+        dc.post(str(url), msg, username="v30 live pilot")
         return True
     except Exception as e:  # noqa: BLE001
         log(ORDERS, {"kind": "error", "where": "discord", "err": str(e)[:200],
