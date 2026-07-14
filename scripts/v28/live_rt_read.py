@@ -12,6 +12,10 @@ Every run (scheduled 30 min):
    decided YES if 100*L_lo/(N+A) > K + 1.0; decided NO if 100*(L_hi+A)/(N+A) < K - 1.0.
 4. Log EVERY decided strike with its live quotes; flag decided_in_band when the
    decided side is executable (YES ask <= 0.955; NO with yes_bid >= 0.045).
+5. Discord-alert on first slug resolution, decided_in_band, a stale-feed flip, and a
+   >= 5pt poll-to-poll score move, each deduped by its own rt_discord_* log row (a
+   restart never respams). A Discord failure logs an "error" row and never crashes
+   the poller (this script places no orders regardless).
 
 READ GATE (pre-committed in research/v28/05-FINAL-VERDICT.md): at least one
 decided_in_band row by 2026-08-31 opens the single v27-A3 shadow; zero across >= 6
@@ -30,6 +34,12 @@ import sys
 import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+# Reuse the shared Discord webhook client (src/kalshi_bot/alerts/discord.py); the
+# actual import happens lazily inside discord_alert() so a broken/missing dependency
+# there can never crash this read-only poller. Path setup alone is harmless.
+sys.path.insert(0, "src")
 
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
 V28 = os.path.join("data", "v28")
@@ -104,6 +114,97 @@ def log_row(fp: str, row: dict) -> None:
     row["logged_utc"] = datetime.now(timezone.utc).isoformat()
     with open(fp, "a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
+
+
+def now_et_date() -> str:
+    return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
+
+def _log_has(fp: str, kind: str, **match) -> bool:
+    """True if fp already has a row of this kind whose fields match every key in
+    `match` (used to dedupe Discord alerts so a restart never respams)."""
+    if not os.path.exists(fp):
+        return False
+    with open(fp, encoding="utf-8") as f:
+        for line in f:
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if r.get("kind") == kind and all(r.get(k) == v for k, v in match.items()):
+                return True
+    return False
+
+
+def _last_rt_state(ev: str):
+    """Most recent STATES row logged for ev BEFORE this poll (used for the
+    poll-to-poll score-move delta; call before this poll's own row is appended)."""
+    if not os.path.exists(STATES):
+        return None
+    last = None
+    with open(STATES, encoding="utf-8") as f:
+        for line in f:
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if r.get("event") == ev:
+                last = r
+    return last
+
+
+def discord_alert(msg: str) -> bool:
+    """Posts msg to the configured Discord webhook. Mirrors the working
+    scripts/v30/live_pilot.py discord() pattern (fixed in commit fe3c744): Settings
+    declares the field UPPERCASE (DISCORD_WEBHOOK_URL), so getattr must match that
+    exact case or every alert is a silent no-op (the bug that broke v30 alerts for
+    11 days). Any failure (unconfigured webhook, import error, network error) logs a
+    loud "error" row to this reader's own log instead of dropping the alert quietly,
+    and NEVER raises: this poller must survive a broken Discord path."""
+    try:
+        import kalshi_bot.alerts.discord as dc
+        from kalshi_bot.config import Settings
+        settings = Settings()
+        url = getattr(settings, "DISCORD_WEBHOOK_URL", "") or ""
+        if not url:
+            log_row(LOG, {"kind": "error", "where": "discord",
+                          "err": "DISCORD_WEBHOOK_URL not configured; alert dropped"})
+            return False
+        dc.post(str(url), msg, username="v28 rt reader")
+        return True
+    except Exception as e:  # noqa: BLE001
+        log_row(LOG, {"kind": "error", "where": "discord", "err": str(e)[:200]})
+        return False
+
+
+def notify_state(ev: str, slug: str, s: int, n: int, close: datetime, stale: bool,
+                  prev: dict | None) -> None:
+    """Discord alerts 1 (first resolution), 3 (stale feed), 4 (score move); each
+    deduped via its own rt_discord_* row in LOG."""
+    if not _log_has(LOG, "rt_discord_resolved", event=ev, slug=slug):
+        if discord_alert(f"RT tracking: {ev} -> {slug}, score {s} ({n} reviews), "
+                          f"closes {close.date().isoformat()}"):
+            log_row(LOG, {"kind": "rt_discord_resolved", "event": ev, "slug": slug})
+    if stale and not _log_has(LOG, "rt_discord_stale", event=ev, et_date=now_et_date()):
+        if discord_alert(f"RT STALE FEED: {ev} frozen at {s}/{n}, trading guards active"):
+            log_row(LOG, {"kind": "rt_discord_stale", "event": ev, "et_date": now_et_date()})
+    if prev is not None and abs(s - prev.get("score", s)) >= 5 and not _log_has(
+            LOG, "rt_discord_move", event=ev, et_date=now_et_date()):
+        if discord_alert(f"RT MOVE: {ev} score {prev.get('score')} -> {s} "
+                          f"(n {prev.get('count')} -> {n})"):
+            log_row(LOG, {"kind": "rt_discord_move", "event": ev, "et_date": now_et_date()})
+
+
+def notify_inband(ticker: str, ev: str, side: str, ask: float, s: int, n: int) -> None:
+    """Discord alert 2 (decided_in_band, the executable-room signal); deduped per
+    (ticker, et_date)."""
+    if _log_has(LOG, "rt_discord_inband", ticker=ticker, et_date=now_et_date()):
+        return
+    ask_c = int(round(ask * 100))
+    if discord_alert(f"RT IN-BAND: {ticker} decided {side}, ask {ask_c}c "
+                      f"(score {s}, n {n})"):
+        log_row(LOG, {"kind": "rt_discord_inband", "ticker": ticker,
+                      "et_date": now_et_date()})
 
 
 def parse_live(slug: str):
@@ -269,8 +370,10 @@ def main() -> int:
                 if st2 is not None:
                     slug, (s, n) = new_slug, st2
                     stale = feed_stale(ev, s, n, hours_left)
+        prev_state = _last_rt_state(ev)
         log_row(STATES, {"event": ev, "slug": slug, "score": s, "count": n,
                          "stale_feed": stale})
+        notify_state(ev, slug, s, n, close, stale, prev_state)
         if n <= 0 or hours_left <= 0:
             continue
         d = min(14, max(1, math.ceil(hours_left / 24.0)))
@@ -302,6 +405,8 @@ def main() -> int:
                 "yes_bid": bid, "yes_ask": ask, "ask_size": m.get("yes_ask_size_fp"),
                 "bid_size": m.get("yes_bid_size_fp"), "hours_left": round(hours_left, 1),
             })
+            if in_band:
+                notify_inband(m["ticker"], ev, side, ask, s, n)
     return 0
 
 
