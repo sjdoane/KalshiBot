@@ -61,13 +61,37 @@ CANDIDATES = {
     "KXRT-SPI": ["spider_man_brand_new_day"],
     "KXRT-AVE": ["avengers_doomsday"],
     "KXRT-DUNE": ["dune_part_three"],
+    # 2026-07-14 coverage restore (verified by director/cast on the live page; see
+    # comments below for the wrong-page traps found alongside each real slug).
+    "KXRT-TON": ["tony_2026", "tony"],
+    "KXRT-SUPER": ["super_troopers_3"],
+    "KXRT-ONE": ["one_night_only_2026", "one_night_only"],
+    "KXRT-PIN": ["pinocchio_unstrung"],
 }
 
 # Known-wrong bare slugs per event: the bare "moana" page is the 2016 animated film
 # (score 87, count 15, static for days), NOT the 2026 live-action remake KXRT-MOA
 # tracks. Never cache or accept a blocklisted slug for its event (defect-2 fix); the
 # live-action candidates (moana_2026 / moana_live_action) are still tried.
-SLUG_BLOCKLIST = {"KXRT-MOA": {"moana"}}
+#
+# 2026-07-14 additions, each confirmed a different live, parseable, wrong-movie page
+# (the same trap class as moana):
+#   - KXRT-ODY "the_odyssey": an already-streaming unrelated film (no Nolan/Damon/
+#     Holland credits). "odyssey_2026": a documentary about Jim Lovell / Apollo 13,
+#     not the Nolan film. The real page is "the_odyssey_2026" (director Christopher
+#     Nolan; cast Matt Damon, Tom Holland, Zendaya).
+#   - KXRT-TON "tony": "Tony: London Serial Killer" (score 76, count 17), a wholly
+#     different film. The real page is "tony_2026" (director Matt Johnson; cast
+#     Dominic Sessa, Emilia Jones, Leo Woodall, Antonio Banderas).
+#   - KXRT-ONE "one_night_only": an older film (director Timothy Bond, 1980s cast),
+#     not the 2026 release. The real page is "one_night_only_2026" (director Will
+#     Gluck; cast Monica Barbaro, Callum Turner, Maya Hawke).
+SLUG_BLOCKLIST = {
+    "KXRT-MOA": {"moana"},
+    "KXRT-ODY": {"the_odyssey", "odyssey_2026"},
+    "KXRT-TON": {"tony"},
+    "KXRT-ONE": {"one_night_only"},
+}
 
 
 def get(url: str, timeout: int = 45) -> bytes:
