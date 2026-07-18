@@ -15,8 +15,18 @@
 - Adversarial reviews found and closed false-candidate routes involving an
   unequal-quantity two-leg relation, Decimal midpoint and tail rounding,
   nonfinite strikes, duplicate exceptional states, Boolean integer aliases,
-  and unbounded quadratic audit work. The complete v34 suite now has 80 passing
+  and unbounded quadratic audit work. The complete v34 suite now has 94 passing
   tests with Ruff and strict mypy clean.
+- Added an independently reviewed exact state-price proof layer. Numerical
+  optimization can only propose weights; exact rational verification requires
+  nonnegative mass summing to one and expected payout no greater than every
+  executable ask. A verified certificate rules out every nonnegative
+  fee-free guaranteed basket without truncating the recipe lattice.
+- Ran a live read-only smoke on the eligible July BTC maximum ladder. Across 16
+  exact atomic states and 12 sides with five-copy displayed depth, the proof
+  layer found an exact denominator-100 certificate with zero minimum slack.
+  This is a provisional no-arbitrage diagnostic with zero gate credit until the
+  raw-byte archived-rule and orderbook adapter passes review.
 - Rechecked the live July Bitcoin maximum and minimum ladders at 22:13 UTC.
   Each then had seven open markets, quadratic fees with multiplier one, current
   fixed-point quotes, and null legacy integer quote fields. All seven minimum

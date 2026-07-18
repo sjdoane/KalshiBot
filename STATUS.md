@@ -76,9 +76,18 @@ Updated 2026-07-18.
   primitive five-copy integer recipes, applies aggregate per-leg fee ceilings,
   and publishes v29 pair, support-two payoff-relation, proper-subrecipe, and
   lower-support dominance audits. Both recipe count and worst-case audit work
-  fail closed before enumeration. The full v34 suite now has 80 passing tests
+  fail closed before enumeration. The full v34 suite now has 94 passing tests
   with Ruff and strict mypy clean. No scanner, observation, candidate, order
   path, or capital authority is created by this arithmetic slice.
+- The exact state-price proof layer is also independently reviewed GO by two
+  reviewers with no remaining Critical or High finding. A floating linear
+  program may propose atomic-state weights, but only an exact rational rebuild
+  with nonnegative weights summing to one and expected payout no greater than
+  every executable ask is authoritative. Such a certificate proves that every
+  nonnegative basket has minimum payout no greater than fee-free ask cost;
+  nonnegative fees only strengthen the result. Forged fields, false denominator
+  metadata, malformed sequences, oversized problems, and failed proposals all
+  fail closed.
 - Fresh public derivatives inspection at 21:17 UTC found one open July monthly
   Bitcoin maximum event and one open July monthly minimum event with eight
   markets each. An exploratory orderbook-backed v29 pair scan found zero
@@ -93,6 +102,13 @@ Updated 2026-07-18.
   Its relevant state variable is the running maximum of the minute-level
   trimmed mean, not terminal BTC spot. This read-only inspection earns zero
   candidate or gate credit.
+- A subsequent live read-only BTC maximum smoke constructed 16 atomic states
+  and 12 sides with at least five whole contracts of displayed depth. It found
+  and exactly verified a denominator-100 state-price certificate with zero
+  minimum ask slack. Under the provisional transformation, that snapshot has
+  no fee-free guaranteed lattice basket, so fees cannot create one. The smoke
+  receives zero gate credit because raw response archival and the rule adapter
+  are not yet reviewed.
 - V29 remains unchanged. It currently has 4,004 log rows, 71 completed burst
   sessions, and zero sightings. Its close horizon remains 2026-08-15.
 - Fresh authenticated exchange truth at 21:27 UTC is $5.77 cash and $3.76
