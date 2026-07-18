@@ -450,6 +450,29 @@ def test_posteligibility_in_prefix_endtime_only_exercise_credits() -> None:
     )
 
 
+def test_representation_only_endtime_rewrite_does_not_credit() -> None:
+    frozen = basis()
+    before = plays()
+    current = copy.deepcopy(before)
+    selected = current["1"]
+    assert isinstance(selected, dict)
+    about = selected["about"]
+    assert isinstance(about, dict)
+    about["endTime"] = "2026-07-17T17:00:08-07:00"
+    assert not exercise_credit(
+        frozen,
+        revised_at_bat_index=1,
+        before_archive=archived_state(
+            "generation-1", before, observed_seconds=71
+        ),
+        after_archive=archived_state(
+            "generation-2", current, observed_seconds=100
+        ),
+        opportunity_archive=archived_opportunity(frozen),
+        expected_feed_launch=LAUNCH_ANCHOR,
+    )
+
+
 def test_preeligibility_suffix_mixed_and_unbound_revision_do_not_credit() -> None:
     frozen = basis()
     before = plays()

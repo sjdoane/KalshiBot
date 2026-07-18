@@ -747,6 +747,24 @@ def exact_end_time_exercise_credits(
         expected_change = {f"/{revised_index}{END_TIME_PATH}"}
         if prefix_changes != expected_change:
             return False
+        before_selected = validate_projection(
+            before_completed[key],
+            expected_index=revised_index,
+        )
+        after_selected = validate_projection(
+            after_completed[key],
+            expected_index=revised_index,
+        )
+        before_about = cast("Mapping[str, Any]", before_selected["about"])
+        after_about = cast("Mapping[str, Any]", after_selected["about"])
+        if parse_aware_time(
+            before_about["endTime"],
+            field="before.revised.endTime",
+        ) == parse_aware_time(
+            after_about["endTime"],
+            field="after.revised.endTime",
+        ):
+            return False
         expected_opportunity = {
             "eligible_at": basis.eligible_at,
             "feed_archive_receipt_sha256": before_feed_pair.archive_receipt_sha256,

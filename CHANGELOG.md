@@ -2,6 +2,22 @@
 
 ## 2026-07-18
 
+- Implemented and independently reviewed GO the pure v34 feed lifecycle. It
+  suppresses baseline history, distinguishes stale delayed tails from
+  legitimate feed-lagged completions, and requires both the frozen wall rule
+  and exact monotonic time to pass the strict 60-second guard.
+- Closed adversarial routes involving wall-clock jump eligibility, forged or
+  replaced state history, Boolean and float numeric aliases, future completed
+  timestamps, partial Final projections, representation-only endTime rewrites,
+  and removed plays inside a bound prefix. Unbound suffix disappearance and
+  reappearance are preserved as explicit noncredit telemetry.
+- Bound every state to a content and lineage commitment and required the caller
+  to present an independently retained expected prior head. Feed launch
+  provenance now includes the lifecycle source. The full v34 suite has 154
+  passing tests, one environment-only symlink capability skip, Ruff clean, and
+  strict mypy clean. Durable head retention and one-baseline-per-game restart
+  enforcement remain mandatory in process integration, so this code grants no
+  prospective credit or live authority by itself.
 - Implemented and independently reviewed GO the v34 coherent-feed and
   content-addressed queue archive layer. It binds separate feed and queue
   launch manifests, including fresh nonces, signatures, schemas, policy hash,

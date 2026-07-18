@@ -80,6 +80,21 @@ Updated 2026-07-18.
   skip for actual symlink creation, Ruff clean, and strict mypy clean. No v34
   observer, order path, or capital exists; feed, queue, terminal manifests,
   and Python process custody remain before launch.
+- The pure v34 per-game feed lifecycle is independently reviewed GO by two
+  reviewers with no remaining Critical, High, or Medium finding. Fresh
+  baselines suppress historical scoring, delayed historical tails cannot earn
+  credit, and legitimate newly observed feed-lagged completions remain
+  eligible. The strict 60-second guard must pass under both the frozen wall
+  dependency rule and exact monotonic nanoseconds, so wall-clock jumps cannot
+  accelerate eligibility. Bound-prefix corrections and removals fail closed,
+  unbound suffix disappearance and reappearance remain noncredit telemetry,
+  Final totals must exactly equal completed-play totals, and representation-only
+  endTime rewrites cannot earn exercise credit. Each state is content-committed
+  to its lineage and each transition requires an independently retained prior
+  head. The full v34 suite has 154 passing tests, one environment capability
+  skip, Ruff clean, and strict mypy clean. Production integration must durably
+  retain that prior head and forbid rebaseline on restart. This slice creates
+  no observer, order path, gate credit, or capital authority.
 - A separate read-only derivatives lock models the full integer payoff lattice
   across compatible digital-option legs. It handles baskets whose cost exceeds
   one dollar, exact strike boundaries, displayed depth, and per-leg rounded
