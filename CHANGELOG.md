@@ -2,6 +2,27 @@
 
 ## 2026-07-18
 
+- Implemented and independently reviewed the first v34 correctness and decision
+  core. It reconstructs exact ordered prefixes, rejects score-component
+  regressions, freezes the threshold-crossing basis, verifies whole-prefix
+  exact endTime exercises, and binds every decision to canonical launch and
+  parent feed-state provenance.
+- Added stable-generation decision commits, structured eligibility and end
+  proofs, a hash-chained event log, and semantic state-cache recovery that
+  cannot retain phantom orders. Repeated adversarial reviews found and closed
+  all Critical and High issues. The settled v34 suite has 43 passing tests with
+  Ruff and strict mypy clean.
+- Reproduced the v34 prefix logic on a real archived MLB payload with SHA256
+  `ce79fe32bb7f02661e63ba73fae466c585e20cd59c55dec30adfb011aaab6a28`:
+  50 completed plays and five exact scoring prefixes. This smoke test received
+  zero prospective gate credit.
+- Inspected the live public July Bitcoin maximum and minimum event ladders at
+  21:17 UTC. Each had eight markets, but an orderbook-backed exploratory v29
+  pair scan found zero candidates. The result is read-only telemetry and earns
+  zero derivatives sidecar credit.
+- Rechecked authenticated exchange truth at 21:27 UTC: $5.77 cash, $3.76
+  portfolio value, five positions, $3.70 exposure, one unfilled one-contract
+  97c v30 rest, and zero fills in the preceding 24 hours.
 - Stopped and terminally failed v33 feed lock2 and queue lock3. Feed lock2
   finished with 20 eligible triggers across four games, four revisions, nine
   posteligibility violations, no fresh exact endTime-only exercise, and a false

@@ -49,18 +49,33 @@ Updated 2026-07-18.
   correction-manifest exception, an exact posteligibility prefix endTime
   exercise, irreducible event-independent lattice cases, and event-clustered ML
   labels. The final amendment requires three distinct derivative events and
-  complete game or event isolation across every ML fold. It is under
-  independent rereview. Both final reviewers now return GO with no remaining
-  Critical or High methodology finding. No v34 replay, observer, order path, or
-  capital exists; implementation and code review are the next gate.
+  complete game or event isolation across every ML fold. Both final methodology
+  reviewers returned GO with no remaining Critical or High finding.
+- The first v34 implementation chunk is independently reviewed GO by two
+  reviewers with no remaining Critical or High finding. It implements exact
+  ordered-prefix reconstruction, score-component regression rejection,
+  immutable trigger basis and threshold crossing, whole-prefix exact endTime
+  exercise evidence, canonical launch and source provenance, exact parent feed
+  state membership, stable-generation decision commits, structured end proofs,
+  a hash-chained event log, and state-cache recovery that cannot retain phantom
+  orders. The settled suite has 43 passing tests with Ruff and strict mypy
+  clean. A real archived MLB file with SHA256
+  `ce79fe32bb7f02661e63ba73fae466c585e20cd59c55dec30adfb011aaab6a28`
+  reproduced 50 completed plays and five exact scoring prefixes. It received
+  zero prospective gate credit. No v34 replay, observer, order path, or capital
+  exists; feed, queue, archive, and Python process-custody integration are next.
 - A separate read-only derivatives lock models the full integer payoff lattice
   across compatible digital-option legs. It handles baskets whose cost exceeds
   one dollar, exact strike boundaries, displayed depth, and per-leg rounded
   fees. Findings are labeled non-atomic displayed-depth candidates and cannot
   authorize a pilot without a separate legging-risk design.
+- Fresh public derivatives inspection at 21:17 UTC found one open July monthly
+  Bitcoin maximum event and one open July monthly minimum event with eight
+  markets each. An exploratory orderbook-backed v29 pair scan found zero
+  candidates. This is read-only telemetry with zero sidecar gate credit.
 - V29 remains unchanged. It currently has 4,004 log rows, 71 completed burst
   sessions, and zero sightings. Its close horizon remains 2026-08-15.
-- Fresh authenticated exchange truth at 20:26 UTC is $5.77 cash and $3.76
+- Fresh authenticated exchange truth at 21:27 UTC is $5.77 cash and $3.76
   portfolio value, or $9.53 total, with five positions and $3.70 exposure.
   One v30 TSA YES bid for one contract at 97c remains resting with zero fills.
   The authenticated fill ledger has zero fills in the preceding 24 hours. V30
