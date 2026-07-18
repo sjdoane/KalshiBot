@@ -64,6 +64,22 @@ Updated 2026-07-18.
   reproduced 50 completed plays and five exact scoring prefixes. It received
   zero prospective gate credit. No v34 replay, observer, order path, or capital
   exists; feed, queue, archive, and Python process-custody integration are next.
+- The v34 coherent-feed and content-addressed queue archive slice is now
+  independently reviewed GO by two reviewers with no remaining Critical or
+  High finding. Every archive is bound to separately verified feed and queue
+  launch nonces, signatures, schemas, policy hash, and current source hashes.
+  Queue provenance continues through archived opportunities, the event chain,
+  and recovered state. Receipt-summary-receipt reads use the frozen strict
+  one-second budget. Create-once archive members use complete temporary bytes
+  plus atomic hard-link publication, final disk rereads, exact schema and path
+  revalidation, external hard-link rejection, and ancestor symlink, junction,
+  and redirecting reparse rejection. Existing and new directory components and
+  their parents are flushed before adoption. A 50-generation independent
+  two-writer Windows stress had zero failures and identical receipt hashes.
+  The current full v34 suite has 123 passing tests, one environment capability
+  skip for actual symlink creation, Ruff clean, and strict mypy clean. No v34
+  observer, order path, or capital exists; feed, queue, terminal manifests,
+  and Python process custody remain before launch.
 - A separate read-only derivatives lock models the full integer payoff lattice
   across compatible digital-option legs. It handles baskets whose cost exceeds
   one dollar, exact strike boundaries, displayed depth, and per-leg rounded
@@ -111,11 +127,13 @@ Updated 2026-07-18.
   are not yet reviewed.
 - V29 remains unchanged. It currently has 4,004 log rows, 71 completed burst
   sessions, and zero sightings. Its close horizon remains 2026-08-15.
-- Fresh authenticated exchange truth at 21:27 UTC is $5.77 cash and $3.76
-  portfolio value, or $9.53 total, with five positions and $3.70 exposure.
-  One v30 TSA YES bid for one contract at 97c remains resting with zero fills.
-  The authenticated fill ledger has zero fills in the preceding 24 hours. V30
-  remains the only money writer.
+- Fresh authenticated exchange truth at 22:52 UTC is $5.77 cash and $3.74
+  portfolio value, or $9.51 total, with five positions and $3.70 exposure.
+  One v30 TSA YES bid for one contract at 97c remains resting. The authenticated
+  fill ledger has zero fills in the preceding 72 hours. The scheduled v30 task
+  last completed successfully, with its latest heartbeat at 22:50 UTC and Arm
+  E reporting 15 decided markets but no remaining room. V30 remains the only
+  money writer.
 
 ## Superseding v33 update
 

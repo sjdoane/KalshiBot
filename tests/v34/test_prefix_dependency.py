@@ -33,6 +33,28 @@ LAUNCH_MANIFEST_BYTES = policy.canonical_json_bytes(
 )
 LAUNCH_ANCHOR = policy.verify_feed_launch_manifest_bytes(LAUNCH_MANIFEST_BYTES)
 PROVENANCE: dict[str, object] = LAUNCH_ANCHOR.provenance
+QUEUE_SOURCE_HASHES = {
+    source_name: hashlib.sha256(
+        (policy.REPOSITORY_ROOT / source_name).read_bytes()
+    ).hexdigest()
+    for source_name in sorted(policy.REQUIRED_QUEUE_LAUNCH_SOURCES)
+}
+QUEUE_LAUNCH_MANIFEST_BYTES = policy.canonical_json_bytes(
+    {
+        "created_at": "2026-07-18T00:00:00+00:00",
+        "launch_nonce": "v34-prefix-queue-test-nonce",
+        "manifest_kind": "v34_queue_launch",
+        "output_root": policy.QUEUE_OUTPUT_ROOT,
+        "policy_sha256": policy.POLICY_CANONICAL_SHA256,
+        "run_signature": policy.QUEUE_RUN_SIGNATURE,
+        "schema_version": policy.QUEUE_SCHEMA_VERSION,
+        "source_hashes": QUEUE_SOURCE_HASHES,
+    }
+)
+QUEUE_LAUNCH_ANCHOR = policy.verify_queue_launch_manifest_bytes(
+    QUEUE_LAUNCH_MANIFEST_BYTES
+)
+QUEUE_PROVENANCE: dict[str, object] = QUEUE_LAUNCH_ANCHOR.provenance
 
 
 def archived_feed_pair(
@@ -65,6 +87,7 @@ def archived_feed_pair(
                 feed_receipt_bytes
             ).hexdigest(),
             "generation_id": generation,
+            "queue_provenance": QUEUE_PROVENANCE,
             "summary_sha256": hashlib.sha256(summary_bytes).hexdigest(),
         }
     )
@@ -169,6 +192,7 @@ def archived_opportunity(
     market_ticker: str = "KXMLBTOTAL-TEST-1",
     generation: str = "generation-1",
     provenance: dict[str, object] = PROVENANCE,
+    queue_provenance: dict[str, object] = QUEUE_PROVENANCE,
 ) -> prefix.ArchivedQueueOpportunity:
     parent_state = archived_state(
         generation,
@@ -188,6 +212,7 @@ def archived_opportunity(
         "ordered_prefix_fingerprint": frozen.ordered_prefix_fingerprint,
         "post_total": frozen.post_total,
         "pre_total": frozen.pre_total,
+        "queue_provenance": queue_provenance,
         "run_delta": frozen.run_delta,
         "threshold": threshold,
         "trigger_at_bat_index": frozen.trigger_at_bat_index,
@@ -205,6 +230,7 @@ def archived_opportunity(
         "feed_summary_sha256": opportunity["feed_summary_sha256"],
         "game_pk": frozen.game_pk,
         "opportunity_sha256": hashlib.sha256(opportunity_bytes).hexdigest(),
+        "queue_provenance": queue_provenance,
     }
     return prefix.ArchivedQueueOpportunity(
         opportunity_bytes=opportunity_bytes,
@@ -220,6 +246,7 @@ def exercise_credit(
     after_archive: prefix.ArchivedGameState,
     opportunity_archive: prefix.ArchivedQueueOpportunity,
     expected_feed_launch: policy.FeedLaunchAnchor = LAUNCH_ANCHOR,
+    expected_queue_launch: policy.QueueLaunchAnchor = QUEUE_LAUNCH_ANCHOR,
     before_feed_pair: commit.ArchivedFeedPair | None = None,
     after_feed_pair: commit.ArchivedFeedPair | None = None,
 ) -> bool:
@@ -240,6 +267,7 @@ def exercise_credit(
         after_archive=after_archive,
         opportunity_archive=opportunity_archive,
         expected_feed_launch=expected_feed_launch,
+        expected_queue_launch=expected_queue_launch,
     )
 
 
@@ -569,6 +597,21 @@ def test_exercise_rejects_foreign_noncanonical_and_unmatched_evidence() -> None:
         opportunity_archive=archived_opportunity(frozen),
         expected_feed_launch=LAUNCH_ANCHOR,
         before_feed_pair=archived_feed_pair("generation-wrong-parent"),
+    )
+    foreign_queue = {
+        **QUEUE_PROVENANCE,
+        "launch_nonce": "foreign-queue-launch",
+    }
+    assert not exercise_credit(
+        frozen,
+        revised_at_bat_index=1,
+        before_archive=valid_before,
+        after_archive=after_archive,
+        opportunity_archive=archived_opportunity(
+            frozen,
+            queue_provenance=foreign_queue,
+        ),
+        expected_feed_launch=LAUNCH_ANCHOR,
     )
     label_only_pair = archived_feed_pair("generation-1")
     label_only_receipt = json.loads(valid_before.archive_receipt_bytes)

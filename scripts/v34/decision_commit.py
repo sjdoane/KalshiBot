@@ -18,8 +18,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
     from pathlib import Path
 
-RUN_SIGNATURE: Final = "prospective-queue-v34-20260718-lock1"
-SCHEMA_VERSION: Final = 9
+RUN_SIGNATURE: Final = policy.QUEUE_RUN_SIGNATURE
+SCHEMA_VERSION: Final = policy.QUEUE_SCHEMA_VERSION
 MAX_REPLACE_ATTEMPTS: Final = 8
 END_PROOF_KEYS: Final = {
     "crossing_valid",
@@ -62,7 +62,11 @@ class ArchivedFeedPair:
     def archive_receipt_sha256(self) -> str:
         return _sha256_bytes(self.archive_receipt_bytes)
 
-    def validate(self, anchor: policy.FeedLaunchAnchor) -> None:
+    def validate(
+        self,
+        feed_anchor: policy.FeedLaunchAnchor,
+        queue_anchor: policy.QueueLaunchAnchor,
+    ) -> None:
         if type(self.generation_id) is not str or not self.generation_id:
             raise ValueError("Feed generation ID is empty")
         if not all(
@@ -95,7 +99,7 @@ class ArchivedFeedPair:
         provenances = [
             policy.validate_feed_artifact_provenance(
                 row,
-                anchor=anchor,
+                anchor=feed_anchor,
                 field=field_name,
             )
             for row, field_name in (
@@ -104,8 +108,16 @@ class ArchivedFeedPair:
                 (archive_row, "archive_receipt"),
             )
         ]
-        if any(row != anchor.provenance for row in provenances):
+        if any(row != feed_anchor.provenance for row in provenances):
             raise ValueError("Archived feed pair launch provenance mismatch")
+        queue_provenance = archive_row.get("queue_provenance")
+        if not isinstance(queue_provenance, dict):
+            raise TypeError("Archive receipt queue provenance is missing")
+        policy.validate_queue_artifact_provenance(
+            queue_provenance,
+            anchor=queue_anchor,
+            field="archive_receipt.queue_provenance",
+        )
         if summary_row.get("generation_id") != self.generation_id:
             raise ValueError("Archived summary generation mismatch")
         expected_receipt = {
@@ -261,6 +273,13 @@ def _validate_event(event: object, *, prior_sha256: str | None) -> dict[str, Any
         raise ValueError("Queue event schema mismatch")
     if event.get("policy_sha256") != policy.POLICY_CANONICAL_SHA256:
         raise ValueError("Queue event policy hash mismatch")
+    queue_provenance = event.get("queue_provenance")
+    if not isinstance(queue_provenance, dict):
+        raise TypeError("Queue event launch provenance is missing")
+    policy.validated_queue_provenance(
+        queue_provenance,
+        field="queue event provenance",
+    )
     if event.get("prior_event_sha256") != prior_sha256:
         raise ValueError("Queue event chain mismatch")
     _validate_sha256(event.get("event_sha256"), field="event_sha256")
@@ -431,6 +450,7 @@ def _append_event(
     event: dict[str, object],
     *,
     expected_prior_sha256: str | None,
+    queue_anchor: policy.QueueLaunchAnchor,
 ) -> dict[str, object]:
     prior = _verified_prior_event_sha256(path)
     if prior != expected_prior_sha256:
@@ -442,6 +462,7 @@ def _append_event(
         "run_signature": RUN_SIGNATURE,
         "schema_version": SCHEMA_VERSION,
         "policy_sha256": policy.POLICY_CANONICAL_SHA256,
+        "queue_provenance": queue_anchor.provenance,
         "prior_event_sha256": prior,
     }
     row["event_sha256"] = _event_payload_sha256(row)
@@ -485,6 +506,18 @@ def _apply_event_to_state(
     skips = state.get("skip_keys")
     if not isinstance(orders, dict) or not isinstance(skips, list):
         raise TypeError("Queue state collections are malformed")
+    queue_provenance = event.get("queue_provenance")
+    if not isinstance(queue_provenance, dict):
+        raise TypeError("Queue event launch provenance is missing")
+    validated_queue_provenance = policy.validated_queue_provenance(
+        queue_provenance,
+        field="queue event provenance",
+    )
+    prior_queue_provenance = state.get("queue_provenance")
+    if prior_queue_provenance is None:
+        state["queue_provenance"] = validated_queue_provenance
+    elif prior_queue_provenance != validated_queue_provenance:
+        raise ValueError("Queue event launch provenance changed inside the chain")
     if event.get("type") == "decision_commit":
         mutations = event.get("mutations")
         if not isinstance(mutations, list):
@@ -518,6 +551,7 @@ def _empty_state() -> dict[str, object]:
         "run_signature": RUN_SIGNATURE,
         "schema_version": SCHEMA_VERSION,
         "policy_sha256": policy.POLICY_CANONICAL_SHA256,
+        "queue_provenance": None,
         "last_event_sha256": None,
         "orders": {},
         "skip_keys": [],
@@ -581,8 +615,12 @@ def rebuild_state_cache(event_path: Path, state_path: Path) -> dict[str, object]
 
 
 def _event_with_semantic_state(
-    prior_state: Mapping[str, object], event: dict[str, object]
+    prior_state: Mapping[str, object],
+    event: dict[str, object],
+    *,
+    queue_anchor: policy.QueueLaunchAnchor,
 ) -> tuple[dict[str, object], dict[str, object]]:
+    event["queue_provenance"] = queue_anchor.provenance
     next_state = copy.deepcopy(dict(prior_state))
     _apply_event_to_state(next_state, event)
     semantic_sha256 = _semantic_state_sha256(next_state)
@@ -620,18 +658,24 @@ def commit_staged_decision(
     event_path: Path,
     state_path: Path,
     expected_feed_launch: policy.FeedLaunchAnchor,
+    expected_queue_launch: policy.QueueLaunchAnchor,
     start_pair: ArchivedFeedPair,
     end_pair: ArchivedFeedPair,
     staged: StagedDecision,
     revalidate_end: Callable[[ArchivedFeedPair, StagedDecision], EndValidationProof],
 ) -> dict[str, object]:
     """Commit exactly once only after a stable feed generation and revalidation."""
-    if not isinstance(expected_feed_launch, policy.FeedLaunchAnchor):
-        raise TypeError("Expected feed launch is not a verified anchor")
-    start_pair.validate(expected_feed_launch)
-    end_pair.validate(expected_feed_launch)
+    verified_feed_launch = policy.reverify_feed_launch_anchor(expected_feed_launch)
+    verified_queue_launch = policy.reverify_queue_launch_anchor(expected_queue_launch)
+    start_pair.validate(verified_feed_launch, verified_queue_launch)
+    end_pair.validate(verified_feed_launch, verified_queue_launch)
     staged.validate()
     prior_state = _verified_prior_state(event_path)
+    prior_queue_provenance = prior_state.get("queue_provenance")
+    if prior_queue_provenance is not None and (
+        prior_queue_provenance != verified_queue_launch.provenance
+    ):
+        raise ValueError("Existing queue chain belongs to another launch")
     prior_sha256 = cast("str | None", prior_state["last_event_sha256"])
     if (
         start_pair.generation_id != end_pair.generation_id
@@ -650,11 +694,13 @@ def commit_staged_decision(
                 "discarded_decision_kind": staged.decision_kind,
                 "discarded_decision_key": staged.decision_key,
             },
+            queue_anchor=verified_queue_launch,
         )
         event = _append_event(
             event_path,
             event_payload,
             expected_prior_sha256=prior_sha256,
+            queue_anchor=verified_queue_launch,
         )
         _persist_verified_state_after_event(
             event_path, state_path, next_state, event
@@ -729,11 +775,13 @@ def commit_staged_decision(
             "mutations": frozen_mutations,
             "evidence": frozen_evidence,
         },
+        queue_anchor=verified_queue_launch,
     )
     event = _append_event(
         event_path,
         event_payload,
         expected_prior_sha256=prior_sha256,
+        queue_anchor=verified_queue_launch,
     )
     _persist_verified_state_after_event(event_path, state_path, next_state, event)
     return event

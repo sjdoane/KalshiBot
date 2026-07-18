@@ -32,6 +32,28 @@ LAUNCH_MANIFEST_BYTES = policy.canonical_json_bytes(
 )
 LAUNCH_ANCHOR = policy.verify_feed_launch_manifest_bytes(LAUNCH_MANIFEST_BYTES)
 PROVENANCE: dict[str, object] = LAUNCH_ANCHOR.provenance
+QUEUE_SOURCE_HASHES = {
+    source_name: hashlib.sha256(
+        (policy.REPOSITORY_ROOT / source_name).read_bytes()
+    ).hexdigest()
+    for source_name in sorted(policy.REQUIRED_QUEUE_LAUNCH_SOURCES)
+}
+QUEUE_LAUNCH_MANIFEST_BYTES = policy.canonical_json_bytes(
+    {
+        "created_at": "2026-07-18T00:00:00+00:00",
+        "launch_nonce": "v34-queue-launch-test-nonce",
+        "manifest_kind": "v34_queue_launch",
+        "output_root": policy.QUEUE_OUTPUT_ROOT,
+        "policy_sha256": policy.POLICY_CANONICAL_SHA256,
+        "run_signature": policy.QUEUE_RUN_SIGNATURE,
+        "schema_version": policy.QUEUE_SCHEMA_VERSION,
+        "source_hashes": QUEUE_SOURCE_HASHES,
+    }
+)
+QUEUE_LAUNCH_ANCHOR = policy.verify_queue_launch_manifest_bytes(
+    QUEUE_LAUNCH_MANIFEST_BYTES
+)
+QUEUE_PROVENANCE: dict[str, object] = QUEUE_LAUNCH_ANCHOR.provenance
 
 
 def canonical_bytes(value: object) -> bytes:
@@ -44,6 +66,7 @@ def pair(
     marker: str = "a",
     archive_id: str = "archive-a",
     provenance: dict[str, object] = PROVENANCE,
+    queue_provenance: dict[str, object] = QUEUE_PROVENANCE,
 ) -> commit.ArchivedFeedPair:
     summary_bytes = canonical_bytes(
         {**provenance, "generation_id": generation, "marker": marker}
@@ -62,6 +85,7 @@ def pair(
             "archive_id": archive_id,
             "feed_receipt_sha256": commit._sha256_bytes(feed_receipt_bytes),
             "generation_id": generation,
+            "queue_provenance": queue_provenance,
             "summary_sha256": summary_sha256,
         }
     )
@@ -137,6 +161,7 @@ def paths(tmp_path: Path) -> tuple[Path, Path]:
 def commit_decision(**kwargs: Any) -> dict[str, object]:
     return commit.commit_staged_decision(
         expected_feed_launch=LAUNCH_ANCHOR,
+        expected_queue_launch=QUEUE_LAUNCH_ANCHOR,
         **kwargs,
     )
 
@@ -562,6 +587,89 @@ def test_directly_constructed_launch_anchor_is_reverified_before_use(
             event_path=event_path,
             state_path=state_path,
             expected_feed_launch=forged,
+            expected_queue_launch=QUEUE_LAUNCH_ANCHOR,
+            start_pair=pair(),
+            end_pair=pair(archive_id="archive-b"),
+            staged=staged(),
+            revalidate_end=revalidate,
+        )
+
+
+def test_queue_event_and_archive_share_exact_queue_launch(tmp_path: Path) -> None:
+    event_path, state_path = paths(tmp_path)
+    archived = pair()
+    event = commit_decision(
+        event_path=event_path,
+        state_path=state_path,
+        start_pair=archived,
+        end_pair=pair(archive_id="archive-b"),
+        staged=staged(),
+        revalidate_end=revalidate,
+    )
+    archive_receipt = json.loads(archived.archive_receipt_bytes)
+    assert archive_receipt["queue_provenance"] == QUEUE_PROVENANCE
+    assert event["queue_provenance"] == QUEUE_PROVENANCE
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["queue_provenance"] == QUEUE_PROVENANCE
+
+
+def test_foreign_queue_launch_cannot_continue_an_existing_chain(tmp_path: Path) -> None:
+    event_path, state_path = paths(tmp_path)
+    commit_decision(
+        event_path=event_path,
+        state_path=state_path,
+        start_pair=pair(),
+        end_pair=pair(archive_id="archive-b"),
+        staged=staged(),
+        revalidate_end=revalidate,
+    )
+    foreign_manifest = json.loads(QUEUE_LAUNCH_MANIFEST_BYTES)
+    foreign_manifest["launch_nonce"] = "foreign-queue-launch"
+    foreign_anchor = policy.verify_queue_launch_manifest_bytes(
+        policy.canonical_json_bytes(foreign_manifest)
+    )
+    with pytest.raises(ValueError, match="another launch"):
+        commit.commit_staged_decision(
+            event_path=event_path,
+            state_path=state_path,
+            expected_feed_launch=LAUNCH_ANCHOR,
+            expected_queue_launch=foreign_anchor,
+            start_pair=pair(queue_provenance=foreign_anchor.provenance),
+            end_pair=pair(
+                archive_id="archive-c",
+                queue_provenance=foreign_anchor.provenance,
+            ),
+            staged=staged(2),
+            revalidate_end=revalidate,
+        )
+
+
+def test_queue_launch_anchor_hashes_every_required_current_source() -> None:
+    assert policy.REQUIRED_QUEUE_LAUNCH_SOURCES.issubset(QUEUE_SOURCE_HASHES)
+    assert "scripts/v34/feed_archive.py" in QUEUE_SOURCE_HASHES
+    manifest = json.loads(QUEUE_LAUNCH_MANIFEST_BYTES)
+    manifest["source_hashes"]["scripts/v34/feed_archive.py"] = "0" * 64
+    with pytest.raises(ValueError, match="source hash mismatch"):
+        policy.verify_queue_launch_manifest_bytes(
+            policy.canonical_json_bytes(manifest)
+        )
+
+
+def test_directly_constructed_queue_anchor_is_reverified_before_use(
+    tmp_path: Path,
+) -> None:
+    event_path, state_path = paths(tmp_path)
+    forged = policy.QueueLaunchAnchor(
+        manifest_bytes=b"not a canonical queue manifest",
+        manifest_sha256="0" * 64,
+        provenance_bytes=QUEUE_LAUNCH_ANCHOR.provenance_bytes,
+    )
+    with pytest.raises(ValueError, match="manifest JSON is invalid"):
+        commit.commit_staged_decision(
+            event_path=event_path,
+            state_path=state_path,
+            expected_feed_launch=LAUNCH_ANCHOR,
+            expected_queue_launch=forged,
             start_pair=pair(),
             end_pair=pair(archive_id="archive-b"),
             staged=staged(),

@@ -2,6 +2,27 @@
 
 ## 2026-07-18
 
+- Implemented and independently reviewed GO the v34 coherent-feed and
+  content-addressed queue archive layer. It binds separate feed and queue
+  launch manifests, including fresh nonces, signatures, schemas, policy hash,
+  and current hashes for every required source. That exact queue provenance
+  continues through archived opportunities, queue events, and recovered state.
+- Closed all adversarial custody findings around final receipt disk mutation,
+  partial final filenames, directory-entry durability, crash adoption,
+  redirected ancestors, Windows junctions, external hard links, and concurrent
+  identical writers. Complete temporary bytes are atomically hard-linked into
+  place, every returned file is singly owned and reread, the final receipt is
+  compared and fully revalidated, and existing or new directory ancestry is
+  flushed through the trusted root.
+- Added Windows concurrency and crash regressions. The independent reviewer ran
+  50 fresh two-writer generations with zero failures and identical adopted
+  receipt hashes. The full v34 suite now has 123 passing tests, one symlink
+  capability skip, Ruff clean, and strict mypy clean. This slice creates no
+  observer, order, or capital authority.
+- Rechecked production at 22:52 UTC: $5.77 cash, $3.74 portfolio value, five
+  positions, $3.70 exposure, one resting one-contract 97c v30 TSA YES bid, and
+  zero fills in the preceding 72 hours. The v30 task last returned zero and
+  remains the only money writer.
 - Implemented and independently reviewed GO the read-only v34 derivatives
   arithmetic core. It uses exact rational atomic cells, integer five-copy
   recipes, exact aggregate per-leg fee ceilings, and a two-percentage-point

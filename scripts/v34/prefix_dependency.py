@@ -72,6 +72,7 @@ ARCHIVED_OPPORTUNITY_KEYS: Final = {
     "ordered_prefix_fingerprint",
     "post_total",
     "pre_total",
+    "queue_provenance",
     "run_delta",
     "threshold",
     "trigger_at_bat_index",
@@ -85,6 +86,7 @@ ARCHIVED_OPPORTUNITY_RECEIPT_KEYS: Final = {
     "feed_summary_sha256",
     "game_pk",
     "opportunity_sha256",
+    "queue_provenance",
 } | set(policy.FEED_PROVENANCE_KEYS)
 
 
@@ -133,10 +135,11 @@ class ArchivedGameState:
 
     def validate(
         self,
-        anchor: policy.FeedLaunchAnchor,
+        feed_anchor: policy.FeedLaunchAnchor,
+        queue_anchor: policy.QueueLaunchAnchor,
         parent_pair: ArchivedFeedPair,
     ) -> dict[str, Any]:
-        parent_pair.validate(anchor)
+        parent_pair.validate(feed_anchor, queue_anchor)
         _exact_int(self.game_pk, field="archived.game_pk", minimum=1)
         if type(self.generation_id) is not str or not self.generation_id:
             raise ValueError("Archived generation ID is empty")
@@ -159,12 +162,12 @@ class ArchivedGameState:
             raise ValueError("Archived game-state receipt is not canonical JSON")
         policy.validate_feed_artifact_provenance(
             state,
-            anchor=anchor,
+            anchor=feed_anchor,
             field="archived_state",
         )
         policy.validate_feed_artifact_provenance(
             receipt,
-            anchor=anchor,
+            anchor=feed_anchor,
             field="archived_state_receipt",
         )
         if state.get("generation_id") != self.generation_id:
@@ -217,7 +220,9 @@ class ArchivedQueueOpportunity:
         return hashlib.sha256(self.opportunity_bytes).hexdigest()
 
     def validate(
-        self, anchor: policy.FeedLaunchAnchor
+        self,
+        feed_anchor: policy.FeedLaunchAnchor,
+        queue_anchor: policy.QueueLaunchAnchor,
     ) -> dict[str, Any]:
         if type(self.opportunity_bytes) is not bytes or type(
             self.archive_receipt_bytes
@@ -242,14 +247,26 @@ class ArchivedQueueOpportunity:
             raise ValueError("Archived opportunity receipt is not canonical JSON")
         policy.validate_feed_artifact_provenance(
             opportunity,
-            anchor=anchor,
+            anchor=feed_anchor,
             field="archived_opportunity",
         )
         policy.validate_feed_artifact_provenance(
             receipt,
-            anchor=anchor,
+            anchor=feed_anchor,
             field="archived_opportunity_receipt",
         )
+        for row, field in (
+            (opportunity, "archived_opportunity.queue_provenance"),
+            (receipt, "archived_opportunity_receipt.queue_provenance"),
+        ):
+            queue_provenance = row.get("queue_provenance")
+            if not isinstance(queue_provenance, dict):
+                raise TypeError(f"{field} is missing")
+            policy.validate_queue_artifact_provenance(
+                queue_provenance,
+                anchor=queue_anchor,
+                field=field,
+            )
         game_pk = _exact_int(
             opportunity.get("game_pk"),
             field="opportunity.game_pk",
@@ -662,6 +679,7 @@ def exact_end_time_exercise_credits(
     after_archive: ArchivedGameState,
     opportunity_archive: ArchivedQueueOpportunity,
     expected_feed_launch: policy.FeedLaunchAnchor,
+    expected_queue_launch: policy.QueueLaunchAnchor,
 ) -> bool:
     """Credit one exact, archived posteligibility in-prefix timing exercise."""
     try:
@@ -673,17 +691,24 @@ def exact_end_time_exercise_credits(
             return False
         if not isinstance(expected_feed_launch, policy.FeedLaunchAnchor):
             return False
-        before_feed_pair.validate(expected_feed_launch)
-        after_feed_pair.validate(expected_feed_launch)
+        if not isinstance(expected_queue_launch, policy.QueueLaunchAnchor):
+            return False
+        before_feed_pair.validate(expected_feed_launch, expected_queue_launch)
+        after_feed_pair.validate(expected_feed_launch, expected_queue_launch)
         before_state = before_archive.validate(
             expected_feed_launch,
+            expected_queue_launch,
             before_feed_pair,
         )
         after_state = after_archive.validate(
             expected_feed_launch,
+            expected_queue_launch,
             after_feed_pair,
         )
-        opportunity = opportunity_archive.validate(expected_feed_launch)
+        opportunity = opportunity_archive.validate(
+            expected_feed_launch,
+            expected_queue_launch,
+        )
         if before_archive.game_pk != basis.game_pk or after_archive.game_pk != basis.game_pk:
             return False
         if before_archive.generation_id == after_archive.generation_id:
