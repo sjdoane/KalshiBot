@@ -2,6 +2,27 @@
 
 ## 2026-07-18
 
+- Implemented and independently reviewed GO the read-only v34 derivatives
+  arithmetic core. It uses exact rational atomic cells, integer five-copy
+  recipes, exact aggregate per-leg fee ceilings, and a two-percentage-point
+  edge test without floating arithmetic. It fails closed before any incomplete
+  recipe or irreducibility scan can return a result.
+- Added published incrementality evidence for the exact v29 pair rule, every
+  qualifying support-one or support-two recipe with the same normalized payoff
+  relation, every profitable proper subrecipe, and every lower-support
+  componentwise dominator. Equivalent recipes retain the exact best
+  representative per event snapshot.
+- Adversarial reviews found and closed false-candidate routes involving an
+  unequal-quantity two-leg relation, Decimal midpoint and tail rounding,
+  nonfinite strikes, duplicate exceptional states, Boolean integer aliases,
+  and unbounded quadratic audit work. The complete v34 suite now has 80 passing
+  tests with Ruff and strict mypy clean.
+- Rechecked the live July Bitcoin maximum and minimum ladders at 22:13 UTC.
+  Each then had seven open markets, quadratic fees with multiplier one, current
+  fixed-point quotes, and null legacy integer quote fields. All seven minimum
+  contracts had directionally inconsistent primary and secondary rule text, so
+  the frozen compatibility gate excludes that event. The maximum event had no
+  such mismatch. This inspection received zero candidate or gate credit.
 - Implemented and independently reviewed the first v34 correctness and decision
   core. It reconstructs exact ordered prefixes, rejects score-component
   regressions, freezes the threshold-crossing basis, verifies whole-prefix

@@ -69,10 +69,30 @@ Updated 2026-07-18.
   one dollar, exact strike boundaries, displayed depth, and per-leg rounded
   fees. Findings are labeled non-atomic displayed-depth candidates and cannot
   authorize a pilot without a separate legging-risk design.
+- The v34 derivatives arithmetic core is independently reviewed GO by two
+  reviewers with no remaining Critical or High finding. It constructs exact
+  rational atomic cells, separately represents inclusive and exclusive strike
+  singletons and rule-defined exceptional states, exhaustively evaluates
+  primitive five-copy integer recipes, applies aggregate per-leg fee ceilings,
+  and publishes v29 pair, support-two payoff-relation, proper-subrecipe, and
+  lower-support dominance audits. Both recipe count and worst-case audit work
+  fail closed before enumeration. The full v34 suite now has 80 passing tests
+  with Ruff and strict mypy clean. No scanner, observation, candidate, order
+  path, or capital authority is created by this arithmetic slice.
 - Fresh public derivatives inspection at 21:17 UTC found one open July monthly
   Bitcoin maximum event and one open July monthly minimum event with eight
   markets each. An exploratory orderbook-backed v29 pair scan found zero
   candidates. This is read-only telemetry with zero sidecar gate credit.
+- A later schema and rule inspection at 22:13 UTC found seven open markets in
+  each July event, consistent with one-touch markets closing as thresholds are
+  reached. Both series reported quadratic fees with multiplier one and current
+  fixed-point quotes while legacy integer quote fields were null. All seven BTC
+  minimum markets had a primary rule that said below and secondary text that
+  said above. That event is therefore mechanically ineligible under the frozen
+  rule-compatibility gate. The BTC maximum event had no direction mismatch.
+  Its relevant state variable is the running maximum of the minute-level
+  trimmed mean, not terminal BTC spot. This read-only inspection earns zero
+  candidate or gate credit.
 - V29 remains unchanged. It currently has 4,004 log rows, 71 completed burst
   sessions, and zero sightings. Its close horizon remains 2026-08-15.
 - Fresh authenticated exchange truth at 21:27 UTC is $5.77 cash and $3.76
