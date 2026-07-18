@@ -1,0 +1,317 @@
+{
+  "archive_policy": {
+    "archive_before_market_decision": true,
+    "collision_rule": "existing_identical_bytes_are_idempotent_existing_different_bytes_are_fatal",
+    "consumed_scope": "every_coherent_pair_read_at_cycle_start_cycle_end_or_terminal_handshake_including_no_submit_cycles",
+    "pair_read_protocol": "receipt_before_bytes_summary_bytes_receipt_after_bytes",
+    "pair_stability_rule": "receipt_before_bytes_equal_receipt_after_bytes_and_receipt_summary_sha256_matches_exact_summary_bytes",
+    "path_template": "data/v34/prospective-queue-v34-20260718-lock1/feed-archive/{generation_id}/{summary_sha256}/",
+    "required_files": [
+      "summary.json",
+      "summary.receipt.json",
+      "archive.receipt.json"
+    ],
+    "terminal_manifest": "create_once_ordered_record_of_every_consumption_and_every_unique_archived_generation",
+    "terminal_manifest_required_bindings": [
+      "queue_event_log_sha256",
+      "queue_summary_sha256",
+      "all_archive_receipt_sha256_values",
+      "all_consumption_event_ids",
+      "terminal_feed_generation_id",
+      "terminal_feed_summary_sha256"
+    ]
+  },
+  "decision_commit_policy": {
+    "candidate_state": "in_memory_only_until_stable_cycle_end_validation",
+    "commit_event": "one_fsynced_decision_commit_event_contains_all_submit_skip_and_order_mutations_and_both_archive_receipt_hashes",
+    "commit_order": [
+      "read_verify_and_archive_cycle_start_feed_pair",
+      "compute_in_memory_candidate_and_read_public_markets",
+      "read_verify_and_archive_cycle_end_feed_pair",
+      "require_exact_same_generation_id_and_summary_sha256",
+      "reconstruct_and_revalidate_prefix_identity_crossing_eligibility_and_freshness_against_cycle_end",
+      "fsync_one_decision_commit_event",
+      "derive_and_atomically_replace_state_cache_from_durable_event_log"
+    ],
+    "generation_advance_rule": "discard_every_staged_candidate_and_mutation_then_append_only_feed_generation_advanced_heartbeat",
+    "precommit_mutation_prohibited": true,
+    "recovery_source_of_truth": "durable_event_log_not_state_cache",
+    "terminal_handshake_exception": "terminal_feed_ack_is_a_separate_nonmarket_decision_path"
+  },
+  "correction_guard": {
+    "boundary": "strictly_greater_than",
+    "historical_manifest_sha256": "4b334616454f170ad9f7c909f353e68f1f12968b2ac5d94ee2a348b2ca8ef94e",
+    "prospective_refit": false,
+    "seconds": 60
+  },
+  "custody_policy": {
+    "child_completion_receipt_is_intent_not_os_exit_proof": true,
+    "custodian_receipt_required_for": [
+      "feed",
+      "queue"
+    ],
+    "common_custodian_receipt_required_fields": [
+      "launch_nonce",
+      "run_signature",
+      "wrapper_pid",
+      "wrapper_creation_time",
+      "child_pid",
+      "child_creation_time",
+      "actual_os_exit_code",
+      "command_sha256",
+      "source_hashes",
+      "policy_hashes",
+      "stop_sentinel_sha256",
+      "terminal_generation_id",
+      "terminal_summary_sha256",
+      "terminal_event_log_sha256",
+      "child_completion_receipt_sha256",
+      "recorded_at"
+    ],
+    "feed_custodian_additional_required_fields": [
+      "feed_terminal_artifact_manifest_sha256"
+    ],
+    "feed_terminal_artifact_manifest": "feed_owned_create_once_manifest_covering_terminal_summary_receipt_event_log_state_completion_receipt_and_heartbeat_before_feed_exit",
+    "independent_observer": "python_subprocess_custodian_waits_direct_process_handle_and_records_returncode_after_exit",
+    "outer_supervisor_receipt": "create_once_after_both_custodians_complete_and_bind_feed_custodian_receipt_sha256_queue_custodian_receipt_sha256_terminal_feed_ack_sha256_and_final_process_and_lock_absence",
+    "queue_custodian_additional_required_fields": [
+      "queue_terminal_archive_manifest_sha256",
+      "terminal_feed_ack_sha256"
+    ],
+    "required_exit_code": 0,
+    "required_terminal_absence": "wrapper_child_and_descendant_processes_absent_by_pid_creation_time_launch_nonce_and_command_line_and_all_owned_locks_absent",
+    "shutdown_handshake": [
+      "publish_create_once_feed_stop_sentinel",
+      "feed_publishes_terminal_pair_feed_owned_artifact_manifest_and_child_completion_receipt",
+      "feed_custodian_records_actual_exit_and_process_absence",
+      "queue_archives_exact_terminal_feed_pair_and_publishes_terminal_feed_ack",
+      "publish_create_once_queue_stop_sentinel",
+      "queue_publishes_terminal_pair_archive_manifest_and_child_completion_receipt",
+      "queue_custodian_records_actual_exit_and_process_absence",
+      "outer_supervisor_records_both_completed_custody_chains_and_global_absence"
+    ],
+    "terminal_feed_ack_max_seconds": 60.0,
+    "terminal_feed_ack_boundary": "strictly_greater_than_is_fatal",
+    "test_cases": [
+      "clean_zero",
+      "nonzero_exception",
+      "forced_kill",
+      "stale_pid_or_pid_reuse",
+      "missing_child_completion_receipt",
+      "completion_receipt_then_crash",
+      "remaining_descendant",
+      "remaining_owned_lock",
+      "terminal_feed_ack_timeout"
+    ]
+  },
+  "freshness_policy": {
+    "accepted_feed_run_signatures": [
+      "prospective-v34-20260718-lock1"
+    ],
+    "accepted_queue_run_signatures": [
+      "prospective-queue-v34-20260718-lock1"
+    ],
+    "feed_lock": "data/v34/.prospective-feed-v34-lock1.lock",
+    "feed_output_root": "data/v34/prospective-v34-20260718-lock1",
+    "feed_schema_version": 8,
+    "feed_stop_sentinel": "data/v34/PROSPECTIVE_V34_LOCK1_STOP.json",
+    "hard_reject_substrings": [
+      "prospective-v33",
+      "prospective-queue-v33",
+      "feed-v33",
+      "queue-v33"
+    ],
+    "sole_permitted_v33_named_artifact": {
+      "allowed_use": "historical_correction_guard_only",
+      "path": "data/v32/correction-20260518-20260715-v33-lock2/manifest.json",
+      "run_signature": "correction-20260518-20260715-v33-lock2",
+      "sha256": "4b334616454f170ad9f7c909f353e68f1f12968b2ac5d94ee2a348b2ca8ef94e"
+    },
+    "v33_rejection_scope": "all_v33_prospective_feed_queue_trigger_eligibility_latency_submission_gate_state_generation_and_artifact_evidence_except_the_exact_hash_bound_historical_correction_manifest",
+    "launch_manifest": "data/v34/v34-lock1-launch-manifest.json",
+    "launch_manifest_create_once": true,
+    "launch_manifest_required_fields": [
+      "feed_and_queue_signatures",
+      "schema_versions",
+      "all_source_hashes",
+      "all_policy_hashes",
+      "correction_manifest_sha256",
+      "all_output_paths",
+      "all_lock_paths",
+      "all_stop_sentinel_paths",
+      "all_heartbeat_paths",
+      "launch_nonces",
+      "wrapper_and_child_pids_and_creation_times",
+      "empty_start_assertions",
+      "started_at",
+      "hard_stop_at",
+      "maximum_observation_hours",
+      "accepted_prior_generation_ids"
+    ],
+    "maximum_observation_hours": 24.0,
+    "prelaunch_required_state": "every_v34_output_lock_stop_heartbeat_receipt_manifest_and_archive_path_absent_and_zero_v34_events_orders_triggers_submissions_and_generation_ids",
+    "prior_generation_ids": [],
+    "queue_lock": "data/v34/.prospective-queue-v34-lock1.lock",
+    "queue_output_root": "data/v34/prospective-queue-v34-20260718-lock1",
+    "queue_schema_version": 9,
+    "queue_stop_sentinel": "data/v34/PROSPECTIVE_QUEUE_V34_LOCK1_STOP.json"
+  },
+  "liveness_policy": {
+    "boundary": "strictly_greater_than_is_fatal",
+    "clock_for_durations": "system_monotonic_ns",
+    "coherent_snapshot_max_read_seconds": 1.0,
+    "feed_max_successful_poll_gap_seconds_per_live_game": 10.0,
+    "http_attempts": 2,
+    "http_backoff_seconds_between_attempts": 0.25,
+    "http_timeout_seconds_per_attempt": 5.0,
+    "individual_failed_attempt_is_heartbeat": false,
+    "max_cycle_seconds": 30.0,
+    "max_progress_heartbeat_age_seconds": 12.0,
+    "max_time_without_coherent_feed_snapshot_seconds": 12.0,
+    "poll_target_seconds": 3.0,
+    "progress_heartbeat_required_fields": [
+      "launch_nonce",
+      "run_signature",
+      "child_pid",
+      "child_creation_time",
+      "sequence",
+      "phase",
+      "monotonic_ns",
+      "wall_time_utc",
+      "prior_heartbeat_sha256",
+      "source_sha256",
+      "policy_sha256"
+    ],
+    "queue_snapshot_attempts": 8,
+    "queue_snapshot_retry_seconds": 0.05,
+    "retry_completion_rule": "only_terminal_success_or_terminal_failure_completed_inside_the_full_frozen_budget_may_publish_progress_and_terminal_failure_is_gate_fatal",
+    "supervisor_action": "check_each_second_and_kill_entire_owned_process_tree_on_stale_heartbeat_or_overlong_cycle",
+    "supervisor_check_seconds": 1.0,
+    "wall_clock_use": "audit_timestamps_only"
+  },
+  "modeling_policy": {
+    "correction_hazard_minimums": {
+      "chronological_folds": 3,
+      "minimum_censored_trigger_play_clusters_per_fold": 5,
+      "minimum_censored_games_overall": 15,
+      "minimum_censored_games_per_fold": 3,
+      "minimum_corrected_games_overall": 15,
+      "minimum_correction_episodes_overall": 30,
+      "minimum_final_games_overall": 50,
+      "minimum_positive_correction_episodes_per_fold": 5,
+      "minimum_positive_corrected_games_per_fold": 3,
+      "minimum_trigger_play_clusters_overall": 100
+    },
+    "correction_label_unit": "one_independent_official_prefix_correction_episode_grouping_all_affected_thresholds_and_triggers_in_the_same_game_and_revision_sequence",
+    "correction_fold_isolation": "all_trigger_clusters_correction_episodes_and_censored_rows_from_one_game_are_assigned_to_exactly_one_chronological_fold_by_game_start_with_a_24_hour_boundary_embargo",
+    "fill_hazard_minimums": {
+      "chronological_folds": 3,
+      "minimum_actual_fills_overall": 30,
+      "minimum_actual_nonfills_overall": 30,
+      "minimum_filled_events_overall": 15,
+      "minimum_filled_events_per_fold": 3,
+      "minimum_live_order_priority_outcomes_overall": 100,
+      "minimum_nonfilled_events_overall": 15,
+      "minimum_nonfilled_events_per_fold": 3,
+      "minimum_total_events_overall": 30
+    },
+    "fill_fold_isolation": "all_order_priority_outcomes_from_one_event_ticker_are_assigned_to_exactly_one_chronological_fold_by_event_close_time_with_a_24_hour_boundary_embargo",
+    "fill_labels": "actual_reviewed_live_order_priority_outcomes_only_shadow_inference_is_diagnostic",
+    "model_authority_before_all_minimums": "none"
+  },
+  "policy_id": "v34-primary-prospective-policy-lock1",
+  "schema_version": 2,
+  "scope": "KXMLBTOTAL",
+  "trigger_dependency_policy": {
+    "allowed_abstract_game_states": [
+      "Live",
+      "Final"
+    ],
+    "descriptive_paths_excluded_from_fingerprint": [
+      "/about/isScoringPlay",
+      "/result/description",
+      "/result/event",
+      "/result/eventType",
+      "/result/rbi"
+    ],
+    "detailed_state_policy": "required_nonempty_string_casefold_must_not_contain_suspend_or_postpon",
+    "fatal_transition_table": [
+      "any_prefix_index_missing_duplicated_reordered_or_noncontiguous",
+      "any_prefix_projection_malformed_or_unknown_path_present",
+      "any_prefix_atBatIndex_isComplete_awayScore_homeScore_hasReview_or_review_details_fingerprint_change",
+      "any_prefix_score_path_regression_or_negative_or_noninteger_score",
+      "trigger_prefix_fingerprint_change",
+      "trigger_play_identity_change",
+      "trigger_pre_total_or_post_total_or_run_delta_change",
+      "queue_threshold_crossing_no_longer_pre_total_less_than_or_equal_to_threshold_and_post_total_strictly_greater_than_threshold",
+      "official_current_total_below_frozen_post_total",
+      "trigger_or_prefix_review_ambiguity",
+      "own_or_prefix_endTime_revision_that_breaks_the_frozen_guard_at_the_immutable_eligible_at",
+      "future_or_naive_or_unparseable_prefix_endTime",
+      "abstract_game_state_outside_allowed_set",
+      "prohibited_detailed_state",
+      "feed_error_or_successful_poll_gap",
+      "unknown_identity_reconstruction_or_transition"
+    ],
+    "frozen_trigger_fields": [
+      "game_pk",
+      "trigger_at_bat_index",
+      "trigger_play_identity",
+      "ordered_prefix_fingerprint",
+      "pre_total",
+      "post_total",
+      "run_delta",
+      "t_seen",
+      "eligible_at"
+    ],
+    "initial_review_rule": "each_prefix_hasReview_false_or_hasReview_true_with_review_details_object_and_exact_boolean_isOverturned",
+    "exact_endTime_exercise_credit_rule": "only_a_posteligibility_revision_to_a_play_inside_an_eligible_triggers_frozen_prefix_with_archived_exact_before_and_after_states_changed_paths_exactly_[/about/endTime]_no_fingerprint_change_immutable_eligible_at_full_guard_recomputation_and_all_prefix_and_crossing_checks_pass",
+    "exact_endTime_exercise_noncredit": "preeligibility_suffix_or_noneligible_game_revisions_are_telemetry_only",
+    "nonfatal_prefix_revision_rule": "changed_paths_may_only_be_descriptive_paths_or_endTime_plus_descriptive_paths_and_all_fingerprinted_fields_must_remain_exact",
+    "ordered_prefix": "all_atBatIndex_values_zero_through_trigger_at_bat_index_inclusive",
+    "prefix_fingerprint_fields_per_play": [
+      "atBatIndex",
+      "isComplete",
+      "awayScore",
+      "homeScore",
+      "hasReview",
+      "full_canonical_review_details"
+    ],
+    "prefix_projection_exact_about_keys": [
+      "atBatIndex",
+      "endTime",
+      "hasReview",
+      "isComplete",
+      "isScoringPlay"
+    ],
+    "prefix_projection_exact_result_keys": [
+      "awayScore",
+      "description",
+      "event",
+      "eventType",
+      "homeScore",
+      "rbi"
+    ],
+    "prefix_projection_exact_top_level_keys": [
+      "about",
+      "result",
+      "review_details"
+    ],
+    "queue_opportunity_fields": [
+      "market_ticker",
+      "threshold",
+      "trigger_play_identity",
+      "ordered_prefix_fingerprint",
+      "pre_total",
+      "post_total",
+      "eligible_at"
+    ],
+    "queue_threshold_rule": "pre_total_less_than_or_equal_to_threshold_and_post_total_strictly_greater_than_threshold",
+    "review_details_type": "null_or_object_but_hasReview_true_requires_object_with_exact_boolean_isOverturned",
+    "stable_trigger_play_identity": "sha256_canonical_json_of_game_pk_atBatIndex_pre_total_post_total_run_delta_awayScore_homeScore",
+    "suffix_rule": "later_indices_may_change_without_taint_only_after_exact_prefix_fingerprint_and_queue_crossing_reconstruction_and_current_total_floor_all_pass",
+    "timing_rule_after_eligibility": "immutable_eligible_at_minus_max_of_t_seen_and_all_current_prefix_endTime_values_must_be_strictly_greater_than_60_seconds",
+    "timing_rule_before_eligibility": "candidate_start_is_max_of_t_seen_and_all_current_prefix_endTime_values",
+    "unknown_field_policy": "fatal"
+  }
+}
