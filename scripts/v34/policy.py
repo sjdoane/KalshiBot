@@ -48,12 +48,20 @@ FEED_LAUNCH_MANIFEST_KEYS: Final = {
     "source_hashes",
 }
 REQUIRED_LAUNCH_SOURCES: Final = {
+    "pyproject.toml",
+    "scripts/v34/batch_head_ledger.py",
+    "scripts/v34/batch_mutation_guard.py",
     "scripts/v34/decision_commit.py",
     "scripts/v34/feed_archive.py",
     "scripts/v34/feed_lifecycle.py",
     "scripts/v34/feed_lineage.py",
+    "scripts/v34/head_ledger.py",
+    "scripts/v34/observer_supervisor.py",
     "scripts/v34/policy.py",
     "scripts/v34/prefix_dependency.py",
+    "scripts/v34/runtime_liveness.py",
+    "scripts/v34/storage_preflight.py",
+    "uv.lock",
 }
 QUEUE_LAUNCH_MANIFEST_KEYS: Final = FEED_LAUNCH_MANIFEST_KEYS
 REQUIRED_QUEUE_LAUNCH_SOURCES: Final = {

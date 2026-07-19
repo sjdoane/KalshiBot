@@ -33,6 +33,7 @@ SNAPSHOT_RETRY_SECONDS: Final = 0.05
 SNAPSHOT_MAX_SECONDS: Final = 1.0
 OWNERSHIP_RETRY_ATTEMPTS: Final = 20
 OWNERSHIP_RETRY_SECONDS: Final = 0.01
+MAX_ARCHIVED_PAIR_BYTES: Final = 2 * 1024 * 1024
 _SAFE_GENERATION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 _ARCHIVE_RECEIPT_KEYS: Final = set(policy.FEED_PROVENANCE_KEYS) | {
     "archive_path",
@@ -215,7 +216,9 @@ def _assert_no_redirecting_components(base: Path, target: Path) -> None:
         _assert_not_redirect(current)
         if os.path.lexists(current) and current != target_absolute and not current.is_dir():
             raise ArchiveCollisionError(f"archive ancestor is not a directory: {current}")
-        if current != base_absolute and current.is_mount():
+        # Windows directory mount points are name-surrogate reparse points and
+        # are rejected above. Path.is_mount invokes a costly volume query there.
+        if os.name != "nt" and current != base_absolute and current.is_mount():
             raise ArchiveCollisionError(f"archive path crosses a mounted directory: {current}")
 
 
@@ -286,9 +289,22 @@ def _ensure_durable_directory(base: Path, target: Path) -> None:
 
 
 def _stable_owned_file_bytes(path: Path) -> bytes:
+    return _stable_owned_file_bytes_bounded(path, max_bytes=None)
+
+
+def _stable_owned_file_bytes_bounded(
+    path: Path,
+    *,
+    max_bytes: int | None,
+    recover_internal_links: bool = True,
+) -> bytes:
+    if max_bytes is not None and (type(max_bytes) is not int or max_bytes < 0):
+        raise ArchiveCollisionError("archive member read bound is invalid")
     before: os.stat_result | None = None
     for attempt in range(OWNERSHIP_RETRY_ATTEMPTS):
-        internal_link_pending = _recover_internal_temp_link(path)
+        internal_link_pending = (
+            _recover_internal_temp_link(path) if recover_internal_links else False
+        )
         _assert_not_redirect(path)
         try:
             candidate = path.stat(follow_symlinks=False)
@@ -305,8 +321,20 @@ def _stable_owned_file_bytes(path: Path) -> bytes:
             time.sleep(OWNERSHIP_RETRY_SECONDS)
     if before is None:
         raise ArchiveCollisionError(f"archive member ownership did not stabilize: {path}")
+    if max_bytes is not None and before.st_size > max_bytes:
+        raise ArchiveCollisionError(f"archive member exceeds its read bound: {path}")
     with path.open("r+b") as handle:
-        value = handle.read()
+        opened = os.fstat(handle.fileno())
+        if any(
+            getattr(before, field) != getattr(opened, field)
+            for field in ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_nlink")
+        ):
+            raise ArchiveCollisionError(
+                f"archive member changed before bounded read: {path}"
+            )
+        value = handle.read() if max_bytes is None else handle.read(max_bytes + 1)
+        if max_bytes is not None and len(value) > max_bytes:
+            raise ArchiveCollisionError(f"archive member exceeds its read bound: {path}")
         handle.flush()
         os.fsync(handle.fileno())
     after = path.stat(follow_symlinks=False)
@@ -319,11 +347,31 @@ def _stable_owned_file_bytes(path: Path) -> bytes:
     return value
 
 
+def _read_bounded_archive_members(directory: Path) -> tuple[bytes, bytes, bytes]:
+    remaining = MAX_ARCHIVED_PAIR_BYTES
+    values: list[bytes] = []
+    for name in (
+        "summary.json",
+        "summary.receipt.json",
+        "archive.receipt.json",
+    ):
+        value = _stable_owned_file_bytes_bounded(
+            directory / name,
+            max_bytes=remaining,
+        )
+        values.append(value)
+        remaining -= len(value)
+    return values[0], values[1], values[2]
+
+
 def _recover_internal_temp_link(path: Path) -> bool:
     if not os.path.lexists(path):
         return False
     _assert_not_redirect(path)
-    final_stat = path.stat(follow_symlinks=False)
+    try:
+        final_stat = path.stat(follow_symlinks=False)
+    except FileNotFoundError:
+        return False
     prefix = f".{path.name}.v34tmp-"
     internal_link_pending = False
     for candidate in path.parent.iterdir():
@@ -368,12 +416,95 @@ def _unlink_internal_temp_with_retries(path: Path) -> None:
     raise last_error
 
 
+def _matching_internal_temps(path: Path) -> tuple[Path, ...]:
+    prefix = f".{path.name}.v34tmp-"
+
+    def exact_name(candidate: Path) -> bool:
+        if not candidate.name.startswith(prefix) or not candidate.name.endswith(".tmp"):
+            return False
+        nonce = candidate.name[len(prefix) : -len(".tmp")]
+        return re.fullmatch(r"[0-9a-f]{32}", nonce) is not None
+
+    return tuple(
+        sorted(
+            (
+                candidate
+                for candidate in path.parent.iterdir()
+                if exact_name(candidate)
+            ),
+            key=lambda candidate: candidate.name,
+        )
+    )
+
+
+def _recover_prelink_internal_temps(path: Path, value: bytes) -> None:
+    """Publish or remove only exact durable temps for one known final value."""
+
+    candidates = _matching_internal_temps(path)
+    if not candidates:
+        return
+    stable_candidates: list[Path] = []
+    for candidate in candidates:
+        _assert_not_redirect(candidate)
+        try:
+            candidate_value = _stable_owned_file_bytes_bounded(
+                candidate,
+                max_bytes=len(value),
+            )
+        except ArchiveCollisionError as exc:
+            if not os.path.lexists(candidate):
+                continue
+            if os.path.lexists(path) and _stable_owned_file_bytes_bounded(
+                path,
+                max_bytes=len(value),
+            ) == value:
+                continue
+            raise ArchiveCollisionError(
+                f"archive pre-link temp collision at {candidate}"
+            ) from exc
+        if candidate_value != value:
+            raise ArchiveCollisionError(
+                f"archive pre-link temp collision at {candidate}"
+            )
+        stable_candidates.append(candidate)
+    if not stable_candidates:
+        return
+    if not os.path.lexists(path):
+        try:
+            os.link(stable_candidates[0], path, follow_symlinks=False)
+            _fsync_directory(path.parent)
+        except FileExistsError:
+            pass
+    if _stable_owned_file_bytes_bounded(path, max_bytes=len(value)) != value:
+        raise ArchiveCollisionError(f"archive pre-link recovery differs at {path}")
+    final_stat = path.stat(follow_symlinks=False)
+    for candidate in stable_candidates:
+        try:
+            candidate_stat = candidate.stat(follow_symlinks=False)
+        except FileNotFoundError:
+            continue
+        if candidate_stat.st_nlink not in {1, 2}:
+            raise ArchiveCollisionError(
+                f"archive pre-link temp ownership differs at {candidate}"
+            )
+        if candidate_stat.st_nlink == 2 and (
+            candidate_stat.st_dev != final_stat.st_dev
+            or candidate_stat.st_ino != final_stat.st_ino
+        ):
+            raise ArchiveCollisionError(
+                f"archive pre-link temp link differs at {candidate}"
+            )
+        _unlink_internal_temp_with_retries(candidate)
+    _fsync_directory(path.parent)
+
+
 def _write_create_once(path: Path, value: bytes) -> None:
     if type(value) is not bytes:
         raise TypeError("archive members must be immutable bytes")
+    _recover_prelink_internal_temps(path, value)
     _recover_internal_temp_link(path)
     if os.path.lexists(path):
-        if _stable_owned_file_bytes(path) != value:
+        if _stable_owned_file_bytes_bounded(path, max_bytes=len(value)) != value:
             raise ArchiveCollisionError(f"archive collision at {path}")
         return
     temp = path.parent / f".{path.name}.v34tmp-{uuid4().hex}.tmp"
@@ -389,7 +520,7 @@ def _write_create_once(path: Path, value: bytes) -> None:
             _fsync_directory(path.parent)
         except FileExistsError:
             _recover_internal_temp_link(path)
-            if _stable_owned_file_bytes(path) != value:
+            if _stable_owned_file_bytes_bounded(path, max_bytes=len(value)) != value:
                 raise ArchiveCollisionError(f"archive collision at {path}") from None
     finally:
         if os.path.lexists(temp):
@@ -397,7 +528,61 @@ def _write_create_once(path: Path, value: bytes) -> None:
             _unlink_internal_temp_with_retries(temp)
     if linked:
         _recover_internal_temp_link(path)
-    if _stable_owned_file_bytes(path) != value:
+    if _stable_owned_file_bytes_bounded(path, max_bytes=len(value)) != value:
+        raise ArchiveCollisionError(f"archive collision at {path}")
+
+
+def _write_create_once_hot(path: Path, value: bytes) -> None:
+    """Create one known fresh member without enumerating its growing parent."""
+
+    if type(value) is not bytes:
+        raise TypeError("archive members must be immutable bytes")
+    if os.path.lexists(path):
+        if (
+            _stable_owned_file_bytes_bounded(
+                path,
+                max_bytes=len(value),
+                recover_internal_links=False,
+            )
+            != value
+        ):
+            raise ArchiveCollisionError(f"archive collision at {path}")
+        return
+    temp = path.parent / f".{path.name}.v34tmp-{uuid4().hex}.tmp"
+    linked = False
+    try:
+        with temp.open("xb") as handle:
+            handle.write(value)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.link(temp, path, follow_symlinks=False)
+            linked = True
+            _fsync_directory(path.parent)
+        except FileExistsError:
+            if (
+                _stable_owned_file_bytes_bounded(
+                    path,
+                    max_bytes=len(value),
+                    recover_internal_links=False,
+                )
+                != value
+            ):
+                raise ArchiveCollisionError(f"archive collision at {path}") from None
+    finally:
+        if os.path.lexists(temp):
+            _assert_not_redirect(temp)
+            _unlink_internal_temp_with_retries(temp)
+    if not linked and not os.path.lexists(path):
+        raise ArchiveCollisionError(f"archive publication disappeared at {path}")
+    if (
+        _stable_owned_file_bytes_bounded(
+            path,
+            max_bytes=len(value),
+            recover_internal_links=False,
+        )
+        != value
+    ):
         raise ArchiveCollisionError(f"archive collision at {path}")
 
 
@@ -469,6 +654,149 @@ def archive_coherent_feed_pair(
     )
 
 
+def revalidate_archived_feed_pair(
+    archived: ArchivedFeedPair,
+    *,
+    feed_anchor: policy.FeedLaunchAnchor,
+    queue_anchor: policy.QueueLaunchAnchor,
+    trusted_root: Path,
+) -> ArchivedFeedPair:
+    """Reopen every archive member and revalidate its exact on-disk binding."""
+
+    if not isinstance(archived, ArchivedFeedPair):
+        raise TypeError("archived source must be an ArchivedFeedPair")
+    verified_feed_anchor = policy.reverify_feed_launch_anchor(feed_anchor)
+    verified_queue_anchor = policy.reverify_queue_launch_anchor(queue_anchor)
+    archived.validate(verified_feed_anchor, verified_queue_anchor)
+    receipt = _parse_canonical_object(
+        archived.archive_receipt_bytes,
+        field="archive receipt",
+    )
+    archive_path = receipt.get("archive_path")
+    if type(archive_path) is not str or not archive_path:
+        raise ArchiveCollisionError("archive receipt path is missing")
+    directory = Path(archive_path)
+    _assert_no_redirecting_components(trusted_root, directory)
+    if {entry.name for entry in directory.iterdir()} != {
+        "archive.receipt.json",
+        "summary.json",
+        "summary.receipt.json",
+    }:
+        raise ArchiveCollisionError("archived source member inventory differs")
+    pair = CoherentFeedPair(
+        generation_id=archived.generation_id,
+        summary_bytes=archived.summary_bytes,
+        feed_receipt_bytes=archived.feed_receipt_bytes,
+    )
+    _validate_archive_receipt(
+        archived.archive_receipt_bytes,
+        pair=pair,
+        directory=directory,
+        feed_anchor=verified_feed_anchor,
+        queue_anchor=verified_queue_anchor,
+    )
+    summary_bytes, feed_receipt_bytes, archive_receipt_bytes = (
+        _read_bounded_archive_members(directory)
+    )
+    observed = ArchivedFeedPair(
+        generation_id=archived.generation_id,
+        summary_bytes=summary_bytes,
+        feed_receipt_bytes=feed_receipt_bytes,
+        archive_receipt_bytes=archive_receipt_bytes,
+    )
+    if observed != archived:
+        raise ArchiveCollisionError("archived source differs from its on-disk members")
+    observed.validate(verified_feed_anchor, verified_queue_anchor)
+    _assert_no_redirecting_components(trusted_root, directory)
+    return observed
+
+
+def plan_archived_feed_pair(
+    pair: CoherentFeedPair,
+    *,
+    feed_anchor: policy.FeedLaunchAnchor,
+    queue_anchor: policy.QueueLaunchAnchor,
+    archive_root: Path,
+    trusted_root: Path,
+    archived_at: str,
+) -> ArchivedFeedPair:
+    """Construct or read the exact archive bytes before any publication."""
+
+    verified_feed_anchor = policy.reverify_feed_launch_anchor(feed_anchor)
+    verified_queue_anchor = policy.reverify_queue_launch_anchor(queue_anchor)
+    pair.validate(verified_feed_anchor)
+    directory = archive_root / pair.generation_id / pair.summary_sha256
+    _assert_no_redirecting_components(trusted_root, directory)
+    archive_receipt_path = directory / "archive.receipt.json"
+    if os.path.lexists(archive_receipt_path):
+        summary_bytes, feed_receipt_bytes, archive_receipt_bytes = (
+            _read_bounded_archive_members(directory)
+        )
+        observed = ArchivedFeedPair(
+            generation_id=pair.generation_id,
+            summary_bytes=summary_bytes,
+            feed_receipt_bytes=feed_receipt_bytes,
+            archive_receipt_bytes=archive_receipt_bytes,
+        )
+        _validate_archive_receipt(
+            observed.archive_receipt_bytes,
+            pair=pair,
+            directory=directory,
+            feed_anchor=verified_feed_anchor,
+            queue_anchor=verified_queue_anchor,
+        )
+        if (
+            observed.summary_bytes != pair.summary_bytes
+            or observed.feed_receipt_bytes != pair.feed_receipt_bytes
+        ):
+            raise ArchiveCollisionError("existing archive differs from the planned pair")
+        return revalidate_archived_feed_pair(
+            observed,
+            feed_anchor=verified_feed_anchor,
+            queue_anchor=verified_queue_anchor,
+            trusted_root=trusted_root,
+        )
+    if type(archived_at) is not str or len(archived_at.encode("utf-8")) > 64:
+        raise TypeError("archive recorded_at must be a bounded string")
+    parsed_time = datetime.fromisoformat(archived_at.replace("Z", "+00:00"))
+    if parsed_time.tzinfo is None:
+        raise ValueError("archive recorded_at must be timezone-aware")
+    if parsed_time.utcoffset() != timedelta(0):
+        raise ValueError("archive recorded_at must be UTC")
+    planned = ArchivedFeedPair(
+        generation_id=pair.generation_id,
+        summary_bytes=pair.summary_bytes,
+        feed_receipt_bytes=pair.feed_receipt_bytes,
+        archive_receipt_bytes=policy.canonical_json_bytes(
+            {
+                **verified_feed_anchor.provenance,
+                "archive_path": str(directory.resolve()),
+                "archived_at": archived_at,
+                "feed_receipt_sha256": pair.feed_receipt_sha256,
+                "generation_id": pair.generation_id,
+                "queue_provenance": verified_queue_anchor.provenance,
+                "summary_sha256": pair.summary_sha256,
+            }
+        ),
+    )
+    planned.validate(verified_feed_anchor, verified_queue_anchor)
+    if (
+        len(planned.summary_bytes)
+        + len(planned.feed_receipt_bytes)
+        + len(planned.archive_receipt_bytes)
+        > MAX_ARCHIVED_PAIR_BYTES
+    ):
+        raise ArchiveCollisionError("planned archive exceeds the aggregate byte cap")
+    _validate_archive_receipt(
+        planned.archive_receipt_bytes,
+        pair=pair,
+        directory=directory,
+        feed_anchor=verified_feed_anchor,
+        queue_anchor=verified_queue_anchor,
+    )
+    return planned
+
+
 def _archive_coherent_feed_pair_at_root(
     pair: CoherentFeedPair,
     *,
@@ -477,12 +805,36 @@ def _archive_coherent_feed_pair_at_root(
     archive_root: Path,
     trusted_root: Path,
     recorded_at: Callable[[], str] = _utc_now,
+    planned_archive: ArchivedFeedPair | None = None,
 ) -> ArchivedFeedPair:
     """Testable archive implementation with an explicit trusted root."""
 
     verified_feed_anchor = policy.reverify_feed_launch_anchor(feed_anchor)
     verified_queue_anchor = policy.reverify_queue_launch_anchor(queue_anchor)
     pair.validate(verified_feed_anchor)
+    if planned_archive is None:
+        planned_archive = plan_archived_feed_pair(
+            pair,
+            feed_anchor=verified_feed_anchor,
+            queue_anchor=verified_queue_anchor,
+            archive_root=archive_root,
+            trusted_root=trusted_root,
+            archived_at=recorded_at(),
+        )
+    elif (
+        not isinstance(planned_archive, ArchivedFeedPair)
+        or planned_archive.generation_id != pair.generation_id
+        or planned_archive.summary_bytes != pair.summary_bytes
+        or planned_archive.feed_receipt_bytes != pair.feed_receipt_bytes
+    ):
+        raise ArchiveCollisionError("planned archive differs from the feed pair")
+    if (
+        len(planned_archive.summary_bytes)
+        + len(planned_archive.feed_receipt_bytes)
+        + len(planned_archive.archive_receipt_bytes)
+        > MAX_ARCHIVED_PAIR_BYTES
+    ):
+        raise ArchiveCollisionError("planned archive exceeds the aggregate byte cap")
     _ensure_durable_directory(trusted_root, archive_root)
     generation_directory = archive_root / pair.generation_id
     _ensure_durable_directory(trusted_root, generation_directory)
@@ -496,31 +848,21 @@ def _archive_coherent_feed_pair_at_root(
     _write_create_once(feed_receipt_path, pair.feed_receipt_bytes)
 
     if os.path.lexists(archive_receipt_path):
-        archive_receipt_bytes = _stable_owned_file_bytes(archive_receipt_path)
-    else:
-        archived_at = recorded_at()
-        if type(archived_at) is not str:
-            raise TypeError("archive recorded_at must return a string")
-        parsed_time = datetime.fromisoformat(archived_at.replace("Z", "+00:00"))
-        if parsed_time.tzinfo is None:
-            raise ValueError("archive recorded_at must be timezone-aware")
-        if parsed_time.utcoffset() != timedelta(0):
-            raise ValueError("archive recorded_at must be UTC")
-        proposed_archive_receipt = policy.canonical_json_bytes(
-            {
-                **verified_feed_anchor.provenance,
-                "archive_path": str(directory.resolve()),
-                "archived_at": archived_at,
-                "feed_receipt_sha256": pair.feed_receipt_sha256,
-                "generation_id": pair.generation_id,
-                "queue_provenance": verified_queue_anchor.provenance,
-                "summary_sha256": pair.summary_sha256,
-            }
+        archive_receipt_bytes = _stable_owned_file_bytes_bounded(
+            archive_receipt_path,
+            max_bytes=MAX_ARCHIVED_PAIR_BYTES,
         )
+    else:
         try:
-            _write_create_once(archive_receipt_path, proposed_archive_receipt)
+            _write_create_once(
+                archive_receipt_path,
+                planned_archive.archive_receipt_bytes,
+            )
         except ArchiveCollisionError:
-            archive_receipt_bytes = _stable_owned_file_bytes(archive_receipt_path)
+            archive_receipt_bytes = _stable_owned_file_bytes_bounded(
+                archive_receipt_path,
+                max_bytes=MAX_ARCHIVED_PAIR_BYTES,
+            )
             _validate_archive_receipt(
                 archive_receipt_bytes,
                 pair=pair,
@@ -528,7 +870,10 @@ def _archive_coherent_feed_pair_at_root(
                 feed_anchor=verified_feed_anchor,
                 queue_anchor=verified_queue_anchor,
             )
-        archive_receipt_bytes = _stable_owned_file_bytes(archive_receipt_path)
+        archive_receipt_bytes = _stable_owned_file_bytes_bounded(
+            archive_receipt_path,
+            max_bytes=MAX_ARCHIVED_PAIR_BYTES,
+        )
 
     _validate_archive_receipt(
         archive_receipt_bytes,
@@ -539,9 +884,9 @@ def _archive_coherent_feed_pair_at_root(
     )
     validated_archive_receipt_bytes = archive_receipt_bytes
 
-    summary_bytes = _stable_owned_file_bytes(summary_path)
-    feed_receipt_bytes = _stable_owned_file_bytes(feed_receipt_path)
-    archive_receipt_bytes = _stable_owned_file_bytes(archive_receipt_path)
+    summary_bytes, feed_receipt_bytes, archive_receipt_bytes = (
+        _read_bounded_archive_members(directory)
+    )
     if summary_bytes != pair.summary_bytes or feed_receipt_bytes != pair.feed_receipt_bytes:
         raise ArchiveCollisionError("archived feed bytes changed after create-once write")
     if archive_receipt_bytes != validated_archive_receipt_bytes:

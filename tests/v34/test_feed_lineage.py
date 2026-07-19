@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -148,7 +149,7 @@ def append(
     transition: lifecycle.FeedTransition,
 ) -> lineage.FeedLineageSnapshot:
     expected_snapshot = HEADS.get(path, EMPTY_SNAPSHOT)
-    snapshot = lineage.append_feed_transition(
+    snapshot = lineage._append_feed_transition_uncommitted(
         path,
         transition,
         feed_anchor=ANCHOR,
@@ -158,6 +159,126 @@ def append(
     )
     HEADS[path] = snapshot
     return snapshot
+
+
+def test_prepare_callback_precedes_baseline_mutation(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    captured: list[lineage.FeedAppendPlan] = []
+
+    def prepare(plan: lineage.FeedAppendPlan) -> None:
+        assert not path.exists()
+        assert plan.before_head.event_count == 0
+        assert plan.expected_post_head.event_count == 1
+        assert plan.payload == plan.event_bytes + b"\n"
+        assert hashlib.sha256(plan.payload).hexdigest() == (
+            plan.expected_post_head.active_file_sha256
+        )
+        captured.append(plan)
+
+    result = lineage._append_feed_transition_uncommitted(
+        path,
+        baseline(),
+        feed_anchor=ANCHOR,
+        recorded_at=recorded_at,
+        expected_snapshot=EMPTY_SNAPSHOT,
+        before_apply=prepare,
+        trusted_root=tmp_path,
+    )
+    assert len(captured) == 1
+    assert lineage.portable_head_from_snapshot(result, game_pk=GAME_PK) == (
+        captured[0].expected_post_head
+    )
+
+
+def test_prepare_failure_leaves_lineage_unmodified(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+
+    def reject(_plan: lineage.FeedAppendPlan) -> None:
+        raise RuntimeError("custody unavailable")
+
+    with pytest.raises(RuntimeError, match="custody unavailable"):
+        lineage._append_feed_transition_uncommitted(
+            path,
+            baseline(),
+            feed_anchor=ANCHOR,
+            recorded_at=recorded_at,
+            expected_snapshot=EMPTY_SNAPSHOT,
+            before_apply=reject,
+            trusted_root=tmp_path,
+        )
+    assert not path.exists()
+
+
+def test_exact_prepared_plan_can_resume_without_a_new_timestamp(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "events.jsonl"
+    captured: list[lineage.FeedAppendPlan] = []
+
+    def retain_then_stop(plan: lineage.FeedAppendPlan) -> None:
+        captured.append(plan)
+        raise RuntimeError("simulated crash after prepare")
+
+    transition = baseline()
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        lineage._append_feed_transition_uncommitted(
+            path,
+            transition,
+            feed_anchor=ANCHOR,
+            recorded_at=recorded_at,
+            expected_snapshot=EMPTY_SNAPSHOT,
+            before_apply=retain_then_stop,
+            trusted_root=tmp_path,
+        )
+    result = lineage.append_prepared_feed_transition(
+        path,
+        transition,
+        plan=captured[0],
+        feed_anchor=ANCHOR,
+        expected_snapshot=EMPTY_SNAPSHOT,
+        trusted_root=tmp_path,
+    )
+    assert lineage.portable_head_from_snapshot(result, game_pk=GAME_PK) == (
+        captured[0].expected_post_head
+    )
+
+
+def test_changed_prepared_plan_is_rejected_before_mutation(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    captured: list[lineage.FeedAppendPlan] = []
+
+    def retain_then_stop(plan: lineage.FeedAppendPlan) -> None:
+        captured.append(plan)
+        raise RuntimeError("simulated crash after prepare")
+
+    transition = baseline()
+    with pytest.raises(RuntimeError):
+        lineage._append_feed_transition_uncommitted(
+            path,
+            transition,
+            feed_anchor=ANCHOR,
+            recorded_at=recorded_at,
+            expected_snapshot=EMPTY_SNAPSHOT,
+            before_apply=retain_then_stop,
+            trusted_root=tmp_path,
+        )
+    forged = replace(
+        captured[0],
+        recorded_at=(BASE + timedelta(hours=2)).isoformat(),
+    )
+    with pytest.raises(
+        lineage.FeedLineageFatalError,
+        match="fresh append plan differs",
+    ):
+        lineage.append_prepared_feed_transition(
+            path,
+            transition,
+            plan=forged,
+            feed_anchor=ANCHOR,
+            expected_snapshot=EMPTY_SNAPSHOT,
+            trusted_root=tmp_path,
+        )
+    assert not path.exists()
 
 
 def replay(path: Path) -> lineage.FeedLineageSnapshot:
@@ -271,7 +392,7 @@ def test_forged_retained_game_state_map_is_rejected_before_append(
         lineage.FeedLineageFatalError,
         match="game states differ from their commitment",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             candidate,
             feed_anchor=ANCHOR,
@@ -290,7 +411,7 @@ def test_forged_retained_game_state_map_is_rejected_before_append(
         lineage.FeedLineageFatalError,
         match="game heads differ from the terminal event",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             candidate,
             feed_anchor=ANCHOR,
@@ -322,7 +443,7 @@ def test_earlier_prefix_corruption_with_restored_metadata_is_rejected(
         lineage.FeedLineageFatalError,
         match="(active first event hash|final retained hash) differs",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             baseline(game_pk=825000),
             feed_anchor=ANCHOR,
@@ -355,7 +476,7 @@ def test_recorded_at_callback_cannot_corrupt_verified_prefix(
         lineage.FeedLineageFatalError,
         match="(active first event hash|final retained hash) differs",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             trigger(initial.state),
             feed_anchor=ANCHOR,
@@ -398,7 +519,7 @@ def test_ancestry_is_rechecked_after_recorded_at_callback(
         lineage.FeedLineageFatalError,
         match="ancestry is not trusted",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             trigger(initial.state),
             feed_anchor=ANCHOR,
@@ -422,7 +543,7 @@ def test_forged_retained_count_is_bound_to_terminal_event_before_append(
         lineage.FeedLineageFatalError,
         match="count differs from the terminal event",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             trigger(initial.state),
             feed_anchor=ANCHOR,
@@ -457,7 +578,7 @@ def test_copied_lineage_with_rebuilt_metadata_cannot_change_path_binding(
         lineage.FeedLineageFatalError,
         match="(base path differs|path differs from the terminal event)",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             copied,
             trigger(initial.state),
             feed_anchor=ANCHOR,
@@ -483,7 +604,7 @@ def test_valid_snapshot_cannot_cross_launch_anchors(tmp_path: Path) -> None:
         lineage.FeedLineageFatalError,
         match="launch provenance differs",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             trigger(initial.state),
             feed_anchor=other_anchor,
@@ -523,7 +644,7 @@ def test_fast_terminal_exact_integers_reject_float_aliases(
         lineage.FeedLineageFatalError,
         match=f"retained terminal {field_name} must be an exact integer",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             trigger(initial.state),
             feed_anchor=ANCHOR,
@@ -559,7 +680,7 @@ def test_fast_terminal_state_bytes_hash_is_revalidated(tmp_path: Path) -> None:
         lineage.FeedLineageFatalError,
         match="state bytes hash differs",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             trigger(initial.state),
             feed_anchor=ANCHOR,
@@ -886,28 +1007,21 @@ def test_rotation_rejects_archive_mutated_after_publication_read(
         "MAX_ACTIVE_SEGMENT_BYTES",
         first.file_size * 2,
     )
-    original_read = lineage.feed_archive._stable_owned_file_bytes
-    archive_reads = 0
+    original_write = lineage.feed_archive._write_create_once_hot
 
-    def corrupt_after_second_archive_read(candidate: Path) -> bytes:
-        nonlocal archive_reads
-        value = original_read(candidate)
-        if candidate.parent.name == f".{path.name}.sealed":
-            archive_reads += 1
-            if archive_reads == 2:
-                changed = bytearray(value)
-                changed[0] = ord("[")
-                candidate.write_bytes(changed)
-        return value
+    def corrupt_after_publication(candidate: Path, value: bytes) -> None:
+        original_write(candidate, value)
+        changed = bytearray(value)
+        changed[0] = ord("[")
+        candidate.write_bytes(changed)
 
     monkeypatch.setattr(
         lineage.feed_archive,
-        "_stable_owned_file_bytes",
-        corrupt_after_second_archive_read,
+        "_write_create_once_hot",
+        corrupt_after_publication,
     )
     with pytest.raises(lineage.FeedLineageFatalError):
         append(path, trigger(initial.state))
-    assert archive_reads >= 2
 
 
 def test_rotated_event_size_is_rechecked_before_sealing_or_append(
@@ -969,7 +1083,7 @@ def test_empty_snapshot_rejects_preexisting_inventory(
         lineage.FeedLineageFatalError,
         match="empty expected lineage inventory is not absent",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             baseline(),
             feed_anchor=ANCHOR,
@@ -1000,7 +1114,7 @@ def test_empty_snapshot_rejects_forged_runtime_identity(tmp_path: Path) -> None:
         lineage.FeedLineageFatalError,
         match="empty retained snapshot fields differ",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             baseline(),
             feed_anchor=ANCHOR,
@@ -1393,7 +1507,7 @@ def test_copied_log_cannot_fork_under_a_second_path(tmp_path: Path) -> None:
         lineage.FeedLineageFatalError,
         match="retained snapshot (base )?lineage path differs",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             copied,
             baseline(game_pk=825000),
             feed_anchor=ANCHOR,
@@ -1446,7 +1560,7 @@ def test_non_utc_recorded_time_is_rejected_before_append(tmp_path: Path) -> None
         lineage.FeedLineageFatalError,
         match="timezone-aware UTC",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             baseline(),
             feed_anchor=ANCHOR,
@@ -1495,7 +1609,7 @@ def test_exclusive_append_lock_prevents_same_head_concurrent_corruption(
 
     def first_writer() -> None:
         try:
-            thread_results.append(lineage.append_feed_transition(
+            thread_results.append(lineage._append_feed_transition_uncommitted(
                 path,
                 candidate_a,
                 feed_anchor=ANCHOR,
@@ -1513,7 +1627,7 @@ def test_exclusive_append_lock_prevents_same_head_concurrent_corruption(
         lineage.FeedLineageFatalError,
         match="append lock is already held",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             candidate_b,
             feed_anchor=ANCHOR,
@@ -1547,7 +1661,7 @@ def test_append_lock_tampering_is_rejected_before_lineage_mutation(
         lineage.FeedLineageFatalError,
         match="append lock (ownership|bytes) changed",
     ):
-        lineage.append_feed_transition(
+        lineage._append_feed_transition_uncommitted(
             path,
             baseline(),
             feed_anchor=ANCHOR,
@@ -1598,8 +1712,15 @@ def test_killed_process_releases_append_lock(tmp_path: Path) -> None:
         assert process.stdout.readline().strip() == "locked"
         process.kill()
         assert process.wait(timeout=10) != 0
-        with lineage._exclusive_append_lock(path, trusted_root=tmp_path):
-            pass
+        deadline = time.monotonic() + 2.0
+        while True:
+            try:
+                with lineage._exclusive_append_lock(path, trusted_root=tmp_path):
+                    break
+            except lineage.FeedLineageFatalError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.02)
     finally:
         if process.poll() is None:
             process.kill()

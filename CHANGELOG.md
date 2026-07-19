@@ -2,6 +2,31 @@
 
 ## 2026-07-19
 
+- Completed the reviewed V34 local custody and cadence layer: external
+  two-phase per-game and batch head ledgers, uncertain-append reconciliation,
+  immutable batch registry, active mutation monitoring, local storage
+  preflight, durable heartbeat chains, and a direct Windows Job Object
+  supervisor.
+- Closed the final hot-path scaling findings. Portable heads now carry a
+  constant-size rolling receipt commitment, audited histories use immutable
+  persistent chains, and rotation publishes a new sealed replica without
+  scanning its growing parent. Startup and recovery still replay and validate
+  all history exactly once. Rotation retains writer-denying descriptors for
+  both copies through the final settle and verifies them again after close.
+- Closed startup and exit custody races. The heartbeat grace deadline starts
+  immediately after durable gate publication and before child resume. Only an
+  exact singly owned zero-byte heartbeat file is admitted before heartbeat one.
+  A zero child exit is successful only with a verified live terminal
+  `cycle_complete` record and zero remaining owned processes.
+- The final cadence reviewer returned GO with no Critical or High finding. The
+  full V34 suite passes 319 tests with one environment-only symlink skip, Ruff
+  is clean across V34 code and tests, and strict mypy is clean across V34
+  scripts. No observer or capital authority was created by this work.
+- Rechecked production at 22:57 UTC. Cash is $54.7706, portfolio value is
+  $3.76, total value is $58.53, and five positions retain $3.70 exposure with
+  $0.0171 in fees. Three V30 orders remain resting. The five fills returned for
+  the last 10 days all occurred on July 11. V30 remains the only money writer.
+
 - Implemented and received two independent GO verdicts for the v34 durable
   per-game feed lineage. It binds exact state transitions into a global event
   chain, rotates at a bounded 32 MiB active segment, seals portable receipts,

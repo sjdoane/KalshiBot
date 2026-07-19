@@ -2,6 +2,43 @@
 
 Updated 2026-07-19.
 
+## V34 infrastructure gate closed, fresh observer next
+
+- The external two-phase head ledger, batch ledger, mutation guard, storage
+  preflight, runtime heartbeat, and Python Job Object supervisor are now
+  implemented. The cadence closure reviewer returned GO with no Critical or
+  High finding.
+- The hot append path is independent of accumulated history. Portable heads are
+  constant-size rolling commitments, audited history is retained in immutable
+  persistent chains, new sealed replicas publish without parent-directory
+  enumeration, and complete startup replay remains exhaustive. Rotation holds
+  both source and archive descriptors through its final mutation window.
+- Child startup is suspended until assignment to a Windows Job Object with
+  kill-on-close. The supervisor samples the grace deadline before resuming the
+  child, verifies the exact zero-byte initial heartbeat, requires a live
+  terminal `cycle_complete` heartbeat for a successful exit, and proves that
+  the complete owned process tree is absent before custody can succeed.
+- The settled full V34 suite passes 319 tests with one environment-only symlink
+  capability skip. Ruff is clean across all V34 code and tests, and strict mypy
+  is clean across all V34 scripts. Focused cadence and ledger regressions also
+  pass with history enumeration and persistent-history iteration forced to
+  fail on the hot path.
+- This closes the local runtime and cadence prerequisites, but it does not grant
+  prospective or capital credit. This machine has only one physical NTFS disk,
+  so the archive replica is a logically independent custody copy, not an
+  independent physical failure domain. V34 capital eligibility remains false
+  until external independent custody exists and is reviewed.
+- Fresh production truth at 22:57 UTC is $54.7706 cash plus $3.76 portfolio
+  value, or $58.53 total. Five positions retain $3.70 exposure and $0.0171 in
+  paid fees. The fill endpoint has five fills in the last 10 days, all from
+  July 11, and three V30 bids remain resting. V30 is healthy and remains the
+  only money writer. No V34 process or artifact root is live yet.
+- The next step is a fresh read-only V34 MLB observer under this reviewed
+  supervisor. It must use new launch provenance and local non-OneDrive runtime
+  storage, preserve the frozen three-second cadence and 24-hour horizon, and
+  earn all prospective evidence from its own run. Historical testing, queue
+  shadowing, a money path, and any V34 capital remain downstream gates.
+
 ## Superseding terminal v33 and v34 pivot update
 
 - V33 feed lock2 and queue lock3 are terminal failed evidence. Both stopped

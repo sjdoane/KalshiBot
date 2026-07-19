@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -91,6 +93,43 @@ def archive_pair(
 
 def test_coherent_pair_validates_exact_provenance_and_binding() -> None:
     coherent_pair().validate(ANCHOR)
+
+
+def test_archive_plan_is_exact_and_publishes_nothing(tmp_path: Path) -> None:
+    pair = coherent_pair("planned-generation")
+    planned = archive.plan_archived_feed_pair(
+        pair,
+        feed_anchor=ANCHOR,
+        queue_anchor=QUEUE_ANCHOR,
+        archive_root=tmp_path / "feed-archive",
+        trusted_root=tmp_path,
+        archived_at="2026-07-18T00:00:00+00:00",
+    )
+    assert not (tmp_path / "feed-archive").exists()
+    published = archive._archive_coherent_feed_pair_at_root(
+        pair,
+        feed_anchor=ANCHOR,
+        queue_anchor=QUEUE_ANCHOR,
+        archive_root=tmp_path / "feed-archive",
+        trusted_root=tmp_path,
+        planned_archive=planned,
+    )
+    assert published == planned
+
+
+def test_archive_plan_rejects_unbounded_timestamp_before_publication(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(TypeError, match="bounded string"):
+        archive.plan_archived_feed_pair(
+            coherent_pair("unbounded-time"),
+            feed_anchor=ANCHOR,
+            queue_anchor=QUEUE_ANCHOR,
+            archive_root=tmp_path / "feed-archive",
+            trusted_root=tmp_path,
+            archived_at="2026-07-18T00:00:00." + "0" * 80 + "+00:00",
+        )
+    assert not (tmp_path / "feed-archive").exists()
 
 
 def test_torn_receipt_retries_then_returns_stable_pair(tmp_path: Path) -> None:
@@ -309,7 +348,7 @@ def test_final_receipt_reread_cannot_change_after_schema_validation(
         nonlocal calls
         original(raw, **kwargs)
         calls += 1
-        if calls != 1:
+        if calls != 2:
             return
         receipt = archive._parse_canonical_object(raw, field="archive receipt")
         receipt["archive_path"] = str(tmp_path / "forged-path")
@@ -358,6 +397,108 @@ def test_internal_temp_hard_link_is_recovered_before_validation(
     archive._write_create_once(target, value)
     assert not leftover.exists()
     assert target.stat().st_nlink == 1
+
+
+def test_exact_prelink_temp_is_published_after_process_crash(tmp_path: Path) -> None:
+    target = tmp_path / "summary.json"
+    value = b"durable before link"
+    leftover = tmp_path / f".{target.name}.v34tmp-{'0' * 32}.tmp"
+    leftover.write_bytes(value)
+    archive._write_create_once(target, value)
+    assert target.read_bytes() == value
+    assert not leftover.exists()
+    assert target.stat().st_nlink == 1
+
+
+def test_different_prelink_temp_is_terminal(tmp_path: Path) -> None:
+    target = tmp_path / "summary.json"
+    leftover = tmp_path / f".{target.name}.v34tmp-{'0' * 32}.tmp"
+    leftover.write_bytes(b"different")
+    with pytest.raises(archive.ArchiveCollisionError, match="pre-link temp collision"):
+        archive._write_create_once(target, b"expected")
+    assert not target.exists()
+    assert leftover.read_bytes() == b"different"
+
+
+def test_killed_process_prelink_temp_is_recovered(tmp_path: Path) -> None:
+    target = tmp_path / "member.json"
+    value = b"killed before link"
+    code = "\n".join(
+        (
+            "import sys, time",
+            "from pathlib import Path",
+            "from scripts.v34 import feed_archive as archive",
+            "target = Path(sys.argv[1])",
+            "value = sys.argv[2].encode()",
+            "def stop_before_link(*args, **kwargs):",
+            "    print('prelink', flush=True)",
+            "    time.sleep(600)",
+            "archive.os.link = stop_before_link",
+            "archive._write_create_once(target, value)",
+        )
+    )
+    process = subprocess.Popen(  # noqa: S603
+        [sys.executable, "-c", code, str(target), value.decode()],
+        cwd=policy.REPOSITORY_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert process.stdout is not None
+        assert process.stdout.readline().strip() == "prelink"
+        process.kill()
+        assert process.wait(timeout=10) != 0
+        assert not target.exists()
+        assert len(list(tmp_path.glob(".member.json.v34tmp-*.tmp"))) == 1
+        archive._write_create_once(target, value)
+        assert target.read_bytes() == value
+        assert not list(tmp_path.glob(".member.json.v34tmp-*.tmp"))
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=10)
+
+
+def test_killed_process_postlink_temp_is_recovered(tmp_path: Path) -> None:
+    target = tmp_path / "member.json"
+    value = b"killed after link"
+    code = "\n".join(
+        (
+            "import sys, time",
+            "from pathlib import Path",
+            "from scripts.v34 import feed_archive as archive",
+            "target = Path(sys.argv[1])",
+            "value = sys.argv[2].encode()",
+            "def stop_after_link(*args, **kwargs):",
+            "    print('postlink', flush=True)",
+            "    time.sleep(600)",
+            "archive._fsync_directory = stop_after_link",
+            "archive._write_create_once(target, value)",
+        )
+    )
+    process = subprocess.Popen(  # noqa: S603
+        [sys.executable, "-c", code, str(target), value.decode()],
+        cwd=policy.REPOSITORY_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert process.stdout is not None
+        assert process.stdout.readline().strip() == "postlink"
+        process.kill()
+        assert process.wait(timeout=10) != 0
+        assert target.read_bytes() == value
+        assert len(list(tmp_path.glob(".member.json.v34tmp-*.tmp"))) == 1
+        archive._write_create_once(target, value)
+        assert target.read_bytes() == value
+        assert target.stat().st_nlink == 1
+        assert not list(tmp_path.glob(".member.json.v34tmp-*.tmp"))
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=10)
 
 
 def test_simultaneous_identical_archives_adopt_one_durable_receipt(
@@ -441,3 +582,36 @@ def test_non_utc_archive_time_is_rejected(tmp_path: Path) -> None:
             tmp_path,
             recorded_at=lambda: "2026-07-18T01:00:00+01:00",
         )
+
+
+def test_oversized_archive_member_is_rejected_before_unbounded_read(
+    tmp_path: Path,
+) -> None:
+    archived = archive_pair(tmp_path)
+    summary = next((tmp_path / "feed-archive").rglob("summary.json"))
+    with summary.open("r+b") as handle:
+        handle.truncate(archive.MAX_ARCHIVED_PAIR_BYTES + 1)
+    with pytest.raises(archive.ArchiveCollisionError, match="read bound"):
+        archive.revalidate_archived_feed_pair(
+            archived,
+            feed_anchor=ANCHOR,
+            queue_anchor=QUEUE_ANCHOR,
+            trusted_root=tmp_path,
+        )
+
+
+def test_oversized_exact_crash_temp_is_rejected_by_expected_value_bound(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "member.json"
+    value = b"expected"
+    crash_temp = tmp_path / f".{target.name}.v34tmp-{'a' * 32}.tmp"
+    with crash_temp.open("xb") as handle:
+        handle.truncate(len(value) + 1)
+    with pytest.raises(
+        archive.ArchiveCollisionError,
+        match="pre-link temp collision",
+    ) as raised:
+        archive._write_create_once(target, value)
+    assert raised.value.__cause__ is not None
+    assert "read bound" in str(raised.value.__cause__)
