@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-07-19
+
+- Implemented and received two independent GO verdicts for the v34 durable
+  per-game feed lineage. It binds exact state transitions into a global event
+  chain, rotates at a bounded 32 MiB active segment, seals portable receipts,
+  retains local source and archive identities separately, and fully replays
+  every source and replica against an independently supplied count, head, and
+  ordered receipt set.
+- Closed all Critical and High review findings around canonical temp recovery,
+  crash-before-link and crash-after-link rotation, exact pending-replica retry,
+  smaller-transition forced rotation, portable restore, postpublication archive
+  mutation, postwrite active corruption, rogue inventory, replay races, and
+  stale append locks. Append and replay now share one OS-released byte-range
+  lock. A real killed subprocess released the lock and a later writer recovered
+  its persistent marker.
+- Added a final custody handshake: full active hash, exact sealed inventory and
+  runtime identity recheck, then final active identity observation. Newly sealed
+  source and archive copies receive an additional full receipt-bound content
+  verification. Replay is serialized and cannot delete a live writer's temp.
+- Added 63 focused real-file tests, including crash and concurrency injection.
+  The full v34 suite passes 217 tests with one environment-only symlink skip,
+  Ruff clean, and strict mypy clean. Reviewed SHA256 values are
+  `59865edf1b590c6cb839efc0f952c9e6a3417b6a1bc7db478fe9662ce3d836d0`
+  for `feed_lineage.py` and
+  `9c85a6b20fbe0004ef5c36845e5ed998bef4319633ca7b4665912e505de82a0e`
+  for its focused test file.
+- Removed one redundant retained-prefix hash after reviewer confirmation. A
+  conservative 15-game, 32 MiB, three-pass Windows SHA256 benchmark processed
+  1.406 GiB in 1.1450 seconds, leaving 1.8550 seconds of a three-second cadence.
+  Full feed, parsing, ledger, antivirus, and scheduling soak remains a launch
+  gate.
+- Preserved the component kill criterion. No v34 launch or credit is allowed
+  before a reviewed external two-phase head ledger, canonical global
+  game-to-path registry, uncertain-append reconciliation, independent replica
+  failure domain, local non-OneDrive runtime root, and end-to-end cadence soak.
+- Rechecked production at 18:00 UTC. Cash is $54.7706, portfolio value is
+  $3.78, total value is $58.55, and the fill ledger remains empty for 72 hours.
+  V30 has three resting bids. Its new 13-contract TSA YES rest at 97c was placed
+  automatically after the deposit under the existing 25-percent Arm D cash
+  allocation. V30 remains the only money writer and v34 has no capital path.
+
 ## 2026-07-18
 
 - Implemented and independently reviewed GO the pure v34 feed lifecycle. It

@@ -1,6 +1,6 @@
 # Project Kalshi status
 
-Updated 2026-07-18.
+Updated 2026-07-19.
 
 ## Superseding terminal v33 and v34 pivot update
 
@@ -95,6 +95,35 @@ Updated 2026-07-18.
   skip, Ruff clean, and strict mypy clean. Production integration must durably
   retain that prior head and forbid rebaseline on restart. This slice creates
   no observer, order path, gate credit, or capital authority.
+- The durable v34 per-game feed-lineage storage component is independently
+  reviewed GO by two reviewers with no remaining Critical, High, or Medium
+  internal finding. Portable receipts bind every bounded segment, global event
+  sequence, prior head, launch manifest, path, and exact content hash. Local
+  runtime identities separately bind source and archive device, inode, and
+  mtime without contaminating portable recovery. Rotation uses 32 MiB active
+  segments, exact content-addressed replicas, deterministic recovery of only
+  canonical receipt-matching crash temps, and forced rotation after any exact
+  prepublished replica. Append and replay share an OS-released per-lineage
+  byte-range lock, so stale markers and killed processes recover while replay
+  cannot interfere with a live writer.
+- Adversarial review reproduced and closed prelink and postlink archive crash
+  residue, smaller-transition rotation retry, postwrite prefix corruption,
+  rogue source and archive inventory, archive mutation after publication read,
+  replay mutation, closing cross-file races, and permanent marker locks. Final
+  acceptance uses a closing active hash, exact sealed inventory and identity
+  verification, then a final active identity observation. The focused suite is
+  63 passing tests. The full v34 suite is 217 passing with one environment-only
+  symlink capability skip, Ruff clean, and strict mypy clean. Reviewed source
+  SHA256 is
+  `59865edf1b590c6cb839efc0f952c9e6a3417b6a1bc7db478fe9662ce3d836d0`.
+  A conservative 15-game, 32 MiB, three-hash Windows benchmark read 1.406 GiB
+  in 1.1450 seconds, leaving 1.8550 seconds of the three-second poll budget.
+- This is not a launch authorization. V34 still requires a reviewed external
+  two-phase head ledger, canonical global game-to-path registry with duplicate
+  game rejection, uncertain-append startup reconciliation, independent replica
+  failure domain, local non-OneDrive NTFS runtime root, and end-to-end feed plus
+  ledger cadence soak. Until those exist, v34 has no observer, gate credit,
+  order path, or capital authority.
 - A separate read-only derivatives lock models the full integer payoff lattice
   across compatible digital-option legs. It handles baskets whose cost exceeds
   one dollar, exact strike boundaries, displayed depth, and per-leg rounded
@@ -142,12 +171,13 @@ Updated 2026-07-18.
   are not yet reviewed.
 - V29 remains unchanged. It currently has 4,004 log rows, 71 completed burst
   sessions, and zero sightings. Its close horizon remains 2026-08-15.
-- Fresh authenticated exchange truth at 22:52 UTC is $5.77 cash and $3.74
-  portfolio value, or $9.51 total, with five positions and $3.70 exposure.
-  One v30 TSA YES bid for one contract at 97c remains resting. The authenticated
-  fill ledger has zero fills in the preceding 72 hours. The scheduled v30 task
-  last completed successfully, with its latest heartbeat at 22:50 UTC and Arm
-  E reporting 15 decided markets but no remaining room. V30 remains the only
+- Fresh authenticated exchange truth at 18:00 UTC is $54.7706 cash and $3.78
+  portfolio value, or $58.55 total after the new deposit, with five positions
+  and $3.70 exposure. Three v30 bids are resting: 13 TSA YES contracts at 97c,
+  one TSA YES contract at 97c, and one RT YES contract at 95c. The 13-contract
+  Arm D rest was placed automatically at 17:30:51 UTC under v30's existing
+  25-percent cash allocation after the deposit. The authenticated fill ledger
+  still has zero fills in the preceding 72 hours. V30 remains the only
   money writer.
 
 ## Superseding v33 update

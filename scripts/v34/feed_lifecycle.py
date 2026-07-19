@@ -675,6 +675,8 @@ def transition_game(
                     completed_play_count=len(plays),
                     official_current_total=official_total,
                     completed_plays_sha256=state.last_completed_plays_sha256,
+                    transition_sequence=state.transition_sequence,
+                    prior_state_commitment_sha256=None,
                     state_commitment_sha256=state.state_commitment_sha256,
                 ),
             ),
