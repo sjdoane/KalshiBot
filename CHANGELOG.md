@@ -2,6 +2,34 @@
 
 ## 2026-07-19
 
+- Implemented the fresh read-only V34 MLB feed observer and closed direct
+  terminal custody. The observer binds exact schedule response bytes, root
+  `gamePk`, ordered completed-play prefixes, lifecycle state, per-game and batch
+  ledgers, coherent public generations, and a complete terminal artifact set.
+- Hardened the Windows supervisor around a precommitted exact command, complete
+  required-source population, keyed liveness hashes, the exact owned feed lock,
+  internal append-marker release, nested provenance, canonical game keys,
+  reconstructed ledger inventory, stop and outcome semantics, and full Job
+  Object descendant absence.
+- Added a real observer-through-real-supervisor integration plus fault cases for
+  missing manifests, post-manifest mutation, completion-before-crash, and
+  retained descendants. A separate queue lock in the same runtime parent remains
+  valid and does not weaken exact feed-lock ownership.
+- Added explicit `sniffio==1.3.1` dependency locking after the installed HTTP
+  stack exposed a missing package initializer. The real official MLB probe then
+  parsed both Live and Final payloads and found 15 games across the intended
+  July 20 horizon.
+- The independent rereviewer returned GO with no Critical, High, or
+  one-shot-invalidating Medium finding. The full V34 suite passes 343 tests with
+  one environment-only symlink skip, Ruff is clean, and strict mypy is clean
+  across all 17 V34 source files. This review covers the feed and direct custody
+  slice only, not the queue, combined launcher, evidence gate, or capital gate.
+- Rechecked production at 00:13 UTC on July 20. Cash is $54.7706, portfolio
+  value is $3.76, total value is $58.53, and five nonzero positions retain
+  $3.70 exposure with $0.0171 in fees. Three V30 bids remain resting. The five
+  fills in the last 10 days all occurred on July 11, and V30 remains the only
+  money writer.
+
 - Completed the reviewed V34 local custody and cadence layer: external
   two-phase per-game and batch head ledgers, uncertain-append reconciliation,
   immutable batch registry, active mutation monitoring, local storage

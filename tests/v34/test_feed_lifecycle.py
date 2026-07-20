@@ -550,6 +550,30 @@ def test_final_requires_exact_completed_play_total() -> None:
     assert exact.state.last_abstract_state == "Final"
 
 
+def test_final_settle_poll_is_not_subject_to_live_poll_gap() -> None:
+    completed = {
+        "0": play(0, away=0, home=0, end_seconds=4),
+        "1": play(1, away=2, home=0, end_seconds=8),
+    }
+    initial = observe(
+        None,
+        completed,
+        observed_seconds=10,
+        total=2,
+        abstract="Final",
+        detailed="Final",
+    )
+    settled = observe(
+        initial.state,
+        completed,
+        observed_seconds=80,
+        total=2,
+        abstract="Final",
+        detailed="Final",
+    )
+    assert settled.state.last_abstract_state == "Final"
+
+
 def test_boolean_aliases_noncanonical_keys_and_forged_state_are_fatal() -> None:
     malformed: dict[str, Any] = {
         "0": play(0, away=0, home=0, end_seconds=4)

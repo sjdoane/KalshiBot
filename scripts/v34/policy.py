@@ -53,6 +53,7 @@ REQUIRED_LAUNCH_SOURCES: Final = {
     "scripts/v34/batch_mutation_guard.py",
     "scripts/v34/decision_commit.py",
     "scripts/v34/feed_archive.py",
+    "scripts/v34/feed_observer.py",
     "scripts/v34/feed_lifecycle.py",
     "scripts/v34/feed_lineage.py",
     "scripts/v34/head_ledger.py",

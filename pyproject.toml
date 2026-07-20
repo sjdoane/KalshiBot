@@ -9,6 +9,7 @@ license = { text = "Proprietary - private project" }
 # Core deps for Phase 1.5 (data fetch + calibration analysis) and Phase 2+
 dependencies = [
     "httpx>=0.28.0",
+    "sniffio==1.3.1",
     "tenacity>=9.0.0",
     "pandas>=2.2.0",
     "numpy>=2.0.0",

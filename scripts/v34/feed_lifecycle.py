@@ -704,7 +704,10 @@ def transition_game(
     if poll_monotonic_ns <= prior_poll_monotonic_ns:
         _fatal("nonmonotonic_poll_clock", "successful poll monotonic clock did not advance")
     gap_monotonic_ns = poll_monotonic_ns - prior_poll_monotonic_ns
-    if gap_monotonic_ns > MAX_SUCCESSFUL_POLL_GAP_NS:
+    if (
+        prior.last_abstract_state == "Live"
+        and gap_monotonic_ns > MAX_SUCCESSFUL_POLL_GAP_NS
+    ):
         _fatal(
             "successful_poll_gap",
             f"successful poll gap is {gap_monotonic_ns} monotonic nanoseconds",
