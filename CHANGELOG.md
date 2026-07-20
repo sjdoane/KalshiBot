@@ -2,6 +2,27 @@
 
 ## 2026-07-19
 
+- Implemented and independently reviewed GO the V34 read-only Kalshi queue
+  core. It maps open KXMLBTOTAL events to the official frozen MLB schedule,
+  reconstructs current eligible triggers, detects an executable 100-cent YES
+  ask, records displayed 99-cent depth ahead, selects at most two game-diverse
+  candidates per cycle, and commits only across an unchanged feed generation.
+- The first review reproduced two High evidence defects: distant ambiguous
+  games could be silently excluded without continuity evidence, and unrelated
+  raw bytes could be hashed beside valid parsed market data. Both are closed.
+  Mapping now emits complete assignment or allowed-exclusion evidence, rejects
+  out-of-bound and prohibited ties, and retains a cumulative identity ledger
+  for the whole launch. Exact market and orderbook bytes are decoded, compared,
+  retained in base64, and hashed before a decision is staged.
+- Closed the future-Final freshness bypass and a final Low recovered-hash
+  validation note. Future Live and Final observations both fail, and every
+  recovered cumulative mapping identity must be lowercase SHA256.
+- The final reviewer returned GO with no finding at any severity. The focused
+  queue suite passes 16 tests. The full V34 suite passes 359 tests with one
+  environment-only symlink skip, Ruff is clean, and strict mypy is clean across
+  all 18 V34 source files. A real smoke mapped 154 markets to 14 exact July 20
+  game assignments with zero exclusions and exact raw-byte equality.
+
 - Implemented the fresh read-only V34 MLB feed observer and closed direct
   terminal custody. The observer binds exact schedule response bytes, root
   `gamePk`, ordered completed-play prefixes, lifecycle state, per-game and batch

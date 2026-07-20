@@ -2,7 +2,7 @@
 
 Updated 2026-07-19.
 
-## V34 feed observer and direct custody reviewed GO, queue observer next
+## V34 feed and queue core reviewed GO, queue runtime and launcher next
 
 - The fresh read-only MLB feed observer is complete. It binds the exact official
   MLB schedule bytes, requires root `gamePk` identity, preserves the completed
@@ -22,12 +22,23 @@ Updated 2026-07-19.
   absence of the complete Job Object process tree. A real observer-through-real
   supervisor integration and a fault matrix cover missing or mutated terminal
   evidence, a crashing child, and a retained descendant.
-- The independent rereviewer returned GO with no remaining Critical, High, or
-  one-shot-invalidating Medium finding. The full V34 suite passes 343 tests with
-  one environment-only symlink capability skip. Ruff is clean across V34 code
-  and tests, and strict mypy is clean across all 17 V34 source files. A real MLB
-  probe found 15 games in the intended July 20 horizon and parsed both Live and
-  Final payloads.
+- The feed rereviewer returned GO with no remaining Critical, High, or
+  one-shot-invalidating Medium finding. The queue core also has independent GO
+  with no finding at any severity after two reproduced High mapping and
+  raw-evidence defects were fixed.
+- The read-only queue core maps Kalshi events to exact official MLB games under
+  the unchanged four-hour policy, preserves launch-long assignment and allowed
+  exclusion identities across disappearance and reappearance, captures exact
+  raw market and orderbook bytes, computes the executable YES ask and displayed
+  99-cent depth, selects at most two game-diverse candidates per cycle, and uses
+  the stable-generation decision commit path. Its public HTTP allowlist cannot
+  address portfolio or order endpoints.
+- The full V34 suite passes 359 tests with one environment-only symlink
+  capability skip. Ruff is clean across V34 code and tests, and strict mypy is
+  clean across all 18 V34 source files. A real public smoke mapped 154 open
+  thresholds to 14 exact July 20 game assignments from the 15-game official MLB
+  schedule with zero exclusions. Exact market and orderbook objects matched
+  their retained raw bytes.
 - This closes the feed process and direct local custody slice only. It grants no
   prospective or capital credit. This machine has one physical NTFS disk, so
   physical independent custody remains absent and V34 capital eligibility
@@ -37,12 +48,11 @@ Updated 2026-07-19.
   exposure and $0.0171 in paid fees. The five fills in the last 10 days all
   occurred on July 11. Three V30 bids remain resting, and V30 remains the only
   money writer. No V34 process or artifact root is live yet.
-- The next step is the fresh read-only Kalshi queue observer and combined launch
-  wrapper. The queue must begin only after the first coherent feed pair, archive
-  every consumed pair, produce at most two frozen shadow candidates per cycle,
-  and receive separate terminal custody. The one-shot 24-hour evidence window
-  will start only after this launch path is reviewed and can cover the July 20
-  full slate.
+- The next step is the long-running queue process, launch-long consumption and
+  mapping ledgers, terminal feed acknowledgement, separate queue custody, and
+  the combined launch wrapper. The queue will begin only after the first
+  coherent feed pair. The one-shot 24-hour evidence window will start only
+  after this complete launch path is reviewed and can cover the July 20 slate.
 
 ## Superseding terminal v33 and v34 pivot update
 
